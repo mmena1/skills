@@ -1,7 +1,8 @@
 ---
 name: writing-beats
-description: Writing, exploit; assemble raw material into a journey of beats, grounding each term before a beat leans on it.
-disable-model-invocation: true
+description: Writing, exploit — assemble raw material into a journey of beats, grounding each term before a beat leans on it.
+triggers:
+  - user
 ---
 
 <what-to-do>
