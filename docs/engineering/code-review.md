@@ -6,7 +6,7 @@ The two axes are never merged and never re-ranked. The report ends with a worst 
 
 ## When to reach for it
 
-Type `/code-review`, or the agent reaches for it automatically when you ask to review a branch, a PR, work in progress, or anything "since X".
+Type `/code-review` when you want a review, or let `/implement` run it as its final closeout step. The agent does not reach for it on its own.
 
 | Your situation | Reach for |
 | --- | --- |
@@ -85,7 +85,7 @@ No. It diffs `<fixed-point>...HEAD`, three-dot, which is measured from the merge
 
 ## Where it fits
 
-`code-review` is the review step at the tail of the build chain: `grill-with-docs → to-spec → to-tickets → implement → code-review`. It also stands alone on any branch or PR you point it at.
+`code-review` is the review step at the tail of the build chain — `grill-with-docs → to-spec → to-tickets → implement → code-review` — and also stands alone when you invoke it on any branch or PR you point it at. It is user-invoked rather than an automatic reviewer; `/implement` is the one build flow that runs it as its closeout step.
 
 - [implement](https://aihero.dev/skills-implement) is the closest neighbour: it drives the build and calls this skill as its own closing review before committing.
 - [to-spec](https://aihero.dev/skills-to-spec) and [to-tickets](https://aihero.dev/skills-to-tickets) produce the document the Spec axis checks against; a vague spec makes that axis vague.
