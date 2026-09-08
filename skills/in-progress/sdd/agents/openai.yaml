@@ -1,0 +1,5 @@
+interface:
+  display_name: "SDD"
+  short_description: "Implement ticket graphs with isolated subagents"
+policy:
+  allow_implicit_invocation: false
