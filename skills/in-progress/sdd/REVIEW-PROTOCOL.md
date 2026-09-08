@@ -74,6 +74,6 @@ Resolve by preserving both intents, not by choosing one side's lines. If preserv
 
 After all runnable chunks and closeout work converge, verify no required deterministic validator is failed, blocked, missing, or stale, then invoke `/code-review` from the captured run start to integration head. The Spec axis receives the full PRD, complete ticket set, status map, and rulings. The Standards axis receives the full net diff and all governance sources.
 
-Give all accepted final findings to one aggregate fix worker. Final repairs use ticket-targeted fixup commits on the integration branch. The coordinator autosquashes and proves unchanged tree content, then reconciles the repaired head against the validator inventory, invalidates and reruns every affected validator, reruns broad verification, and dispatches one scoped re-review only after all required validators have current executable PASS evidence.
+Give all accepted final findings to one aggregate fix worker in a dedicated repair worktree based on the integration head. Final repairs use ticket-targeted fixup commits in that worktree; the coordinator verifies and applies them to the integration branch, then autosquashes and proves unchanged tree content. The coordinator reconciles the repaired head against the validator inventory, invalidates and reruns every affected validator, reruns broad verification, and dispatches one scoped re-review only after all required validators have current executable PASS evidence.
 
 The caller branch moves only when no accepted load-bearing final finding remains.

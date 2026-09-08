@@ -64,7 +64,7 @@ Before claiming a ticket, require isolation/permission probe evidence valid for 
 
 Read [CONTEXT-PACKET.md](CONTEXT-PACKET.md). Snapshot repository governance into each worktree, but seed a worker's active context only with its chunk: included tickets, applicable PRD and ADR constraints, direct-blocker outcomes, verification rules, and starting Git state. Never send the complete feature plan to every worker.
 
-Load the `/tdd` and `/codebase-design` references into the packet. TDD governs the red-green implementation loop; codebase-design governs module interfaces, seams, adapters, and ownership boundaries.
+Load the `/tdd` and `/codebase-design` references into the packet. TDD governs the red-green implementation loop; codebase-design governs module interfaces, seams, adapters, and ownership boundaries. If the ticket and applicable context do not establish a pre-agreed test seam, stop with `NEEDS_CONTEXT` before writing a test; do not treat naming a seam as confirmation.
 
 ## 4. Work the chunk frontier
 
@@ -100,7 +100,7 @@ Genuine prose-only terminal tickets use the closeout path in [CHUNKING.md](CHUNK
 
 ## 7. Final review and finish
 
-After no more chunks are runnable, reconcile validators against the final changed paths and verify the ledger contains current executable PASS evidence for every required deterministic validator, then run repository-prescribed broad verification and one whole-integration `/code-review` from the captured starting SHA. Give all final findings to one aggregate fix worker. It creates ticket-targeted fixups; the coordinator autosquashes them and verifies unchanged tree content. Reconcile validators against the repaired head, invalidate and rerun every validator whose covered artifact, command, executable/runtime fingerprint, or execution tree changed, then rerun broad verification and perform one scoped re-review.
+After no more chunks are runnable, reconcile validators against the final changed paths and verify the ledger contains current executable PASS evidence for every required deterministic validator, then run repository-prescribed broad verification and one whole-integration `/code-review` from the captured starting SHA. Give all final findings to one aggregate fix worker in a dedicated repair worktree based on the integration head. It creates ticket-targeted fixups; the coordinator verifies the repair worktree and applies the commits to the integration branch, then autosquashes them and verifies unchanged tree content. Reconcile validators against the repaired head, invalidate and rerun every validator whose covered artifact, command, executable/runtime fingerprint, or execution tree changed, then rerun broad verification and perform one scoped re-review.
 
 If a load-bearing final finding remains, preserve the integration branch and worktrees and stop. Otherwise:
 
