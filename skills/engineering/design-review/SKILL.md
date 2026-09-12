@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Run after `to-spec` produces a spec, before `to-tickets` breaks it into issues. Catch shallow seams, modules whose interface is nearly as complex as their implementation, in the spec's "Implementation Decisions" section, while changing them is still a paragraph edit instead of a follow-up refactor ticket.
 
-Call the Skill tool with "codebase-design" now for the glossary (module, interface, seam, depth, adapter) and its four principles (deletion test, interface-is-the-test-surface, one-adapter-is-hypothetical, depth-is-a-property-of-the-interface). Every check below applies one of those principles. Use the glossary terms exactly, never "component," "service," "API," or "boundary."
+Call the Skill tool with "codebase-design" now for the glossary and shared seam-review checks. That skill owns the definition of good depth, deletion, test-surface, adapter, circular-seam, and bounce design; this skill applies those checks to a spec. Use the glossary terms exactly, never "component," "service," "API," or "boundary."
 
 ## Process
 
@@ -24,11 +24,7 @@ For each proposed module, read the existing code at or near where it will sit. A
 
 For each module in the spec, run all five checks. A module that fails any one is a candidate for rework. Note which check it failed and why. This step is complete when every proposed module has a result for all five checks.
 
-- **Deletion test.** Imagine inlining the module's logic at its call site. If complexity would concentrate into one place, it earns its seam. If it would just relocate, such as a switch statement moved one file over or a pass-through method, cut it and fold the logic into the caller or the module it delegates to.
-- **One adapter is hypothetical, two is real.** If the spec proposes an interface, such as a `Strategy`, `Policy`, or pluggable abstraction, with exactly one implementation in scope and no second implementation on the visible roadmap, the seam is not earning its keep yet. Collapse it to a straight-line method and revisit it if a second implementation actually shows up.
-- **Interface is the test surface.** Check the spec's "Testing Decisions" against the proposed interface. If a test needs to reach past the module's public interface to verify behavior, the interface is drawn in the wrong place.
-- **Circular seam.** If a proposed module's interface takes the module that owns it, or calls back into its own caller, as a parameter, the two are really one module wearing two names. Fold them together. This is the deletion test's sharpest failure mode: the abstraction cannot be deleted without also rewriting the thing it calls back into.
-- **Bounce check.** If understanding the feature's flow requires a reader to jump across more than two or three public modules to follow one complete action, the spec is prescribing the same friction an architecture review would surface post-implementation. Let one module own the end-to-end sequence and keep helpers internal to it. Do not split the sequence into separately testable modules just to make tests easier.
+Apply all five shared checks from `codebase-design`: deletion, adapter reality, interface-as-test-surface, circular seam, and bounce. For the test-surface check, compare the spec's "Testing Decisions" with the proposed interface. Record the result for every module, and quote the relevant decision when a check fails.
 
 ### 4. Verdict
 

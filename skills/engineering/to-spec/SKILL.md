@@ -17,7 +17,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label until `/design-review` has approved the proposed modules. Do not apply `ready-for-agent` to a spec: that label is reserved for executable tickets published by `/to-tickets`.
 
 <spec-template>
 

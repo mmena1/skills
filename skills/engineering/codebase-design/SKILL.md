@@ -64,6 +64,14 @@ When designing an interface, ask:
 - **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is probably the wrong shape.
 - **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a seam unless something actually varies across it.
 
+## Seam review checks
+
+These checks are shared by skills that validate proposed designs before implementation:
+
+- **Circular seam.** A module must not take the module that owns it, or its caller, as an interface parameter. If it does, the two modules are one module wearing two names; fold them together.
+- **Bounce check.** A complete action should not require a reader to jump across more than two or three public modules. Let one module own the end-to-end sequence and keep helpers internal to its implementation.
+- **Test-surface check.** Tests should cross the same interface as callers. If a test reaches past the interface, reconsider where the seam lives.
+
 ## Designing for testability
 
 Good interfaces make testing natural:
