@@ -61,8 +61,28 @@ When designing an interface, ask:
 
 - **Depth is a property of the interface, not the implementation.** A deep module can be internally composed of small, mockable, swappable parts; they just aren't part of the interface. A module can have **internal seams** (private to its implementation, used by its own tests) as well as the **external seam** at its interface.
 - **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
-- **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is probably the wrong shape.
+- **The interface is the test surface.** Externally promised behavior is tested through the public interface. Private internal seams used by the module's own tests are allowed and do not need to be exposed.
 - **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a seam unless something actually varies across it.
+
+## Seam review checks
+
+These five checks are the canonical review semantics shared by skills that validate proposed designs before implementation:
+
+- **Deletion test.** If deleting the module makes complexity disappear, it is a pass-through; if complexity reappears across callers, the seam earns its keep.
+- **Adapter reality.** One adapter is hypothetical; two adapters make a real seam. Do not expose a pluggable interface without justified variation.
+- **Interface-as-test-surface.** Externally promised behavior is tested through the public interface; private internal test seams are allowed.
+
+- **Circular seam.** A module must not take the module that owns it, or its caller, as an interface parameter. If it does, the two modules are one module wearing two names; fold them together.
+- **Bounce check.** A complete action should not require unnecessary traversal across shallow public seams. Let one module own the end-to-end sequence and keep helpers internal to its implementation.
+
+## Whole-design fit checks
+
+These checks are shared by workflows that review a group of modules together:
+
+- **Highest suitable seam.** Reuse the highest existing seam that already owns the relevant behavior; do not add a parallel seam without evidence.
+- **End-to-end ownership.** Give each complete behavior one clear owner so locality and flow do not split across mutually coordinating modules.
+- **Dependency direction.** Reject dependency cycles and mutual ownership; dependencies should point toward the module that owns the behavior.
+- **Concept singularity.** Reject duplicate abstractions for an existing domain concept; extend or reuse the established abstraction when it already owns that meaning.
 
 ## Designing for testability
 

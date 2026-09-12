@@ -1,0 +1,5 @@
+interface:
+  display_name: "Design Review"
+  short_description: "Check proposed modules before ticket breakdown"
+policy:
+  allow_implicit_invocation: false
