@@ -40,16 +40,19 @@ Depth is deliberately *not* defined as the ratio of implementation lines to inte
 
 - **Depth is a property of the interface, not the implementation.** A deep module can be built internally from small swappable parts. They just don't surface to callers. A module can have internal seams its own tests use, and one external seam at its interface.
 - **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through. If it reappears across N callers, it was earning its keep.
-- **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is the wrong shape.
+- **The interface is the test surface.** Externally promised behavior is tested through the public interface. Private internal seams used by the module's own tests are allowed and do not need to be exposed.
 - **One adapter means a hypothetical seam. Two adapters means a real one.** Don't cut a seam until something actually varies across it. A single-adapter seam is just indirection.
 
 ## Seam review checks
 
-Skills that validate proposed designs reuse these checks:
+These five checks are the canonical review semantics shared by skills that validate proposed designs:
+
+- **Deletion test.** Deleting the module should make complexity disappear; if complexity reappears across callers, the seam earns its keep.
+- **Adapter reality.** One adapter is hypothetical; two adapters make a real seam. Do not expose a pluggable interface without justified variation.
+- **Interface-as-test-surface.** Externally promised behavior is tested through the public interface; private internal test seams are allowed.
 
 - **Circular seam.** A module must not take its owner or caller as an interface parameter; fold the two names together when it does.
-- **Bounce check.** A complete action should not require a reader to jump across more than two or three public modules; keep helpers internal to the module that owns the sequence.
-- **Test-surface check.** Tests should cross the same interface as callers. If a test reaches past it, reconsider the seam.
+- **Bounce check.** A complete action should not require unnecessary traversal across shallow public seams; keep helpers internal to the module that owns the sequence.
 
 Two supporting files go further, and the skill reads them on demand rather than up front. [DEEPENING.md](https://github.com/mattpocock/skills/blob/main/skills/engineering/codebase-design/DEEPENING.md) classifies a candidate's dependencies into four categories (in-process, local-substitutable, remote-but-owned, true-external), because the category decides how the deepened module gets tested across its seam. [DESIGN-IT-TWICE.md](https://github.com/mattpocock/skills/blob/main/skills/engineering/codebase-design/DESIGN-IT-TWICE.md) spins up parallel [sub-agents](https://www.aihero.dev/ai-coding-dictionary/subagent) to produce three or more radically different interfaces for the same module, then compares them on depth, locality and seam placement.
 

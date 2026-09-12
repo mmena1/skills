@@ -8,19 +8,21 @@ It runs while the design is still cheap to change. An approved review records th
 
 You invoke this by typing `/design-review`, and the agent won't reach for it on its own.
 
-Reach for it after [to-spec](https://aihero.dev/skills-to-spec) and before [to-tickets](https://aihero.dev/skills-to-tickets), when a spec has an `Implementation Decisions` section that proposes modules. For a design question that is not yet captured in a spec, use [grill-with-docs](https://aihero.dev/skills-grill-with-docs) first.
+Reach for it after [to-spec](https://aihero.dev/skills-to-spec) and before [to-tickets](https://aihero.dev/skills-to-tickets), passing the exact spec issue number, issue URL, or local spec path. For a design question that is not yet captured in a spec, use [grill-with-docs](https://aihero.dev/skills-grill-with-docs) first.
 
 ## The five checks
 
 The review uses the deep-module vocabulary from [codebase-design](https://aihero.dev/skills-codebase-design):
 
-- **Deletion test:** inlining should concentrate complexity, not merely move it.
+- **Deletion test:** deleting the module should make complexity disappear; if complexity reappears across callers, the seam earns its keep.
 - **Adapter reality:** one adapter is hypothetical; two adapters make a real seam.
-- **Interface-as-test-surface:** tests should verify behavior through the public interface.
+- **Interface-as-test-surface:** externally promised behavior should be verified through the public interface; private internal seams used by the module's own tests are allowed.
 - **Circular seam:** a module should not take its owner or caller as a parameter.
-- **Bounce check:** one complete action should not require jumping across a chain of public modules.
+- **Bounce check:** one complete action should not require unnecessary traversal across shallow public seams.
 
 An approved spec records the reviewed modules, end-to-end ownership, public interfaces and seams, justified adapters, interface-level testing decisions, relevant constraints or ADRs, and the domain concepts or call sites that locate the affected code.
+
+For each module, record every check as `Pass`, `Fail`, or `N/A` with evidence. Then record a whole-design fit pass covering the highest suitable existing seam, one clear end-to-end owner, dependency cycles or mutual ownership, and duplicate abstractions for existing domain concepts. Approval requires no `Fail` results; it also removes the temporary `needs-triage` label from the parent spec without applying `ready-for-agent`.
 
 ## Common questions
 
