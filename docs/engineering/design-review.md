@@ -2,7 +2,7 @@
 
 `design-review` checks a spec's proposed modules before they become tickets. It looks for shallow seams, circular seams, test surfaces that leak past the interface, and flows split across too many public modules.
 
-It runs while the design is still cheap to change. An approved review records the validated module contracts in the spec. A rework verdict names the failing check and leaves the design change to you, rather than guessing at a rewrite.
+It runs while the design is still cheap to change. An approved review records the durable verdict and validated module contracts in the spec. The approved spec is a self-contained restart point: a fresh session can continue from it without the original grilling transcript. A rework verdict names the failing check and leaves the design change to you, rather than guessing at a rewrite.
 
 ## When to reach for it
 
@@ -15,10 +15,12 @@ Reach for it after [to-spec](https://aihero.dev/skills-to-spec) and before [to-t
 The review uses the deep-module vocabulary from [codebase-design](https://aihero.dev/skills-codebase-design):
 
 - **Deletion test:** inlining should concentrate complexity, not merely move it.
-- **One adapter is hypothetical, two is real:** a seam needs actual variation.
-- **Interface is the test surface:** tests should verify behavior through the public interface.
+- **Adapter reality:** one adapter is hypothetical; two adapters make a real seam.
+- **Interface-as-test-surface:** tests should verify behavior through the public interface.
 - **Circular seam:** a module should not take its owner or caller as a parameter.
 - **Bounce check:** one complete action should not require jumping across a chain of public modules.
+
+An approved spec records the reviewed modules, end-to-end ownership, public interfaces and seams, justified adapters, interface-level testing decisions, relevant constraints or ADRs, and the domain concepts or call sites that locate the affected code.
 
 ## Common questions
 
@@ -39,4 +41,4 @@ No. An approved review edits the spec's `Implementation Decisions` section in pl
 
 ## Where it fits
 
-`design-review` is a user-invoked chain step between [to-spec](https://aihero.dev/skills-to-spec) and [to-tickets](https://aihero.dev/skills-to-tickets). It sits on the design vocabulary supplied by [codebase-design](https://aihero.dev/skills-codebase-design), while [grilling](https://aihero.dev/skills-grilling) is the better choice when fixing a failed seam would change the feature's shape or intent. [ask-matt](https://aihero.dev/skills-ask-matt) routes you through the whole set.
+`design-review` is a user-invoked chain step between [to-spec](https://aihero.dev/skills-to-spec) and [to-tickets](https://aihero.dev/skills-to-tickets). It applies the canonical seam-review checks supplied by [codebase-design](https://aihero.dev/skills-codebase-design) as a validator; it does not invoke [improve-codebase-architecture](https://aihero.dev/skills-improve-codebase-architecture). [grilling](https://aihero.dev/skills-grilling) is the better choice when fixing a failed seam would change the feature's shape or intent. [ask-matt](https://aihero.dev/skills-ask-matt) routes you through the whole set.

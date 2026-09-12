@@ -30,7 +30,7 @@ Apply all five shared checks from `codebase-design`: deletion, adapter reality, 
 
 State one of:
 
-- **Approved**: every proposed module passed all five checks. Edit the spec's "Implementation Decisions" section in place to record the validated module contract: what each module owns end to end, its public interface, and which adapters justify any seam. This is the only artifact. Do not create a separate design-review file.
+- **Approved**: every proposed module passed all five checks. Edit the spec in place so it becomes a self-contained restart point. Preserve the existing decisions and add a durable `Design Review` section containing: `Verdict: Approved`; the reviewed modules and what each owns end to end; each public interface and seam; the adapters that justify each seam; the testing decisions and interface-level test surfaces; relevant architectural constraints or ADRs; and the domain concepts, call sites, or codebase area needed to locate the implementation without the original conversation. This is the only artifact. Do not create a separate design-review file.
 - **Rework**: at least one module failed a check. Present the failing module, the check it failed, why it failed, and one or two concrete alternatives for fixing the seam. Let the user decide the next step: apply a local seam adjustment directly to the spec, call the Skill tool with "grilling" if the fix changes the feature's shape or intent, or run `to-spec` if the spec's solution itself needs to change. Do not rewrite the spec on a guess.
 
-Do not hand off to `to-tickets` until the verdict is Approved and the spec reflects it.
+Do not hand off to `to-tickets` until the verdict is Approved and the spec reflects it. The Approved spec must be sufficient for a fresh session or another harness to continue without the original grilling transcript.

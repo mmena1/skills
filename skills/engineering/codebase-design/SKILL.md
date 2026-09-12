@@ -66,11 +66,14 @@ When designing an interface, ask:
 
 ## Seam review checks
 
-These checks are shared by skills that validate proposed designs before implementation:
+These five checks are the canonical review semantics shared by skills that validate proposed designs before implementation:
+
+- **Deletion test.** If deleting the module makes complexity disappear, it is a pass-through; if complexity reappears across callers, the seam earns its keep.
+- **Adapter reality.** One adapter is hypothetical; two adapters make a real seam. Do not expose a pluggable interface without justified variation.
+- **Interface-as-test-surface.** Callers and tests cross the same interface. Tests must not reach past it.
 
 - **Circular seam.** A module must not take the module that owns it, or its caller, as an interface parameter. If it does, the two modules are one module wearing two names; fold them together.
 - **Bounce check.** A complete action should not require a reader to jump across more than two or three public modules. Let one module own the end-to-end sequence and keep helpers internal to its implementation.
-- **Test-surface check.** Tests should cross the same interface as callers. If a test reaches past the interface, reconsider where the seam lives.
 
 ## Designing for testability
 
