@@ -38,7 +38,7 @@ No. An approved review updates the exact spec artifact in place, preserving `Imp
 
 - Every proposed module has a result for all five checks.
 - An approved spec states what each module owns end to end and which adapters justify its seams.
-- A rework verdict identifies the failing module, the failed check, and concrete alternatives.
+- A rework verdict identifies the failing result, explains why it failed, and gives concrete alternatives.
 - `to-tickets` is not started until the spec has an approved verdict.
 
 ## Where it fits
