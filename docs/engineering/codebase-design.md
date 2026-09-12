@@ -54,6 +54,15 @@ These five checks are the canonical review semantics shared by skills that valid
 - **Circular seam.** A module must not take its owner or caller as an interface parameter; fold the two names together when it does.
 - **Bounce check.** A complete action should not require unnecessary traversal across shallow public seams; keep helpers internal to the module that owns the sequence.
 
+## Whole-design fit checks
+
+Workflows that review a group of modules together reuse these checks:
+
+- **Highest suitable seam.** Reuse the highest existing seam that already owns the relevant behavior; do not add a parallel seam without evidence.
+- **End-to-end ownership.** Give each complete behavior one clear owner so locality and flow do not split across mutually coordinating modules.
+- **Dependency direction.** Reject dependency cycles and mutual ownership; dependencies should point toward the module that owns the behavior.
+- **Concept singularity.** Reject duplicate abstractions for an existing domain concept; extend or reuse the established abstraction when it already owns that meaning.
+
 Two supporting files go further, and the skill reads them on demand rather than up front. [DEEPENING.md](https://github.com/mattpocock/skills/blob/main/skills/engineering/codebase-design/DEEPENING.md) classifies a candidate's dependencies into four categories (in-process, local-substitutable, remote-but-owned, true-external), because the category decides how the deepened module gets tested across its seam. [DESIGN-IT-TWICE.md](https://github.com/mattpocock/skills/blob/main/skills/engineering/codebase-design/DESIGN-IT-TWICE.md) spins up parallel [sub-agents](https://www.aihero.dev/ai-coding-dictionary/subagent) to produce three or more radically different interfaces for the same module, then compares them on depth, locality and seam placement.
 
 ## Common questions

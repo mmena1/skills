@@ -75,6 +75,15 @@ These five checks are the canonical review semantics shared by skills that valid
 - **Circular seam.** A module must not take the module that owns it, or its caller, as an interface parameter. If it does, the two modules are one module wearing two names; fold them together.
 - **Bounce check.** A complete action should not require unnecessary traversal across shallow public seams. Let one module own the end-to-end sequence and keep helpers internal to its implementation.
 
+## Whole-design fit checks
+
+These checks are shared by workflows that review a group of modules together:
+
+- **Highest suitable seam.** Reuse the highest existing seam that already owns the relevant behavior; do not add a parallel seam without evidence.
+- **End-to-end ownership.** Give each complete behavior one clear owner so locality and flow do not split across mutually coordinating modules.
+- **Dependency direction.** Reject dependency cycles and mutual ownership; dependencies should point toward the module that owns the behavior.
+- **Concept singularity.** Reject duplicate abstractions for an existing domain concept; extend or reuse the established abstraction when it already owns that meaning.
+
 ## Designing for testability
 
 Good interfaces make testing natural:

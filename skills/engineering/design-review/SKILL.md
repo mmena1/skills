@@ -28,13 +28,13 @@ Apply all five shared checks from `codebase-design`: deletion, adapter reality, 
 
 ### 4. Check whole-design fit
 
-After the per-module checks, run one whole-design pass. Confirm that the design reuses the highest suitable existing seam, gives one clear module end-to-end ownership of the action, rejects dependency cycles or mutual ownership, and does not introduce a duplicate abstraction for an existing domain concept. Record each result as `Pass`, `Fail`, or `N/A`, with evidence.
+After the per-module checks, run the shared whole-design fit checks from `codebase-design`: highest suitable seam, end-to-end ownership, dependency direction, and concept singularity. Record each result as `Pass`, `Fail`, or `N/A`, with evidence.
 
 ### 5. Verdict
 
 State one of:
 
 - **Approved**: every per-module and whole-design result is `Pass` or justified `N/A`, with no `Fail` results. Edit the exact spec artifact in place so it becomes a self-contained restart point. Preserve the existing decisions and add a durable `Design Review` section containing: `Verdict: Approved`; the reviewed modules and what each owns end to end; each public interface and seam; the adapters that justify each seam; the per-module and whole-design results with evidence; the testing decisions and interface-level test surfaces; relevant architectural constraints or ADRs; and the domain concepts, call sites, or codebase area needed to locate the implementation without the original conversation. On approval, remove the temporary `needs-triage` label from the parent spec. Do not apply `ready-for-agent` to it. This is the only artifact. Do not create a separate design-review file.
-- **Rework**: at least one module failed a check. Present the failing module, the check it failed, why it failed, and one or two concrete alternatives for fixing the seam. Let the user decide the next step: apply a local seam adjustment directly to the spec, call the Skill tool with "grilling" if the fix changes the feature's shape or intent, or run `to-spec` if the spec's solution itself needs to change. Do not rewrite the spec on a guess.
+- **Rework**: at least one per-module or whole-design result is `Fail`. Present the failing result, why it failed, and one or two concrete alternatives for fixing the design. Let the user decide the next step: apply a local seam adjustment directly to the spec, call the Skill tool with "grilling" if the fix changes the feature's shape or intent, or run `to-spec` if the spec's solution itself needs to change. Do not rewrite the spec on a guess.
 
 Do not hand off to `to-tickets` until the verdict is Approved and the spec reflects it. The Approved spec must be sufficient for a fresh session or another harness to continue without the original grilling transcript.

@@ -73,7 +73,7 @@ Partly. It is strong on big existing codebases lacking consistent structure, and
 
 **How is this different from `/codebase-design`?**
 
-`/codebase-design` is a reference, not a session driver. It supplies the vocabulary (module, interface, depth, seam, adapter, leverage, locality) and the canonical seam-review checks (deletion, adapter reality, interface-as-test-surface, circular seam, bounce); this skill borrows them. Pointing a fresh agent at `/codebase-design` as the thing to "do" is a known failure: with no process of its own to follow, the agent invents one, re-explores code and runs for a very long time before asking you anything. Drive with this skill; consume that one.
+`/codebase-design` is a reference, not a session driver. It supplies the vocabulary (module, interface, depth, seam, adapter, leverage, locality), the canonical seam-review checks (deletion, adapter reality, interface-as-test-surface, circular seam, bounce), and the whole-design fit checks (highest suitable seam, end-to-end ownership, dependency direction, concept singularity); this skill borrows them. Pointing a fresh agent at `/codebase-design` as the thing to "do" is a known failure: with no process of its own to follow, the agent invents one, re-explores code and runs for a very long time before asking you anything. Drive with this skill; consume that one.
 
 **Will it ever tell me the codebase is fine?**
 

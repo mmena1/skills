@@ -20,7 +20,7 @@ The review uses the deep-module vocabulary from [codebase-design](https://aihero
 - **Circular seam:** a module should not take its owner or caller as a parameter.
 - **Bounce check:** one complete action should not require unnecessary traversal across shallow public seams.
 
-An approved spec records the reviewed modules, end-to-end ownership, public interfaces and seams, justified adapters, interface-level testing decisions, relevant constraints or ADRs, and the domain concepts or call sites that locate the affected code.
+An approved spec records the reviewed modules, end-to-end ownership, public interfaces and seams, justified adapters, interface-level testing decisions, relevant constraints or ADRs, and the domain concepts or call sites that locate the affected code. It also adds or updates a durable `Design Review` section containing the verdict and evidence.
 
 For each module, record every check as `Pass`, `Fail`, or `N/A` with evidence. Then record a whole-design fit pass covering the highest suitable existing seam, one clear end-to-end owner, dependency cycles or mutual ownership, and duplicate abstractions for existing domain concepts. Approval requires no `Fail` results; it also removes the temporary `needs-triage` label from the parent spec without applying `ready-for-agent`.
 
@@ -32,7 +32,7 @@ No. `to-spec` captures the decisions and proposed seams. `design-review` checks 
 
 **Does it create a separate review document?**
 
-No. An approved review edits the spec's `Implementation Decisions` section in place. A rework verdict gives you options without rewriting the spec on a guess.
+No. An approved review updates the exact spec artifact in place, preserving `Implementation Decisions` and adding or updating its durable `Design Review` section. A rework verdict gives you options without rewriting the spec on a guess.
 
 ## It's working if
 
