@@ -9,7 +9,7 @@ triggers:
 
 Scaffold the per-repo configuration that the engineering skills assume:
 
-- **Issue tracker**: where issues live (GitHub by default; local markdown is also supported out of the box)
+- **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, and frontier refresh work (GitHub by default; local markdown is also supported out of the box)
 - **Triage labels**: the strings used for the five canonical triage roles
 - **Domain docs**: where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
 
@@ -111,6 +111,7 @@ Then write the docs files using the seed templates in this skill folder as a sta
 - [domain.md](./domain.md): domain doc consumer rules + layout
 
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
+Include explicit implementation-ready state, direct parent or spec lookup, blocker checks, claim behavior, resolution, and frontier refresh. Tracker-specific commands and state names belong in that file so `/implement` does not need tracker-specific branches.
 
 ### 5. Done
 

@@ -33,6 +33,15 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Implementation workflow
+
+- **Implementation-ready state**: the issue has the label mapped from the `ready-for-agent` role in `docs/agents/triage-labels.md`; when no mapping file exists, the default label is `ready-for-agent`.
+- **Parent/spec**: follow the direct reference in the issue's `## Parent` section, or its native parent relationship when available. Read the parent's body and comments. The ticket defines scope and acceptance criteria; the approved parent defines architecture and public seams.
+- **Open and unblocked**: fetch state, labels, assignees, and dependency data. The issue must be open and every native `blocked_by` dependency, or fallback `Blocked by` reference, must be closed.
+- **Claim**: after all readiness checks pass, run `gh issue edit <n> --add-assignee @me`.
+- **Resolve**: update acceptance criteria when supported, comment with commit and verification evidence, then close the issue. Do not close the parent spec.
+- **Refresh frontier**: re-query the parent's open children, remove blocked or assigned tickets, preserve parent order, and report the resulting frontier. If the ticket belongs to a Wayfinder map, also perform its resolve operation below.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.

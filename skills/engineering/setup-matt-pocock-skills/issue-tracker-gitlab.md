@@ -34,6 +34,15 @@ Create a GitLab issue.
 
 Run `glab issue view <number> --comments`.
 
+## Implementation workflow
+
+- **Implementation-ready state**: the issue has the label mapped from the `ready-for-agent` role in `docs/agents/triage-labels.md`; when no mapping file exists, the default label is `ready-for-agent`.
+- **Parent/spec**: follow the direct reference in the issue's `## Parent` section. Read the parent's description and notes. The ticket defines scope and acceptance criteria; the approved parent defines architecture and public seams.
+- **Open and unblocked**: fetch state, labels, assignees, and issue links. The issue must be open and every native `blocked_by` link, or fallback `Blocked by` reference, must be closed.
+- **Claim**: after all readiness checks pass, run `glab issue update <n> --assignee @me`.
+- **Resolve**: update acceptance criteria when supported, post a note with commit and verification evidence, then close the issue. Do not close the parent spec.
+- **Refresh frontier**: re-query the parent's open children, remove blocked or assigned tickets, preserve parent order, and report the resulting frontier. If the ticket belongs to a Wayfinder map, also perform its resolve operation below.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
