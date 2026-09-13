@@ -16,6 +16,8 @@ This is a self-contained worker. Finish the ticket through commits, review, and 
 
 Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `CONTEXT.md`, and ADRs governing the area.
 
+For a ticket-driven run, require `docs/agents/issue-tracker.md` to define all six implementation operations: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, and frontier promotion. If the file is missing or predates this contract, stop and tell the user to re-run `/setup-matt-pocock-skills` to migrate it. Do not infer missing tracker behavior.
+
 Resolve the user's reference through the configured tracker workflow. For a ticket:
 
 - Fetch its current body, comments, state, labels or status, blockers, and parent relationship.
@@ -33,8 +35,6 @@ Before any write to the tracker or worktree:
 3. Require `git status --porcelain` to be empty. Continue from a dirty worktree only when the user explicitly authorizes that exact starting state.
 4. Capture `git rev-parse HEAD` as `BASELINE`. Keep this exact commit SHA fixed for the whole run.
 5. Claim the ticket using the configured tracker workflow when claiming is supported. Claiming is the first write and happens only after the preceding gates pass.
-
-If the repository has no `docs/agents/issue-tracker.md` for a ticket-driven run, tell the user to run `/setup-matt-pocock-skills` and stop.
 
 ## 3. Separate implementation choices from contradictions
 

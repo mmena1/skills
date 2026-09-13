@@ -21,12 +21,13 @@ Read the file at the referenced path. The user will normally pass the path or th
 
 ## Implementation workflow
 
-- **Implementation-ready state**: `Status: ready-for-agent`, or the mapped value for that role in `docs/agents/triage-labels.md` when present.
+- **Implementation-ready state**: `Status: ready-for-agent`, or the mapped value for that role in `docs/agents/triage-labels.md` when present. Only open, unblocked, unclaimed implementation tickets have this state.
+- **Planned state**: `Status: planned`. Every blocked implementation ticket has this explicit non-ready state.
 - **Parent/spec**: follow the ticket's `Parent:` path and read the spec. The ticket defines scope and acceptance criteria; the parent spec defines approved architecture and public seams.
-- **Open and unblocked**: the ticket is open unless `Status` is `resolved` or `closed`. Resolve every entry in `Blocked by:` and confirm each referenced ticket is resolved.
+- **Open and unblocked**: the ticket is open unless `Status` is `resolved` or `closed`. The `Blocked by:` references are the canonical gate; confirm each referenced ticket is resolved.
 - **Claim**: after all readiness checks pass, set `Status: claimed` and save before implementation.
 - **Resolve**: check completed acceptance criteria, append an `## Implementation` summary with commit and verification evidence, then set `Status: resolved`.
-- **Refresh frontier**: rescan sibling issue files for ready, unblocked, unclaimed tickets in number order and report the resulting frontier. If the ticket belongs to a Wayfinder map, also perform the map update below.
+- **Frontier promotion**: after publishing tickets or resolving one, rescan every open, unclaimed sibling implementation ticket. Set unblocked tickets to the configured implementation-ready state and blocked tickets to `Status: planned`, then report the frontier in number order. If the resolved ticket belongs to a Wayfinder map, also perform the map update below.
 
 ## Wayfinding operations
 

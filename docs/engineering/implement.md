@@ -19,7 +19,7 @@ You invoke this by typing `/implement <issue-or-spec>`, and the agent will not r
 
 ## Prerequisites
 
-Ticket-driven work needs `docs/agents/issue-tracker.md`, created by [setup-matt-pocock-skills](https://aihero.dev/skills-setup-matt-pocock-skills). That file names the ready state and the tracker-specific parent, blocker, claim, resolution, and frontier operations.
+Ticket-driven work needs `docs/agents/issue-tracker.md`, created by [setup-matt-pocock-skills](https://aihero.dev/skills-setup-matt-pocock-skills). That file must name the ready state and the tracker-specific parent, blocker, claim, resolution, and frontier-promotion operations. An existing file without the full contract is treated as an older configuration: the worker stops and asks you to migrate it instead of guessing.
 
 The worker also requires a clean starting worktree unless you explicitly approve the exact dirty state. It records the current `HEAD` SHA before editing and keeps that SHA as the review baseline for the entire run.
 
@@ -41,7 +41,7 @@ The implementation is committed before review. That sequencing is essential beca
 
 `implement` explicitly composes `code-review` with the captured SHA and the source bundle. Both skills remain explicit-only, so this does not turn code review into a spontaneous background behavior. Blocking findings are fixed, verified, committed, and reviewed again from the same original baseline. Advisory smell findings do not create an endless cleanup loop.
 
-Only after acceptance criteria, required verification, and review pass does the worker close the ticket and refresh the configured frontier. It never pushes, merges, or opens a pull request without separate authorization.
+Only after acceptance criteria, required verification, and review pass does the worker close the ticket and promote every newly unblocked, unclaimed ticket into the configured ready state. It never pushes, merges, or opens a pull request without separate authorization.
 
 ## Pre-agreed seams
 
@@ -54,6 +54,10 @@ The user is asked only when implementation materially needs a new or changed pub
 **Why did it stop before claiming my ticket?**
 
 Claiming is the first tracker write. The worker first proves that the issue is open, unblocked, in the configured ready state, and starts from a clean worktree. A failed gate is a stop unless you explicitly override it.
+
+**It says my tracker configuration is too old even though the file exists.**
+
+Existence is not enough. The file must define ready and planned states, direct parent lookup, canonical blocker checks, claim, resolve, and frontier promotion. Re-run [setup-matt-pocock-skills](https://aihero.dev/skills-setup-matt-pocock-skills); migration preserves your tracker choice and custom commands while adding only the missing contract.
 
 **Why did it stop after it had already committed code?**
 
@@ -78,7 +82,7 @@ Only after a separate instruction authorizes that external action. A normal run 
 - Tests use approved public seams without repeating a settled question.
 - The first review sees committed changes in `<baseline>...HEAD`.
 - Every blocking finding is followed by a fix commit and another review from the same baseline.
-- Success leaves a clean worktree, a closed ticket, and a refreshed frontier, with no push, merge, or pull request.
+- Success leaves a clean worktree, a closed ticket, and every newly executable frontier ticket promoted to the ready state, with no push, merge, or pull request.
 
 ## Where it fits
 
