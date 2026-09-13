@@ -34,6 +34,15 @@ Create a GitLab issue.
 
 Run `glab issue view <number> --comments`.
 
+## Implementation workflow
+
+- **Implementation-ready state**: the issue has the label mapped from the `ready-for-agent` role in `docs/agents/triage-labels.md`; when no mapping file exists, the default label is `ready-for-agent`. Only open, unblocked, unassigned implementation issues have this label. Absence of the label is the planned or non-ready state.
+- **Parent/spec**: follow the direct reference in the issue's `## Parent` section. Read the parent's description and notes. The ticket defines scope and acceptance criteria; the approved parent defines architecture and public seams.
+- **Open and unblocked**: fetch state, labels, assignees, and issue links. The issue must be open. Native `blocked_by` links are the canonical gate when available; otherwise use the configured fallback `Blocked by` references. Every blocker must be closed.
+- **Claim**: after all readiness checks pass, assign the issue with `glab issue update <n> --assignee @me` and remove the implementation-ready label so the claimed issue leaves the frontier.
+- **Resolve**: update acceptance criteria when supported, post a note with commit and verification evidence, then close the issue. Do not close the parent spec.
+- **Frontier promotion**: after publishing tickets or closing one, re-query every open child of the parent. Add the implementation-ready label to every unblocked, unassigned child; remove it from blocked or assigned children. Preserve parent order and report the resulting frontier. If the closed ticket belongs to a Wayfinder map, also perform its resolve operation below.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
