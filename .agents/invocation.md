@@ -13,13 +13,13 @@ Bucket `README.md`s and the top-level `README.md` group entries into **User-invo
 
 ## Dependencies between them
 
-Dependencies are expressed as an explicit instruction to **call the Skill tool** with the named skill (`Call the Skill tool with "grilling"`), not deep `../other-skill/FILE.md` cross-references, and not a bare `/skill`-style mention left for the model to interpret. Naming the tool is what gets it fired: most harnesses expose skill invocation as a tool the model calls, and spelling that out gets a higher hit rate than dropping a `/name` into prose and hoping it's read as a command. Dropping the leading `/` also keeps this harness-neutral rather than less: a skill name on its own carries no assumption about which harness's trigger syntax it belongs to. Shared reference docs live inside the skill that owns them; other skills reach that material by calling the Skill tool with it, not by linking across folders.
+Dependencies are expressed as an explicit instruction to **apply the named skill** (`Apply the "grilling" skill now`), not deep `../other-skill/FILE.md` cross-references, and not a bare `/skill`-style mention left for the model to interpret. In Codex, use the named model-invoked skill when it is present in the active skill catalog; if it is not loaded, read that skill's `SKILL.md` from the active skill root before continuing. Do not claim that a separate Skill tool call occurred when the harness does not expose one. Shared reference docs live inside the skill that owns them; other skills reach that material by applying the named model-invoked skill, not by linking across folders.
 
 This is about **operative** instructions: a skill's own steps telling the agent to go run another skill right now. Router prose that just names skills for a human to pick from (`ask-matt`, bucket `README.md`s) isn't invoking anything, so it keeps `/skill`-style names as plain labels.
 
-The Skill tool takes one skill per call. A step that needs two skills is two calls, not one call with two names: say so (`Call the Skill tool twice, for "grilling" and "domain-modeling"`), not "call it with X and Y," which reads as a single call taking both.
+Apply one skill at a time. A step that needs two skills must apply each one separately: say so (`Apply the "grilling" skill, then apply "domain-modeling"`), not "apply X and Y" as if they were one combined skill.
 
-This whole convention only holds when the named skill is **model-invoked**. A user-invoked skill can never be reached this way, full stop: per the invariant above, no other skill can call it, including by naming it to the Skill tool. When a step's precondition is a user-invoked skill (e.g. `setup-matt-pocock-skills`), phrase it as an instruction for the human to act on: "tell the user to run `/setup-matt-pocock-skills`", never as a Skill tool call.
+This whole convention only holds when the named skill is **model-invoked**. A user-invoked skill can never be reached as a dependency. When a step's precondition is a user-invoked skill (e.g. `setup-matt-pocock-skills`), phrase it as an instruction for the human to act on: "tell the user to run `/setup-matt-pocock-skills`".
 
 ## Passive vs active domain work
 

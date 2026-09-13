@@ -22,7 +22,7 @@ The review uses the deep-module vocabulary from [codebase-design](https://aihero
 
 An approved spec records the reviewed modules, end-to-end ownership, public interfaces and seams, justified adapters, interface-level testing decisions, relevant constraints or ADRs, and the domain concepts or call sites that locate the affected code. It also adds or updates a durable `Design Review` section containing the verdict and evidence.
 
-For each module, record every check as `Pass`, `Fail`, or `N/A` with evidence. Then record a whole-design fit pass covering the highest suitable existing seam, one clear end-to-end owner, dependency cycles or mutual ownership, and duplicate abstractions for existing domain concepts. Approval requires no `Fail` results; it also removes the temporary `needs-triage` label from the parent spec without applying `ready-for-agent`.
+For each module, record every check as `Pass`, `Fail`, or `N/A` with evidence. Then record a whole-design fit pass covering the highest suitable existing seam, one clear end-to-end owner, dependency cycles or mutual ownership, and duplicate abstractions for existing domain concepts. Approval requires no `Fail` results; it also removes both `needs-triage` and `ready-for-agent` from the parent spec. `ready-for-agent` is reserved for executable tickets produced by `to-tickets`.
 
 ## Common questions
 

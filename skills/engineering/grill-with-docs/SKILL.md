@@ -5,4 +5,4 @@ triggers:
   - user
 ---
 
-Call the Skill tool twice, for "grilling" and "domain-modeling".
+Apply the `grilling` skill, then apply `domain-modeling`. If either skill is not already loaded, read its `SKILL.md` from the active skill root first.
