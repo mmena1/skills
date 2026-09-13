@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Run after `to-spec` produces a spec, before `to-tickets` breaks it into issues. Invoke it with an exact spec reference: an issue number, issue URL, or local spec path. Catch shallow seams, modules whose interface is nearly as complex as their implementation, in the spec's "Implementation Decisions" section, while changing them is still a paragraph edit instead of a follow-up refactor ticket.
 
-Apply the `codebase-design` skill now for the glossary and shared seam-review checks. If it is not already loaded, read its `SKILL.md` from the active skill root first. That skill owns the definition of good depth, deletion, test-surface, adapter, circular-seam, and bounce design; this skill applies those checks to a spec. Use the glossary terms exactly, never "component," "service," "API," or "boundary."
+Apply the `codebase-design` skill now for the glossary and shared seam-review checks. If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first. That skill owns the definition of good depth, deletion, test-surface, adapter, circular-seam, and bounce design; this skill applies those checks to a spec. Use the glossary terms exactly, never "component," "service," "API," or "boundary."
 
 ## Process
 

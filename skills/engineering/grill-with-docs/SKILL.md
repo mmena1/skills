@@ -5,4 +5,4 @@ triggers:
   - user
 ---
 
-Apply the `grilling` skill, then apply `domain-modeling`. If either skill is not already loaded, read its `SKILL.md` from the active skill root first.
+Apply the `grilling` skill, then apply `domain-modeling`. If either skill is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first.

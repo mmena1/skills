@@ -11,7 +11,7 @@ Surface architectural friction and propose **deepening opportunities**: refactor
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
-- Apply `codebase-design` for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its canonical seam-review checks (deletion, adapter reality, interface-as-test-surface, circular seam, bounce) plus whole-design fit checks (highest suitable seam, end-to-end ownership, dependency direction, concept singularity). If it is not already loaded, read its `SKILL.md` from the active skill root first. Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
+- Apply `codebase-design` for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its canonical seam-review checks (deletion, adapter reality, interface-as-test-surface, circular seam, bounce) plus whole-design fit checks (highest suitable seam, end-to-end ownership, dependency direction, concept singularity). If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first. Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
 - The domain language in `CONTEXT.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
 
 ## Process
@@ -25,7 +25,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 
 Read the project's domain glossary (`CONTEXT.md`) and any ADRs in the area you're touching first.
 
-Delegate an exploration pass using the Codex harness's available delegation mechanism. If no delegation mechanism is available, perform the exploration in this session as a separate pass. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Delegate an exploration pass using the current harness's available delegation or subagent mechanism. If no delegation mechanism is available, perform the exploration in this session as a separate pass. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow**, with an interface nearly as complex as the implementation?
@@ -62,9 +62,9 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, apply `grilling` to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive. Read its `SKILL.md` from the active skill root first if it is not already loaded.
+Once the user picks a candidate, apply `grilling` to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive. If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first.
 
-Side effects happen inline as decisions crystallize; apply `domain-modeling` to keep the domain model current as you go. Read its `SKILL.md` from the active skill root first if it is not already loaded:
+Side effects happen inline as decisions crystallize; apply `domain-modeling` to keep the domain model current as you go. If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first:
 
 - **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md`. Create the file lazily if it doesn't exist.
 - **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
