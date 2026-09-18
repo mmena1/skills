@@ -12,9 +12,9 @@ The default routes are:
 
 | Route | Best fit |
 | --- | --- |
-| **GPT-5.6 Luna — Medium** | Bounded application of established patterns with explicit acceptance criteria and cheap local verification |
-| **GPT-5.6 Sol — High** | Important abstractions, interacting invariants, lifecycle or state semantics, architecture, design, or deep review |
-| **GPT-6 Astra — High** | Consequential uncertainty across independently complex systems, late verification, or subtle semantic errors with expensive downstream rework |
+| **GPT-5.6 Luna: Medium** | Bounded application of established patterns with explicit acceptance criteria and cheap local verification |
+| **GPT-5.6 Sol: High** | Important abstractions, interacting invariants, lifecycle or state semantics, architecture, design, or deep review |
+| **GPT-6 Astra: High** | Consequential uncertainty across independently complex systems, late verification, or subtle semantic errors with expensive downstream rework |
 
 Task length and file count do not move a task upward by themselves. A large deterministic migration can stay Luna; a small probabilistic update whose errors look plausible can require Astra.
 
@@ -31,6 +31,16 @@ Task length and file count do not move a task upward by themselves. A large dete
 | `/evaluate-model /implement a probabilistic belief updater combining multiple evidence sources, open-world uncertainty, reversible corrections, and late calibration` | Astra High |
 | `/evaluate-model /improve-codebase-architecture after the first bounded domain pipeline` | Normally Sol High |
 | `/evaluate-model independent architecture review of the complete end-to-end production loop after implementation` | Potentially Astra High in a fresh session |
+
+## Common questions
+
+**Does a different recommended model always mean a fresh session?**
+
+For Codex, yes when the current model is observable: the evaluator reports a fresh session because the main model is not switched inside an existing session. When the current model is unknown, it states the condition instead of guessing. The canonical phase-boundary policy still decides the session boundary when the model already matches.
+
+**Does a phase change always require a fresh session?**
+
+No. The evaluator follows the canonical phase-boundary tree, which checks whether the next phase needs the current session as a primary source or still fits the smart zone before considering `/clear`, `/handoff-doc`, a subagent, or `/compact`.
 
 ## Prior-art boundary
 

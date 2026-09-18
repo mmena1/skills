@@ -21,15 +21,15 @@ Task length, prompt length, file count, line count, and prestige are not routing
 
 ## Starting routes
 
-### GPT-5.6 Luna — Medium
+### GPT-5.6 Luna: Medium
 
 Default to Luna Medium when acceptance criteria are explicit, the architecture and patterns already exist, the work mainly applies them, and tests or contracts expose mistakes locally and cheaply. Large deterministic or mechanical changes can remain here when rework stays bounded.
 
-### GPT-5.6 Sol — High
+### GPT-5.6 Sol: High
 
 Use Sol High when the task creates an important abstraction; composes multiple nontrivial invariants; depends on lifecycle, identity, concurrency, staleness, ordering, or state-machine semantics; or performs architecture, design, or deep review. The problem may span components, but its objective and boundaries are still substantially specified. Prefer Sol as the normal stronger route when a locally plausible answer could violate a deeper invariant.
 
-### GPT-6 Astra — High
+### GPT-6 Astra: High
 
 Reserve Astra High for unusually expensive reasoning mistakes: consequential early choices remain uncertain; many downstream steps depend on them; multiple independently complex systems or domains interact; verification is late or end-to-end; or semantic, probabilistic, or statistical errors can look convincing while invalidating substantial later work. Astra is a risk route, not a synonym for complex.
 
@@ -41,27 +41,30 @@ Let the inspected target skill establish the baseline, then let the specific tas
 
 ## Session boundary
 
-Recommend `Session: current` when this task directly continues focused work and the accumulated evidence remains coherent and materially useful. Recommend `Session: fresh` when independence matters, the objective or workflow phase changes substantially, prior assumptions were superseded, or the session contains abandoned approaches or stale/conflicting context. A model change alone does not require a fresh session.
+Choose the model and effort first. Then apply the canonical phase-boundary policy in `ask-matt/PHASE-BOUNDARIES.md` when that file is available. Its ordered tree owns the context decision: continue when the next phase needs the current session as a primary source or still fits the smart zone; otherwise choose the policy's least costly precise boundary such as `/clear`, `/handoff-doc`, a subagent, or `/compact`.
 
-When current-session quality is not observable, omit the `Session` field and give one short conditional sentence instead of inventing state.
+Report `Session: current` when that policy selects Continue. Report `Session: fresh` when it selects a new session boundary such as `/clear`, `/handoff-doc`, or `/compact`; name the boundary in the reasons. A subagent recommendation can remain current-session work because it leaves the main session intact.
+
+Finally apply the harness overlay. For Codex, determine the current model when it is observable. If it differs from the recommended model, report `Session: fresh` and tell the user to select the recommended model in a new Codex session. If the current model is unknown, state that condition rather than guessing. This overlay takes precedence over Continue because Codex does not switch the main model inside an existing session.
+
+When phase-boundary or current-model state is not observable, omit the `Session` field and give a short conditional sentence instead of inventing state.
 
 ## Output
 
 Keep the recommendation compact:
 
 ```text
-Recommended: GPT-5.6 Sol — High
+Recommended: GPT-5.6 Sol: High
 Confidence: High
 Session: fresh
 
 Why:
 * 2–4 concrete task properties
 
-Why not Luna:
-* the nearest weaker route's specific shortfall
-
-Why not Astra:
-* why the nearest stronger route would not reduce expected rework enough
+Route comparison:
+* Luna: explain why Sol is unnecessary when Luna is selected.
+* Sol: explain why Luna is insufficient, and why Astra would not reduce expected rework enough when that distinction is useful.
+* Astra: explain why Sol is insufficient.
 
 Escalate if:
 * concise evidence that would change the route during execution
