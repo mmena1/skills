@@ -32,7 +32,7 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
 Look for the originating spec, in this order:
 
 1. A source bundle supplied by the caller. For an implementation ticket, this is the ticket for scope and acceptance criteria plus its approved parent or spec for architecture and settled decisions.
-2. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
+2. Issue references in the commit messages, fetched via the workflow in `docs/agents/issue-tracker.md`.
 3. A path the user passed as an argument.
 4. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
 5. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".

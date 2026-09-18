@@ -26,7 +26,7 @@ The Standards axis needs nothing. It reads whatever the repo documents (`CODING_
 The Spec axis needs an originating source to exist and be findable. It looks in this order:
 
 1. A source bundle supplied by the caller, including both ticket and approved parent when available.
-2. Issue references in the commit messages (`#123`, `Closes #45`, a GitLab `!67`), fetched through `docs/agents/issue-tracker.md`.
+2. Issue references in the commit messages, fetched through `docs/agents/issue-tracker.md`.
 3. A path you pass in as an argument.
 4. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch or feature name.
 5. Asking you.
