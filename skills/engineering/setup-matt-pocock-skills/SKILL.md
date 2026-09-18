@@ -117,7 +117,7 @@ Then write the docs files using the seed templates in this skill folder as a sta
 - [domain.md](./domain.md): domain doc consumer rules + layout
 
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
-Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim behavior, resolution, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` does not need tracker-specific branches.
+Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim and assignment state, resolution and resolved-state verification, child enumeration with deterministic ordering, idempotent ready-state mutation semantics, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
 For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations, adapting them to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
