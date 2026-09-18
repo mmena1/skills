@@ -200,6 +200,7 @@ Skills I use daily for code work.
 - **[design-review](./skills/engineering/design-review/SKILL.md)**: Check a spec's proposed modules for shallow seams before ticket breakdown.
 - **[to-tickets](./skills/engineering/to-tickets/SKILL.md)**: Break a plan into tracer-bullet tickets with blocking edges, then mark only the executable frontier as implementation-ready.
 - **[implement](./skills/engineering/implement/SKILL.md)**: Implement one approved issue through readiness gates, `/tdd`, committed fixed-point `/code-review`, and tracker closeout.
+- **[reconcile](./skills/engineering/reconcile/SKILL.md)**: Recompute a resolved implementation ticket's entire parent frontier from current tracker state.
 - **[code-review](./skills/engineering/code-review/SKILL.md)**: Two-axis review of the diff since a fixed point: **Standards** (does it follow the repo's coding standards, plus a Fowler smell baseline?) and **Spec** (does it faithfully implement the originating issue/spec?), run as parallel sub-agents so neither pollutes the other.
 - **[wayfinder](./skills/engineering/wayfinder/SKILL.md)**: Plan a huge chunk of work, more than one agent session can hold, as a shared map of decision tickets on the issue tracker, and resolve them one at a time until the way to the destination is clear.
 

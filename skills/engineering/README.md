@@ -15,6 +15,7 @@ Reachable only when you type them (Claude Code: `disable-model-invocation: true`
 - **[design-review](./design-review/SKILL.md)**: Check a spec's proposed modules for shallow seams before ticket breakdown.
 - **[to-tickets](./to-tickets/SKILL.md)**: Break a plan into tracer-bullet tickets with blocking edges, then mark only the executable frontier as implementation-ready.
 - **[implement](./implement/SKILL.md)**: Implement one approved issue through readiness gates, `/tdd`, committed fixed-point `/code-review`, and tracker closeout.
+- **[reconcile](./reconcile/SKILL.md)**: Recompute a resolved implementation ticket's entire parent frontier from current tracker state.
 - **[code-review](./code-review/SKILL.md)**: Two-axis review of the diff since a fixed point: **Standards** (does it follow the repo's coding standards, plus a Fowler smell baseline?) and **Spec** (does it faithfully implement the originating issue/spec?), run as parallel sub-agents.
 - **[wayfinder](./wayfinder/SKILL.md)**: Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on the issue tracker, resolved one at a time until the way to the destination is clear.
 

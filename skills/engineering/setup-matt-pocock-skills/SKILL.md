@@ -9,7 +9,7 @@ triggers:
 
 Scaffold the per-repo configuration that the engineering skills assume:
 
-- **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, and frontier promotion work (GitHub by default; local markdown is also supported out of the box)
+- **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, reconciliation, and frontier promotion work (GitHub by default; local markdown is also supported out of the box)
 - **Triage labels**: the strings used for the five canonical triage roles
 - **Domain docs**: where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
 
@@ -30,7 +30,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
-When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, and frontier promotion.
+When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, post-resolution trigger verification, child enumeration, and frontier promotion.
 
 ### 2. Present findings and ask
 

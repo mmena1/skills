@@ -28,6 +28,7 @@ Read the file at the referenced path. The user will normally pass the path or th
 - **Claim**: after all readiness checks pass, set `Status: claimed` and save before implementation.
 - **Resolve**: check completed acceptance criteria, append an `## Implementation` summary with commit and verification evidence, then set `Status: resolved`.
 - **Frontier promotion**: after publishing tickets or resolving one, rescan every open, unclaimed sibling implementation ticket. Set unblocked tickets to the configured implementation-ready state and blocked tickets to `Status: planned`, then report the frontier in number order. If the resolved ticket belongs to a Wayfinder map, also perform the map update below.
+- **`/reconcile` contract**: `/reconcile <ticket-ref>` uses the resolved ticket as its trigger, follows its `Parent:` path, and rescans every implementation sibling under that spec in filename or configured parent order. Verify the trigger is resolved before writing. A child is ready only when open, every blocker is resolved, and unclaimed. Set only statuses that differ, remove stale ready status from blocked, claimed, closed, or otherwise non-executable children, leave the parent unchanged, and report promotions, removals, no-ops, unresolved blockers, and the resulting frontier. If local resolution already refreshed the frontier, a second run is a no-op.
 
 ## Wayfinding operations
 
