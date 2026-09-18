@@ -39,7 +39,7 @@ Run `gh issue view <number> --comments`.
 - **Parent/spec**: follow the direct reference in the issue's `## Parent` section, or its native parent relationship when available. Read the parent's body and comments. The ticket defines scope and acceptance criteria; the approved parent defines architecture and public seams.
 - **Open and unblocked**: fetch state, labels, assignees, and dependency data. The issue must be open. Native `blocked_by` dependencies are the canonical gate when available; otherwise use the configured fallback `Blocked by` references. Every blocker must be closed.
 - **Claim**: after all readiness checks pass, assign the issue with `gh issue edit <n> --add-assignee @me` and remove the implementation-ready label so the claimed issue leaves the frontier.
-- **Resolve**: update acceptance criteria when supported, comment with commit and verification evidence, then close the issue. Do not close the parent spec.
+- **Resolve**: for implementation closeout, update acceptance criteria when supported and comment with commit and verification evidence, but leave the issue open. The implementation PR or merge commit must carry `Closes #<n>` so GitHub closes the issue after merge. Do not close the parent spec. Explicit issue closure is reserved for tracker workflows whose lifecycle requires it outside `/implement`.
 - **Frontier promotion**: after publishing tickets or closing one, re-query every open child of the parent. Add the implementation-ready label to every unblocked, unassigned child; remove it from blocked or assigned children. Preserve parent order and report the resulting frontier. If the closed ticket belongs to a Wayfinder map, also perform its resolve operation below.
 
 ## Wayfinding operations

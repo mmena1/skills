@@ -1,6 +1,6 @@
 ## What it does
 
-`implement` takes one approved [ticket](https://www.aihero.dev/ai-coding-dictionary/ticket) or [spec](https://www.aihero.dev/ai-coding-dictionary/spec) from resolution through committed, reviewed implementation and tracker closeout. For a ticket, the ticket owns scope and acceptance criteria while its directly referenced approved parent owns architecture and public test seams.
+`implement` takes one approved [ticket](https://www.aihero.dev/ai-coding-dictionary/ticket) or [spec](https://www.aihero.dev/ai-coding-dictionary/spec) from resolution through committed, reviewed implementation and tracker closeout. Local tickets may be resolved during closeout; GitHub issues remain open until the implementation PR merges. For a ticket, the ticket owns scope and acceptance criteria while its directly referenced approved parent owns architecture and public test seams.
 
 The defining constraint is one worker, one ticket. It will make ordinary local implementation choices from existing patterns, but it stops instead of inventing a missing product decision, changing approved architecture, crossing an external gate, or pulling later tickets forward.
 
@@ -22,6 +22,7 @@ You invoke this by typing `/implement <issue-or-spec>`, and the agent will not r
 Ticket-driven work needs `docs/agents/issue-tracker.md`, created by [setup-matt-pocock-skills](https://aihero.dev/skills-setup-matt-pocock-skills). That file must name the ready state and the tracker-specific parent, blocker, claim, resolution, and frontier-promotion operations. An existing file without the full contract is treated as an older configuration: the worker stops and asks you to migrate it instead of guessing.
 
 The worker also requires a clean starting worktree unless you explicitly approve the exact dirty state. It records the current `HEAD` SHA before editing and keeps that SHA as the review baseline for the entire run.
+Before claiming or editing, it resolves the repository's default branch and checks the current branch. If the checkout is on the default branch, it creates and switches to a new branch following the repository's naming and branching conventions; it never commits implementation work on a default branch such as `main` or `master`. A detached checkout, empty branch name, or failed branch creation is a stop condition.
 
 ## Authority and stop conditions
 
@@ -38,10 +39,11 @@ Routine private design choices do not trigger another planning round. A material
 ## Fixed-point closeout
 
 The implementation is committed before review. That sequencing is essential because `code-review` examines `<baseline>...HEAD`; uncommitted work is absent from that diff.
+Every implementation and review-fix commit is made on the non-default branch established before work begins.
 
 `implement` explicitly composes `code-review` with the captured SHA and the source bundle. Both skills remain explicit-only, so this does not turn code review into a spontaneous background behavior. Blocking findings are fixed, verified, committed, and reviewed again from the same original baseline. Advisory smell findings do not create an endless cleanup loop.
 
-Only after acceptance criteria, required verification, and review pass does the worker close the ticket and promote every newly unblocked, unclaimed ticket into the configured ready state. It never pushes, merges, or opens a pull request without separate authorization.
+Only after acceptance criteria, required verification, and review pass does the worker complete tracker closeout. Local trackers may resolve the ticket and promote newly unblocked, unclaimed tickets. GitHub closeout records evidence and leaves the issue open for the PR merge to close; dependent tickets are not promoted until then. It never pushes, merges, or opens a pull request without separate authorization.
 
 ## Pre-agreed seams
 
@@ -82,7 +84,7 @@ Only after a separate instruction authorizes that external action. A normal run 
 - Tests use approved public seams without repeating a settled question.
 - The first review sees committed changes in `<baseline>...HEAD`.
 - Every blocking finding is followed by a fix commit and another review from the same baseline.
-- Success leaves a clean worktree, a closed ticket, and every newly executable frontier ticket promoted to the ready state, with no push, merge, or pull request.
+- Success leaves a clean worktree and the tracker in its configured post-implementation state: a resolved local ticket, or an open GitHub issue awaiting PR merge, with no push, merge, or pull request.
 
 ## Where it fits
 
