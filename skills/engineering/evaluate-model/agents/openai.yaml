@@ -1,0 +1,5 @@
+interface:
+  display_name: "Evaluate Model"
+  short_description: "Choose a model and effort before a task"
+policy:
+  allow_implicit_invocation: false

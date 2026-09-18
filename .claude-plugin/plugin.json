@@ -20,6 +20,7 @@
   ],
   "skills": [
     "./skills/engineering/ask-matt",
+    "./skills/engineering/evaluate-model",
     "./skills/engineering/diagnosing-bugs",
     "./skills/engineering/grill-with-docs",
     "./skills/engineering/triage",
