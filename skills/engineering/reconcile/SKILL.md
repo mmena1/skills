@@ -30,6 +30,8 @@ Report the triggering ticket, parent/spec, tickets promoted to ready, tickets re
 
 For GitHub, verify the merged PR's expected `Closes #<issue>` lifecycle indirectly through the issue's closed state. Native GitHub issue dependencies are authoritative when available. If the trigger is still open, report the failed close-reference lifecycle and leave all dependents unchanged. Do not modify the parent spec.
 
+For GitLab, verify the supplied issue is closed after the configured merge-request closeout. Prefer the configured native child or epic relationship and its order; otherwise enumerate issues whose direct `## Parent` reference resolves to the parent, using the configured order or ascending issue IID. Native blocking links are authoritative when available, with the configured `Blocked by` fallback used only when native dependency data is unavailable. An open trigger stops without mutations.
+
 For local markdown, resolve the supplied path or configured ticket identifier, follow its `Parent:` line, verify its `Status:` is the configured resolved or closed state, then rescan every sibling file under the parent feature in filename or configured parent order. Update only the configured ready/planned or equivalent status fields needed to converge the frontier. If local resolution already performs a synchronous frontier refresh, still use the same idempotent classification and avoid a second write when states already match.
 
 ## Scope boundary

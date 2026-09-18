@@ -4,7 +4,7 @@
 
 ## When to reach for it
 
-You invoke this by typing `/reconcile <ticket-ref>`, and the agent won't reach for it on its own. Reach for it after a merged GitHub implementation PR has auto-closed its issue, or when a local tracker needs the same explicit frontier recomputation. For implementation work itself, use [implement](https://aihero.dev/skills-implement); for a broad tracker cleanup, this skill is intentionally the wrong tool.
+You invoke this by typing `/reconcile <ticket-ref>`, and the agent won't reach for it on its own. Reach for it after a merged GitHub implementation PR or GitLab merge request has closed its issue, or when a local tracker needs the same explicit frontier recomputation. For implementation work itself, use [implement](https://aihero.dev/skills-implement); for a broad tracker cleanup, this skill is intentionally the wrong tool.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ The repository must have the tracker configuration produced by [setup-matt-pococ
 
 The leading idea is **recompute**. A child is ready only when it is open, every blocker is resolved, and it is unclaimed. The skill re-queries all implementation children under the triggering ticket's parent, so it handles multiple newly executable siblings and also removes stale ready states from blocked, assigned, closed, or otherwise non-executable children. Parent order remains the order of the resulting frontier.
 
-GitHub uses native issue dependencies when available and checks that the trigger is closed before writing. A missing or ineffective `Closes #<issue>` lifecycle stops the run without compensating by closing the issue. Local markdown trackers follow their `Parent:` and `Status:` fields and converge sibling statuses idempotently.
+GitHub and GitLab use native issue relationships and dependencies when available and check that the trigger is closed before writing. A missing or ineffective close lifecycle stops the run without compensating by closing the issue. Local markdown trackers follow their `Parent:` and `Status:` fields and converge sibling statuses idempotently.
 
 ## Common questions
 
