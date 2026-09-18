@@ -20,7 +20,7 @@ Task length and file count do not move a task upward by themselves. A large dete
 
 ## Session recommendation
 
-`Session: current` means the task directly continues focused work and the accumulated evidence is coherent and useful. `Session: fresh` means independence matters, the objective or phase has changed, assumptions were superseded, or stale and abandoned approaches would bias the work. A different model does not automatically imply a fresh session. When the evaluator cannot see enough session state, it gives a conditional instead of pretending to know.
+Session placement follows the canonical phase-boundary tree. A phase change alone does not require a fresh session: report `Session: current` when the tree selects Continue, and `Session: fresh` when it selects a new session boundary such as `/clear`, `/handoff-doc`, or `/compact`. For Codex, if the recommended model differs from the observable current model, report `Session: fresh`; if the current model is unknown, state that condition instead of guessing. When the evaluator cannot see enough phase or model state, it gives a conditional instead of pretending to know.
 
 ## Examples
 
