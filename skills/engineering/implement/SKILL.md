@@ -34,7 +34,10 @@ Before any write to the tracker or worktree:
 2. For a ticket, verify it is open, every blocker is resolved, and it is in the implementation-ready state defined by `docs/agents/issue-tracker.md`. A user may explicitly override a failed ticket-state gate.
 3. Require `git status --porcelain` to be empty. Continue from a dirty worktree only when the user explicitly authorizes that exact starting state.
 4. Capture `git rev-parse HEAD` as `BASELINE`. Keep this exact commit SHA fixed for the whole run.
-5. Claim the ticket using the configured tracker workflow when claiming is supported. Claiming is the first write and happens only after the preceding gates pass.
+5. Resolve the repository's default branch before changing the worktree or tracker. Use this chain: the local symbolic remote `HEAD` for the repository's configured primary remote; the provider/tracker's authoritative default branch (for GitHub, `gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'`); the repository's explicitly documented default branch; then stop if none resolves. A failed or empty provider lookup proceeds to the next fallback; it does not weaken the stop condition. Then inspect the current branch with `git branch --show-current`.
+   - If the current branch is the default branch, create and switch to a new branch following the repository's naming and branching conventions before claiming, editing, or committing; never commit implementation work on a default branch such as `main` or `master`.
+   - If the current branch is detached, empty, or branch creation fails, stop before changing the worktree or tracker and report the exact Git state and failure.
+6. Claim the ticket using the configured tracker workflow when claiming is supported. Claiming is the first write and happens only after the preceding gates pass.
 
 ## 3. Separate implementation choices from contradictions
 
@@ -55,10 +58,11 @@ Run the repository's configured targeted checks during development. At the end, 
 After the implementation and required verification pass:
 
 1. Inspect the diff and stage only files belonging to this ticket.
-2. Commit the implementation to the current branch, referencing the ticket or spec. The commit must exist before review so `<BASELINE>...HEAD` contains the work.
-3. Explicitly compose the `code-review` workflow with `BASELINE` and the originating source bundle: the ticket plus its approved parent or spec, or the directly requested spec. If the harness cannot invoke an explicit-only skill as a dependency, read `code-review/SKILL.md` from the active skill root and follow it directly. This instruction authorizes only this named review step; it does not make code review implicitly invokable.
-4. Treat documented-standards violations and every missing, partial, incorrect, or out-of-scope Spec finding as blocking. Smell-baseline findings are advisory unless they demonstrate a documented or correctness violation.
-5. Fix every blocking finding that is within the approved scope, rerun the affected targeted checks and required final verification, commit the fixes, then repeat review against the same `BASELINE` and source bundle.
+2. Confirm `git branch --show-current` is non-empty and is not the resolved default branch. If this invariant is false, stop without committing and report it.
+3. Commit the implementation to the current non-default branch, referencing the ticket or spec. The commit must exist before review so `<BASELINE>...HEAD` contains the work.
+4. Explicitly compose the `code-review` workflow with `BASELINE` and the originating source bundle: the ticket plus its approved parent or spec, or the directly requested spec. If the harness cannot invoke an explicit-only skill as a dependency, read `code-review/SKILL.md` from the active skill root and follow it directly. This instruction authorizes only this named review step; it does not make code review implicitly invokable.
+5. Treat documented-standards violations and every missing, partial, incorrect, or out-of-scope Spec finding as blocking. Smell-baseline findings are advisory unless they demonstrate a documented or correctness violation.
+6. Fix every blocking finding that is within the approved scope, rerun the affected targeted checks and required final verification, commit the fixes on the same non-default branch, then repeat review against the same `BASELINE` and source bundle.
 
 Continue the loop while findings produce actionable, in-scope progress. If a finding exposes a product or architecture decision, external gate, impossible criterion, or contradiction, use the stop path in step 3 instead of improvising.
 
@@ -66,7 +70,7 @@ Continue the loop while findings produce actionable, in-scope progress. If a fin
 
 Success requires all acceptance criteria satisfied, required verification passing, no blocking review findings, and a clean worktree containing only committed ticket work.
 
-For a ticket run, update and close the ticket and refresh the tracker frontier exactly as `docs/agents/issue-tracker.md` describes. Report the ticket or spec, approved authority, `BASELINE`, commits, verification, review result, and any newly available frontier work.
+For a ticket run, perform the configured tracker closeout exactly as `docs/agents/issue-tracker.md` describes. Local tickets may be resolved and their frontier refreshed. For GitHub issues, record the implementation commit and verification evidence, leave the issue open, and record the PR/merge handoff obligation, including the issue number and required `Closes #<issue>` reference. The separately authorized PR/merge owner owns adding and verifying that reference and, after merge, running the tracker's post-merge reconciliation to confirm auto-closure and refresh the frontier. Do not promote GitHub-dependent frontier tickets before that reconciliation. Report the ticket or spec, approved authority, `BASELINE`, commits, verification, review result, and any newly available frontier work.
 
 If the run stops, leave the ticket open and report the completed work, current commits, failed or unrun checks, and the precise decision, gate, contradiction, or impossible criterion. Never claim completion from partial evidence.
 
