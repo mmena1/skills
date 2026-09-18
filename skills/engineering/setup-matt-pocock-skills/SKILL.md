@@ -9,7 +9,7 @@ triggers:
 
 Scaffold the per-repo configuration that the engineering skills assume:
 
-- **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, and frontier promotion work (GitHub by default; local markdown is also supported out of the box)
+- **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, reconciliation, and frontier promotion work (GitHub by default; local markdown is also supported out of the box)
 - **Triage labels**: the strings used for the five canonical triage roles
 - **Domain docs**: where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
 
@@ -30,7 +30,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
-When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, and frontier promotion.
+When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, post-resolution trigger verification, concrete child enumeration and deterministic ordering, and frontier promotion.
 
 ### 2. Present findings and ask
 
@@ -42,14 +42,13 @@ Lead each section with the recommended answer so the user can accept it in a wor
 
 > Explainer: The "issue tracker" is where issues live for this repo. Skills like `to-tickets`, `triage`, and `to-spec` read from and write to it. They need to know whether to call `gh issue create`, write a markdown file under `.scratch/`, or follow some other workflow you describe. Pick the place you actually track work for this repo.
 
-Default posture: these skills were designed for GitHub. If a `git remote` points at GitHub, propose that. If a `git remote` points at GitLab (`gitlab.com` or a self-hosted host), propose GitLab. Otherwise (or if the user prefers), offer:
+Default posture: these skills were designed for GitHub. If a `git remote` points at GitHub, propose that. Otherwise (or if the user prefers), offer:
 
 - **GitHub**: issues live in the repo's GitHub Issues (uses the `gh` CLI)
-- **GitLab**: issues live in the repo's GitLab Issues (uses the [`glab`](https://gitlab.com/gitlab-org/cli) CLI)
 - **Local markdown**: issues live as files under `.scratch/<feature>/` in this repo (good for solo projects or repos without a remote)
 - **Other** (Jira, Linear, etc.): ask the user to describe the workflow in one paragraph; the skill will record it as freeform prose
 
-Record the choice in `docs/agents/issue-tracker.md`. The GitHub and GitLab templates carry a "PRs as a request surface" flag, defaulted **off**. Leave it off and don't raise it: a user who wants external PRs in the triage queue can flip the flag in the file later.
+Record the choice in `docs/agents/issue-tracker.md`. The GitHub template carries a "PRs as a request surface" flag, defaulted **off**. Leave it off and don't raise it: a user who wants external PRs in the triage queue can flip the flag in the file later.
 
 If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show only the missing implementation-workflow additions, and do not ask the user to choose the tracker again.
 
@@ -113,13 +112,12 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 Then write the docs files using the seed templates in this skill folder as a starting point:
 
 - [issue-tracker-github.md](./issue-tracker-github.md): GitHub issue tracker
-- [issue-tracker-gitlab.md](./issue-tracker-gitlab.md): GitLab issue tracker
 - [issue-tracker-local.md](./issue-tracker-local.md): local-markdown issue tracker
 - [triage-labels.md](./triage-labels.md): label mapping (only if `triage` is installed)
 - [domain.md](./domain.md): domain doc consumer rules + layout
 
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
-Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim behavior, resolution, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` does not need tracker-specific branches.
+Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim and assignment state, resolution and resolved-state verification, child enumeration with deterministic ordering, idempotent ready-state mutation semantics, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
 For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations, adapting them to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 

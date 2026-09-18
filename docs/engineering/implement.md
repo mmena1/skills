@@ -1,6 +1,6 @@
 ## What it does
 
-`implement` takes one approved [ticket](https://www.aihero.dev/ai-coding-dictionary/ticket) or [spec](https://www.aihero.dev/ai-coding-dictionary/spec) from resolution through committed, reviewed implementation and tracker closeout. Local tickets may be resolved during closeout; GitHub issues remain open until the implementation PR merges. For a ticket, the ticket owns scope and acceptance criteria while its directly referenced approved parent owns architecture and public test seams.
+`implement` takes one approved [ticket](https://www.aihero.dev/ai-coding-dictionary/ticket) or [spec](https://www.aihero.dev/ai-coding-dictionary/spec) from resolution through committed, reviewed implementation and tracker closeout. Local tickets may be resolved during closeout; GitHub issues remain open until the implementation PR merges. For a ticket, the ticket owns scope and acceptance criteria while its directly referenced approved parent owns architecture and public test seams. After a GitHub issue auto-closes through the merged PR, `/reconcile <ticket-ref>` recomputes the complete parent frontier.
 
 The defining constraint is one worker, one ticket. It will make ordinary local implementation choices from existing patterns, but it stops instead of inventing a missing product decision, changing approved architecture, crossing an external gate, or pulling later tickets forward.
 
@@ -16,6 +16,7 @@ You invoke this by typing `/implement <issue-or-spec>`, and the agent will not r
 | An unresolved plan or architecture | [grill-with-docs](https://aihero.dev/skills-grill-with-docs), [to-spec](https://aihero.dev/skills-to-spec), and [design-review](https://aihero.dev/skills-design-review) first |
 | A concrete behavior with no issue workflow | [tdd](https://aihero.dev/skills-tdd) directly |
 | Existing committed work that only needs review | [code-review](https://aihero.dev/skills-code-review) directly |
+| A just-merged implementation ticket is resolved and its parent's ready state needs refreshing | `/reconcile <ticket-ref>` |
 
 ## Prerequisites
 
@@ -43,7 +44,7 @@ Every implementation and review-fix commit is made on the non-default branch est
 
 `implement` explicitly composes `code-review` with the captured SHA and the source bundle. Both skills remain explicit-only, so this does not turn code review into a spontaneous background behavior. Blocking findings are fixed, verified, committed, and reviewed again from the same original baseline. Advisory smell findings do not create an endless cleanup loop.
 
-Only after acceptance criteria, required verification, and review pass does the worker complete tracker closeout. Local trackers may resolve the ticket and promote newly unblocked, unclaimed tickets. GitHub closeout records evidence and a PR/merge handoff obligation naming the issue and required `Closes #<issue>` reference, then leaves the issue open for the separately authorized PR/merge owner to add and verify that reference, confirm auto-closure after merge, and refresh the frontier. Dependent tickets are not promoted until that post-merge reconciliation. It never pushes, merges, or opens a pull request without separate authorization.
+Only after acceptance criteria, required verification, and review pass does the worker complete tracker closeout. Local trackers may resolve the ticket and promote newly unblocked, unclaimed tickets. GitHub closeout records evidence and a PR/merge handoff obligation naming the issue and required `Closes #<issue>` reference, then leaves the issue open for the separately authorized PR/merge owner to add and verify that reference. After the issue auto-closes, run `/reconcile <ticket-ref>` to recompute the entire parent frontier. Dependent tickets are not promoted before that reconciliation. It never pushes, merges, or opens a pull request without separate authorization.
 
 ## Pre-agreed seams
 
@@ -79,7 +80,7 @@ Only after a separate instruction authorizes that external action. A normal run 
 
 **Who finishes a GitHub ticket after the pull request merges?**
 
-The separately authorized PR/merge owner—the human or workflow performing PR creation and merge—owns the handoff: it adds and verifies `Closes #<issue>`, confirms that the merge auto-closed the issue, and runs the GitHub tracker's post-merge reconciliation to refresh the dependent-ticket frontier. `/implement` records the obligation but does not perform these external actions.
+The separately authorized PR/merge owner—the human or workflow performing PR creation and merge—owns the handoff: it adds and verifies `Closes #<issue>`, confirms that the merge auto-closed the issue, and invokes `/reconcile <ticket-ref>`. `/implement` records the obligation but does not perform these external actions.
 
 ## It's working if
 
