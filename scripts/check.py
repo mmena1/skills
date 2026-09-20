@@ -1,0 +1,463 @@
+#!/usr/bin/env python3
+"""Canonical repository validation and installer distribution checks."""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.parse
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SKILLS = ROOT / "skills"
+TEXT_SUFFIXES = {".md", ".yaml", ".yml", ".json", ".py", ".sh", ".ps1"}
+RETIRED_BUCKETS = {"engineering", "productivity", "misc", "deprecated", "in-progress"}
+RETIRED_FILES = {
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "package.json",
+    "package-lock.json",
+    ".github/workflows/release.yml",
+    "scripts/sync-plugin-version.mjs",
+    "scripts/link-skills.sh",
+}
+STALE_PATTERNS = {
+    "ask-matt": re.compile(r"ask-matt", re.IGNORECASE),
+    "old setup skill": re.compile(r"setup-matt-pocock-skills", re.IGNORECASE),
+    "bucketed skill path": re.compile(r"skills/(?:engineering|productivity|misc|deprecated|in-progress)/", re.IGNORECASE),
+    "mirrored docs path": re.compile(r"docs/(?:engineering|productivity)/", re.IGNORECASE),
+    "Claude plugin manifest": re.compile(r"\.claude-plugin|claude plugins? install", re.IGNORECASE),
+    "old publishing URL": re.compile(r"aihero\.dev", re.IGNORECASE),
+}
+INTENTIONAL_STALE_REFERENCE_FILES = {"install.sh", "install.ps1", "scripts/check.py"}
+
+
+class CheckFailure(RuntimeError):
+    pass
+
+
+def fail(message: str) -> None:
+    raise CheckFailure(message)
+
+
+def parse_frontmatter(path: Path) -> tuple[dict[str, str], str]:
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        fail(f"{path.relative_to(ROOT)}: missing opening frontmatter delimiter")
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        fail(f"{path.relative_to(ROOT)}: missing closing frontmatter delimiter")
+
+    fields: dict[str, str] = {}
+    current_list: str | None = None
+    for number, line in enumerate(lines[1:end], start=2):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line.startswith("  - "):
+            if current_list is None:
+                fail(f"{path.relative_to(ROOT)}:{number}: list item has no key")
+            fields[current_list] += "\n" + line[4:].strip()
+            continue
+        if line.startswith((" ", "\t")) or ":" not in line:
+            fail(f"{path.relative_to(ROOT)}:{number}: unsupported or invalid frontmatter")
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", key):
+            fail(f"{path.relative_to(ROOT)}:{number}: invalid frontmatter key {key!r}")
+        if key in fields:
+            fail(f"{path.relative_to(ROOT)}:{number}: duplicate frontmatter key {key!r}")
+        if value and not (value.startswith(('"', "'")) and value.endswith(('"', "'"))) and ": " in value:
+            fail(f"{path.relative_to(ROOT)}:{number}: quote scalar values containing ': '")
+        fields[key] = value
+        current_list = key if not value else None
+    return fields, "\n".join(lines[1:end])
+
+
+def skill_directories() -> list[Path]:
+    stable = [path for path in SKILLS.iterdir() if path.is_dir() and path.name != "experimental"]
+    experimental_root = SKILLS / "experimental"
+    experimental = [path for path in experimental_root.iterdir() if path.is_dir()]
+    return sorted(stable + experimental, key=lambda path: path.as_posix())
+
+
+def validate_layout_and_skills() -> list[str]:
+    if not (SKILLS / "experimental").is_dir():
+        fail("skills/experimental must exist")
+    present_retired = sorted(name for name in RETIRED_BUCKETS if (SKILLS / name).exists())
+    if present_retired:
+        fail(f"retired skill buckets remain: {', '.join(present_retired)}")
+
+    names: dict[str, Path] = {}
+    for directory in skill_directories():
+        skill_file = directory / "SKILL.md"
+        if not skill_file.is_file():
+            fail(f"{directory.relative_to(ROOT)}: skill directory lacks SKILL.md")
+        fields, raw_frontmatter = parse_frontmatter(skill_file)
+        for required in ("name", "description"):
+            if not fields.get(required):
+                fail(f"{skill_file.relative_to(ROOT)}: missing required {required!r} frontmatter")
+        name = fields["name"].strip('"\'')
+        if name != directory.name:
+            fail(f"{skill_file.relative_to(ROOT)}: name {name!r} does not match directory {directory.name!r}")
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name):
+            fail(f"{skill_file.relative_to(ROOT)}: invalid skill name {name!r}")
+        if name in names:
+            fail(f"duplicate skill name {name!r}: {names[name]} and {directory}")
+        names[name] = directory
+
+        metadata = directory / "agents" / "openai.yaml"
+        if not metadata.is_file():
+            fail(f"{directory.relative_to(ROOT)}: missing agents/openai.yaml")
+        metadata_text = metadata.read_text(encoding="utf-8")
+        for required_metadata in ("display_name", "short_description"):
+            if not re.search(rf"(?m)^\s*{required_metadata}:\s*\S", metadata_text):
+                fail(f"{metadata.relative_to(ROOT)}: missing {required_metadata}")
+        implicit_false = bool(re.search(r"(?m)^\s*allow_implicit_invocation:\s*false\s*$", metadata_text))
+        disabled = bool(re.search(r"(?m)^disable-model-invocation:\s*true\s*$", raw_frontmatter))
+        if disabled != implicit_false:
+            fail(f"{directory.relative_to(ROOT)}: SKILL.md and agents/openai.yaml invocation policies disagree")
+        if re.search(r"(?m)^\s*-\s*user\s*$", raw_frontmatter) and not disabled:
+            fail(f"{directory.relative_to(ROOT)}: a user-triggered skill must disable model invocation")
+    return sorted(names)
+
+
+def iter_repository_text() -> list[Path]:
+    paths: list[Path] = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        if path.suffix.lower() in TEXT_SUFFIXES or path.name in {"LICENSE", ".gitignore", ".gitattributes"}:
+            paths.append(path)
+    return paths
+
+
+def validate_repository_references(skill_names: list[str]) -> None:
+    for relative in RETIRED_FILES:
+        if (ROOT / relative).exists():
+            fail(f"retired file remains: {relative}")
+    for retired_dir in (".claude-plugin", ".changeset"):
+        if (ROOT / retired_dir).exists():
+            fail(f"retired directory remains: {retired_dir}")
+
+    for path in iter_repository_text():
+        relative = path.relative_to(ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        if chr(0x2014) in text:
+            fail(f"{relative}: em dash violates repository style")
+        if relative not in INTENTIONAL_STALE_REFERENCE_FILES:
+            for label, pattern in STALE_PATTERNS.items():
+                match = pattern.search(text)
+                if match:
+                    line = text.count("\n", 0, match.start()) + 1
+                    fail(f"{relative}:{line}: stale {label} reference")
+        if relative not in {"README.md", "scripts/check.py"} and re.search(r"mattpocock/skills", text, re.IGNORECASE):
+            fail(f"{relative}: stale upstream repository identity")
+        validates_links = path.suffix.lower() == ".md" and (
+            path.name == "SKILL.md"
+            or path.parent == ROOT
+            or relative.startswith(".agents/")
+            or relative.startswith(".out-of-scope/")
+        )
+        if validates_links:
+            for match in re.finditer(r"\[[^\]]*\]\(([^)]+)\)", text):
+                target = match.group(1).strip().strip("<>").split(maxsplit=1)[0]
+                if not target or target.startswith("#") or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE):
+                    continue
+                target = urllib.parse.unquote(target.split("#", 1)[0])
+                if not (target.startswith(("./", "../")) or "/" in target or Path(target).suffix):
+                    continue
+                resolved = (path.parent / target).resolve()
+                if not resolved.exists():
+                    line = text.count("\n", 0, match.start()) + 1
+                    fail(f"{relative}:{line}: broken relative link {target!r}")
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for name in skill_names:
+        expected = f"./skills/{name}/SKILL.md"
+        if expected not in readme:
+            fail(f"README.md does not link canonical SKILL.md for {name}")
+
+
+def find_bash() -> str:
+    if os.name != "nt":
+        bash = shutil.which("bash")
+        if bash:
+            return bash
+        fail("bash is required for install.sh distribution tests")
+
+    candidates: list[Path] = []
+    try:
+        exec_path = Path(subprocess.check_output(["git", "--exec-path"], text=True).strip())
+        candidates.append(exec_path.parents[2] / "bin" / "bash.exe")
+    except (OSError, subprocess.SubprocessError, IndexError):
+        pass
+    candidates.append(Path(r"C:\Program Files\Git\bin\bash.exe"))
+    candidates.append(Path(r"C:\Program Files (x86)\Git\bin\bash.exe"))
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    bash = shutil.which("bash")
+    if bash:
+        return bash
+    fail("Git Bash is required for install.sh distribution tests on Windows")
+
+
+def write_fixture(root: Path) -> None:
+    shutil.copy2(ROOT / "install.sh", root / "install.sh")
+    shutil.copy2(ROOT / "install.ps1", root / "install.ps1")
+    stable = root / "skills" / "stable-skill"
+    experimental = root / "skills" / "experimental" / "lab-skill"
+    stable.mkdir(parents=True)
+    experimental.mkdir(parents=True)
+    (stable / "SKILL.md").write_text("---\nname: stable-skill\ndescription: Stable fixture.\n---\n", encoding="utf-8")
+    (experimental / "SKILL.md").write_text("---\nname: lab-skill\ndescription: Experimental fixture.\n---\n", encoding="utf-8")
+    if os.name != "nt":
+        (root / "install.sh").chmod(0o755)
+
+
+def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True)
+    if result.returncode != 0:
+        fail(f"command failed ({' '.join(command)}):\n{result.stdout}{result.stderr}")
+    return result
+
+
+def assert_skill(path: Path, expected_text: str = "Stable fixture.") -> None:
+    skill = path / "SKILL.md"
+    if not skill.is_file() or expected_text not in skill.read_text(encoding="utf-8"):
+        fail(f"missing or stale installed skill: {skill}")
+
+
+def create_broken_directory_link(link: Path, target: Path) -> None:
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        target.mkdir(parents=True)
+        powershell = find_powershell()
+        env = os.environ.copy()
+        env["SKILLS_TEST_LINK"] = str(link)
+        env["SKILLS_TEST_TARGET"] = str(target)
+        run(
+            [powershell, "-NoProfile", "-Command", "New-Item -ItemType Junction -Path $env:SKILLS_TEST_LINK -Target $env:SKILLS_TEST_TARGET | Out-Null"],
+            cwd=link.parent,
+            env=env,
+        )
+        target.rmdir()
+    else:
+        link.symlink_to(target, target_is_directory=True)
+
+
+def test_shell_installer(fixture: Path, temporary: Path) -> None:
+    bash = find_bash()
+
+    def invoke(home: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        return run([bash, "./install.sh", *arguments], cwd=fixture, env=env)
+
+    codex_home = temporary / "shell-codex"
+    invoke(codex_home, "--codex")
+    assert_skill(codex_home / ".agents" / "skills" / "stable-skill")
+    if (codex_home / ".agents" / "skills" / "lab-skill").exists():
+        fail("stable shell install included experimental skill")
+
+    source_skill = fixture / "skills" / "stable-skill" / "SKILL.md"
+    source_skill.write_text(source_skill.read_text(encoding="utf-8") + "updated-shell\n", encoding="utf-8")
+    invoke(codex_home, "--codex")
+    assert_skill(codex_home / ".agents" / "skills" / "stable-skill", "updated-shell")
+    invoke(codex_home, "--codex", "--experimental")
+    assert_skill(codex_home / ".agents" / "skills" / "lab-skill", "Experimental fixture.")
+    invoke(codex_home, "--codex")
+    if os.path.lexists(codex_home / ".agents" / "skills" / "lab-skill"):
+        fail("stable shell reconciliation retained an experimental skill")
+
+    devin_home = temporary / "shell-devin"
+    invoke(devin_home, "--devin")
+    assert_skill(devin_home / ".config" / "devin" / "skills" / "stable-skill")
+    if (devin_home / ".agents").exists():
+        fail("--devin shell install wrote to Codex")
+
+    all_home = temporary / "shell-all"
+    invoke(all_home, "--all")
+    assert_skill(all_home / ".agents" / "skills" / "stable-skill")
+    assert_skill(all_home / ".config" / "devin" / "skills" / "stable-skill")
+
+    detected_home = temporary / "shell-detected"
+    (detected_home / ".agents").mkdir(parents=True)
+    invoke(detected_home)
+    assert_skill(detected_home / ".agents" / "skills" / "stable-skill")
+
+    backup_home = temporary / "shell-backup"
+    unrelated = backup_home / ".agents" / "skills" / "stable-skill"
+    unrelated.mkdir(parents=True)
+    (unrelated / "local.txt").write_text("keep me\n", encoding="utf-8")
+    invoke(backup_home, "--codex")
+    backups = list(unrelated.parent.glob("stable-skill.bak-*"))
+    if len(backups) != 1 or (backups[0] / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+        fail("shell installer did not preserve an unrelated destination backup")
+
+    broken_managed_home = temporary / "shell-broken-managed"
+    broken_managed = broken_managed_home / ".agents" / "skills" / "stable-skill"
+    create_broken_directory_link(broken_managed, fixture / "skills" / "retired-managed-skill")
+    invoke(broken_managed_home, "--codex")
+    assert_skill(broken_managed)
+    if list(broken_managed.parent.glob("stable-skill.bak-*")):
+        fail("shell installer backed up a broken repository-managed link")
+
+    broken_unrelated_home = temporary / "shell-broken-unrelated"
+    broken_unrelated = broken_unrelated_home / ".agents" / "skills" / "stable-skill"
+    create_broken_directory_link(broken_unrelated, temporary / "unrelated-missing-target")
+    invoke(broken_unrelated_home, "--codex")
+    assert_skill(broken_unrelated)
+    unrelated_backups = list(broken_unrelated.parent.glob("stable-skill.bak-*"))
+    if len(unrelated_backups) != 1 or not os.path.lexists(unrelated_backups[0]):
+        fail("shell installer did not back up an unrelated broken link")
+
+    lifecycle_home = temporary / "shell-lifecycle"
+    old_source = fixture / "skills" / "shell-old-skill"
+    old_source.mkdir()
+    (old_source / "SKILL.md").write_text("---\nname: shell-old-skill\ndescription: Old fixture.\n---\n", encoding="utf-8")
+    invoke(lifecycle_home, "--codex")
+    old_destination = lifecycle_home / ".agents" / "skills" / "shell-old-skill"
+    assert_skill(old_destination, "Old fixture.")
+
+    new_source = fixture / "skills" / "shell-renamed-skill"
+    old_source.rename(new_source)
+    (new_source / "SKILL.md").write_text("---\nname: shell-renamed-skill\ndescription: Renamed fixture.\n---\n", encoding="utf-8")
+    stale_copy = lifecycle_home / ".agents" / "skills" / "shell-retired-copy"
+    stale_copy.mkdir()
+    (stale_copy / "SKILL.md").write_text("retired copy\n", encoding="utf-8")
+    (stale_copy / ".skills-repo-managed").write_text(str(old_source) + "\n", encoding="utf-8")
+    foreign = lifecycle_home / ".agents" / "skills" / "foreign-skill"
+    foreign.mkdir()
+    (foreign / "local.txt").write_text("leave me\n", encoding="utf-8")
+
+    invoke(lifecycle_home, "--codex")
+    if os.path.lexists(old_destination) or os.path.lexists(stale_copy):
+        fail("shell reconciliation retained a removed repository-managed skill")
+    assert_skill(lifecycle_home / ".agents" / "skills" / "shell-renamed-skill", "Renamed fixture.")
+    if (foreign / "local.txt").read_text(encoding="utf-8") != "leave me\n":
+        fail("shell reconciliation changed an unrelated destination")
+
+
+def find_powershell() -> str:
+    for name in ("pwsh", "powershell.exe"):
+        executable = shutil.which(name)
+        if executable:
+            return executable
+    fail("PowerShell is required for native Windows installer tests")
+
+
+def test_powershell_installer(fixture: Path, temporary: Path) -> None:
+    if os.name != "nt":
+        return
+    powershell = find_powershell()
+
+    def invoke(home: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return run(
+            [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(fixture / "install.ps1"), *arguments, "-HomePath", str(home)],
+            cwd=fixture,
+        )
+
+    codex_home = temporary / "powershell-codex"
+    invoke(codex_home, "-Codex")
+    assert_skill(codex_home / ".agents" / "skills" / "stable-skill")
+    if (codex_home / ".agents" / "skills" / "lab-skill").exists():
+        fail("stable PowerShell install included experimental skill")
+    invoke(codex_home, "-Codex", "-Experimental")
+    assert_skill(codex_home / ".agents" / "skills" / "lab-skill", "Experimental fixture.")
+    invoke(codex_home, "-Codex")
+    if os.path.lexists(codex_home / ".agents" / "skills" / "lab-skill"):
+        fail("stable PowerShell reconciliation retained an experimental skill")
+
+    devin_home = temporary / "powershell-devin"
+    invoke(devin_home, "-Devin")
+    assert_skill(devin_home / ".config" / "devin" / "skills" / "stable-skill")
+    if (devin_home / ".agents").exists():
+        fail("-Devin PowerShell install wrote to Codex")
+
+    all_home = temporary / "powershell-all"
+    invoke(all_home, "-All")
+    assert_skill(all_home / ".agents" / "skills" / "stable-skill")
+    assert_skill(all_home / ".config" / "devin" / "skills" / "stable-skill")
+
+    detected_home = temporary / "powershell-detected"
+    (detected_home / ".agents").mkdir(parents=True)
+    invoke(detected_home)
+    assert_skill(detected_home / ".agents" / "skills" / "stable-skill")
+
+    backup_home = temporary / "powershell-backup"
+    unrelated = backup_home / ".agents" / "skills" / "stable-skill"
+    unrelated.mkdir(parents=True)
+    (unrelated / "local.txt").write_text("keep me\n", encoding="utf-8")
+    invoke(backup_home, "-Codex")
+    backups = list(unrelated.parent.glob("stable-skill.bak-*"))
+    if len(backups) != 1 or (backups[0] / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+        fail("PowerShell installer did not preserve an unrelated destination backup")
+
+    broken_home = temporary / "powershell-broken-managed"
+    broken_destination = broken_home / ".agents" / "skills" / "stable-skill"
+    create_broken_directory_link(broken_destination, fixture / "skills" / "retired-powershell-skill")
+    invoke(broken_home, "-Codex")
+    assert_skill(broken_destination)
+    if list(broken_destination.parent.glob("stable-skill.bak-*")):
+        fail("PowerShell installer backed up a broken repository-managed link")
+
+    lifecycle_home = temporary / "powershell-lifecycle"
+    old_source = fixture / "skills" / "powershell-old-skill"
+    old_source.mkdir()
+    (old_source / "SKILL.md").write_text("---\nname: powershell-old-skill\ndescription: Old fixture.\n---\n", encoding="utf-8")
+    invoke(lifecycle_home, "-Codex")
+    old_destination = lifecycle_home / ".agents" / "skills" / "powershell-old-skill"
+    assert_skill(old_destination, "Old fixture.")
+
+    new_source = fixture / "skills" / "powershell-renamed-skill"
+    old_source.rename(new_source)
+    (new_source / "SKILL.md").write_text("---\nname: powershell-renamed-skill\ndescription: Renamed fixture.\n---\n", encoding="utf-8")
+    stale_copy = lifecycle_home / ".agents" / "skills" / "powershell-retired-copy"
+    stale_copy.mkdir()
+    (stale_copy / "SKILL.md").write_text("retired copy\n", encoding="utf-8")
+    (stale_copy / ".skills-repo-managed").write_text(str(old_source) + "\n", encoding="utf-8")
+    foreign = lifecycle_home / ".agents" / "skills" / "foreign-skill"
+    foreign.mkdir()
+    (foreign / "local.txt").write_text("leave me\n", encoding="utf-8")
+
+    invoke(lifecycle_home, "-Codex")
+    if os.path.lexists(old_destination) or os.path.lexists(stale_copy):
+        fail("PowerShell reconciliation retained a removed repository-managed skill")
+    assert_skill(lifecycle_home / ".agents" / "skills" / "powershell-renamed-skill", "Renamed fixture.")
+    if (foreign / "local.txt").read_text(encoding="utf-8") != "leave me\n":
+        fail("PowerShell reconciliation changed an unrelated destination")
+
+
+def validate_installers() -> None:
+    with tempfile.TemporaryDirectory(prefix="skills-check-") as temp_value:
+        temporary = Path(temp_value)
+        fixture = temporary / "repository"
+        fixture.mkdir()
+        write_fixture(fixture)
+        test_shell_installer(fixture, temporary)
+        test_powershell_installer(fixture, temporary)
+
+
+def main() -> int:
+    try:
+        skill_names = validate_layout_and_skills()
+        validate_repository_references(skill_names)
+        validate_installers()
+    except CheckFailure as error:
+        print(f"FAIL: {error}", file=sys.stderr)
+        return 1
+    print(f"Repository checks passed for {len(skill_names)} skills.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

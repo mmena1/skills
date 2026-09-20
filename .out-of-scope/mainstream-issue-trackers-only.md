@@ -1,6 +1,6 @@
 # Issue tracker integrations are limited to mainstream tools
 
-`setup-matt-pocock-skills` only offers first-class support for **mainstream** issue trackers. Requests to add support for niche, new, or single-vendor experimental trackers are out of scope.
+`setup-skills` only offers first-class support for **mainstream** issue trackers. Requests to add support for niche, new, or single-vendor experimental trackers are out of scope.
 
 ## Why this is out of scope
 
@@ -19,7 +19,3 @@ The escape hatches for non-mainstream trackers already exist:
 - `other/custom` for users who want to wire something up themselves.
 
 Neither requires the core skills to know about the specific tool.
-
-## Prior requests
-
-- #99: "Add dex as an issue tracker backend" (dex was ~3 months old and ~300 stars at the time of the request)

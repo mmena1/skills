@@ -1,5 +1,0 @@
-interface:
-  display_name: "Setup Matt Pocock Skills"
-  short_description: "Configure or migrate repo skill workflow"
-policy:
-  allow_implicit_invocation: false
