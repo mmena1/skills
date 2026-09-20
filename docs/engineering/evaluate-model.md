@@ -1,6 +1,6 @@
 ## What it does
 
-`evaluate-model` recommends the starting model, reasoning effort, and, when the current context is visible, whether an upcoming task belongs in the current or a fresh session. It routes by the expected cost of reaching a correct result: uncertainty in early choices, interacting invariants, coupling, verification delay, and the blast radius of rework.
+`evaluate-model` recommends the starting model, reasoning effort, and, when the current context is visible, whether an upcoming task belongs in the current or a fresh session. It routes by the expected cost of reaching a correct result: semantic and boundary novelty, verification locality, determinism, plausible-wrong risk, and the blast radius of rework.
 
 It is an advisor only. It may inspect the named target skill, issue, spec, or code far enough to classify the task, then it reports the route and stops. It does not run the skill, begin the work, change the selected model, create another session, or dispatch an agent.
 
@@ -12,11 +12,13 @@ The default routes are:
 
 | Route | Best fit |
 | --- | --- |
-| **GPT-5.6 Luna: Medium** | Bounded application of established patterns with explicit acceptance criteria and cheap local verification |
-| **GPT-5.6 Sol: High** | Important abstractions, interacting invariants, lifecycle or state semantics, architecture, design, or deep review |
+| **GPT-5.6 Luna: Medium** | Bounded application of explicit semantics inside established boundaries with deterministic, cheap local verification |
+| **GPT-5.6 Sol: High** | Important new abstractions, ownership decisions, lifecycle protocol design, ambiguous domain contracts, architecture, design, or deep review |
 | **GPT-6 Astra: High** | Consequential uncertainty across independently complex systems, late verification, or subtle semantic errors with expensive downstream rework |
 
-Task length and file count do not move a task upward by themselves. A large deterministic migration can stay Luna; a small probabilistic update whose errors look plausible can require Astra.
+Task length, file count, and invariant count do not move a task upward by themselves. Many acceptance criteria, identity fields, stable hashing, fail-closed behavior, property tests, validation, ordering constraints, or domain types within one adapter boundary can all remain Luna when their semantics are explicit and directly testable. A small probabilistic update whose errors look plausible can require Astra.
+
+Before promoting from Luna, the evaluator asks whether semantics or boundaries must be discovered, whether important behavior is locally and deterministically verifiable, how far rework would propagate, and whether a wrong implementation could pass local checks and still look correct.
 
 ## Session recommendation
 
@@ -26,8 +28,8 @@ Session placement follows the canonical phase-boundary tree. A phase change alon
 
 | Invocation | Expected direction |
 | --- | --- |
-| `/evaluate-model /implement a narrowly scoped change to an established normalization path with explicit acceptance criteria and strong tests` | Luna Medium |
-| `/evaluate-model /implement a specified lifecycle with content identity, stale-completion rejection, atomic activation, bounded retries, and lineage invariants` | Sol High |
+| `/evaluate-model /implement a bounded candidate normalizer for a known GRE envelope with explicit identity and completeness semantics, stable IDs and hashes, and fixture/property tests behind an established adapter` | Luna Medium. The work applies explicit deterministic invariants with local oracles and localized rework. Escalate if repository-owned identity semantics conflict, GRE semantics are unresolved, or the established seam must change. |
+| `/evaluate-model /implement a profile lifecycle whose content identity, activation, lineage, stale completion, retries, supersession, and reuse semantics define a new protocol` | Sol High. The task must reason about ownership and how lifecycle invariants compose; local checks do not prove the abstraction as a whole. |
 | `/evaluate-model /implement a probabilistic belief updater combining multiple evidence sources, open-world uncertainty, reversible corrections, and late calibration` | Astra High |
 | `/evaluate-model /improve-codebase-architecture after the first bounded domain pipeline` | Normally Sol High |
 | `/evaluate-model independent architecture review of the complete end-to-end production loop after implementation` | Potentially Astra High in a fresh session |

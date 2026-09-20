@@ -15,7 +15,15 @@ Recommend how to start one specific upcoming task. This is a pre-task advisor: i
 1. Identify the exact task and preserve the next invocation or prompt.
 2. When the request names another skill, locate and read that skill's current `SKILL.md` before classifying it. Its actual workflow supplies the baseline task class; a remembered summary does not. If the file cannot be inspected, state that limitation and lower confidence rather than inventing its behavior.
 3. Read referenced issues, specs, repository instructions, context, or code only when a concrete unknown could change the route. Gather task-classification evidence, not a solution. Stop inspecting once more detail is unlikely to change the recommendation.
-4. Route by the expected cost of reaching a correct result: consequential early uncertainty, interacting invariants, dependency depth and coupling, how late errors become visible, semantic difficulty, and the blast radius and recovery cost of a plausible wrong attempt.
+4. Route by the expected cost of reaching a correct result. Before promoting from Luna, distinguish semantics that must be designed or discovered from semantics that are already specified, and assess:
+   - **Semantic novelty:** whether the task must define how its invariants compose or apply a defined composition.
+   - **Boundary novelty:** whether it creates or changes responsibility boundaries or stays inside an established one.
+   - **Verification locality:** whether tests directly prove the important behavior or correctness only emerges across the system.
+   - **Determinism:** whether a strong deterministic oracle exists.
+   - **Rework radius:** whether a wrong implementation stays localized or invalidates downstream work.
+   - **Plausible-wrong risk:** whether an incorrect result can pass local checks and remain convincing.
+
+Interpret interacting invariants through these dimensions. Their number is not an independent promotion signal.
 
 Task length, prompt length, file count, line count, and prestige are not routing signals. A supplied plan lowers uncertainty only when it settles the important choices instead of hiding them.
 
@@ -23,11 +31,13 @@ Task length, prompt length, file count, line count, and prestige are not routing
 
 ### GPT-5.6 Luna: Medium
 
-Default to Luna Medium when acceptance criteria are explicit, the architecture and patterns already exist, the work mainly applies them, and tests or contracts expose mistakes locally and cheaply. Large deterministic or mechanical changes can remain here when rework stays bounded.
+Default to Luna Medium when the problem is already decomposed, acceptance criteria explicitly define the semantics, public responsibility boundaries and surrounding architecture already exist, behavior is deterministic and locally verifiable, and rework stays bounded. This includes nontrivial implementation of several interacting invariants when the task applies rather than invents their composition.
+
+Many acceptance criteria, identity fields, canonicalization or stable hashing, fail-closed behavior, property tests, input validation, ordering constraints, a long ticket, or several domain types within one established adapter boundary do not justify Sol on their own. Treat them as implementation details whose significance depends on novelty, verification, and rework risk.
 
 ### GPT-5.6 Sol: High
 
-Use Sol High when the task creates an important abstraction; composes multiple nontrivial invariants; depends on lifecycle, identity, concurrency, staleness, ordering, or state-machine semantics; or performs architecture, design, or deep review. The problem may span components, but its objective and boundaries are still substantially specified. Prefer Sol as the normal stronger route when a locally plausible answer could violate a deeper invariant.
+Use Sol High when the task establishes an important abstraction, decides ownership between components, designs how lifecycle or state-machine invariants compose, resolves ambiguous domain contracts, or coordinates components where local correctness does not prove system correctness. Concurrency, staleness, identity, ordering, retries, supersession, activation, and lineage support Sol when their interactions require substantial semantic reasoning, not merely because those concepts appear in the ticket. Architecture, design, and deep review also normally begin here. Prefer Sol when a locally plausible answer could violate deeper semantics.
 
 ### GPT-6 Astra: High
 
@@ -79,9 +89,9 @@ Escalation triggers are task-specific signs that the starting assumptions failed
 
 ## Calibration examples
 
-- Extending an established candidate-normalization path with explicit acceptance criteria and strong tests: Luna Medium.
-- Implementing a specified profile-generation lifecycle with identity, stale-completion rejection, atomic activation, retries, and lineage: Sol High.
-- Implementing a probabilistic opponent-belief updater across multiple evidence sources and meanings with late calibration: Astra High.
+- **Bounded candidate normalization:** correlate a known GRE envelope, preserve specified identity fields, reject stale, incomplete, or ambiguous input, normalize choices, and produce stable IDs and a deterministic hash behind an established adapter boundary. This is Luna Medium when fixtures and property tests directly prove the specified semantics. Multiple invariants do not make it Sol because no architecture, ownership, or domain semantics need discovery. Escalate to Sol if implementation exposes missing or contradictory repository-owned identity semantics, unresolved GRE semantics, a required seam change, or loss of local completeness and correlation checks.
+- **Lifecycle protocol:** define or implement content identity, activation, lineage, stale asynchronous completion, atomic transitions, retries, supersession, and cache reuse whose interactions determine the abstraction's semantics. This is Sol High because local correctness does not settle the lifecycle protocol as a whole.
+- **Probabilistic belief update:** combine multiple evidence sources and meanings with late calibration and plausible semantic error. This is Astra High because verification is late and a subtly wrong result can remain convincing.
 - Running `/improve-codebase-architecture` after the first bounded domain pipeline: normally Sol High unless repository evidence makes it a major cross-system decision.
 - Independently reviewing a complete end-to-end production loop after implementation: potentially Astra High in a fresh session because independence, subsystem interaction, and late verification increase rework risk.
 
