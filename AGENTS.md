@@ -49,3 +49,17 @@ Also run `git diff --check` before committing.
 - Prefer symbolic links on Unix, macOS, and WSL. Use directory junctions on Windows, including Git Bash. A copy fallback must warn that the installer needs to be rerun after repository updates.
 
 After pulling repository changes, rerun the appropriate installer so new, removed, renamed, or copied skills are reconciled.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in this repository's GitHub Issues; use `gh` for tracker operations. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the canonical triage roles with matching GitHub labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the single-context layout with root `CONTEXT.md` and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
