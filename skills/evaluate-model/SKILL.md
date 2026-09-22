@@ -25,10 +25,10 @@ Recommend how to start one specific upcoming task. This is a pre-task advisor: i
 
 Interpret interacting invariants through these dimensions. Their number is not an independent promotion signal.
 
-5. Select reasoning effort separately within the chosen model: its normal budget or a quality-first Max budget, using the tier-specific cases below. More Luna reasoning can help execute settled semantics; it does not supply Sol-level judgment when model capability is the limiting factor. Choose Sol directly when the task characteristics require it.
+5. Select reasoning effort separately within the chosen model using the shared Max trigger below. More Luna reasoning can help execute settled semantics; it does not supply Sol-level judgment when model capability is the limiting factor. Choose Sol directly when the task characteristics require it.
 6. Compare the expected cost of reaching a correct result. Account for API dollar cost and, when the user supplies it, Codex or ChatGPT subscription quota as distinct constraints. Do not infer quota use from API prices.
 
-Raw task length, prompt length, file count, line count, and prestige are not model-tier signals. A sustained reasoning and verification loop can justify more effort. A supplied plan lowers uncertainty only when it settles the important choices instead of hiding them.
+Raw task length, prompt length, file count, line count, and prestige are not model-tier signals. Apply the shared Max trigger to the work itself, not its size. A supplied plan lowers uncertainty only when it settles the important choices instead of hiding them.
 
 ## Starting routes
 
@@ -50,17 +50,17 @@ Reserve Astra for exceptional or frontier work where a Sol mistake would have un
 
 ### Reasoning effort within the selected model
 
-- **GPT-6 Luna:** Medium for bounded, mechanical, or local work; Max for serious autonomous implementation when Luna capability is sufficient.
-- **GPT-6 Sol:** High for normal work requiring stronger judgment; Max when the reasoning and verification loop is long or a failed run would cause materially costly rework.
-- **GPT-6 Astra:** High for normal exceptional or frontier work; Max when the exceptional work also justifies maximum reasoning.
+- **GPT-6 Luna:** Medium is the normal effort.
+- **GPT-6 Sol:** High is the normal effort.
+- **GPT-6 Astra:** High is the normal effort.
 
-Choose the model tier for capability, then choose its normal or quality-first Max budget. A short ownership decision can call for Sol High; a long, well-specified implementation can call for Luna Max. xHigh remains supported for manual selection. Distinguishing it reliably from High and Max requires empirical evaluation that this pre-task advisor usually lacks, so do not recommend it from ticket characteristics alone.
+Use Max for any tier when the task requires a sustained autonomous loop of reasoning, search, and verification, or when a failed first pass would cause materially costly rework. Otherwise use that tier's normal effort. Model tier answers what capability and judgment the task requires; effort answers whether its normal or quality-first Max budget fits. xHigh remains supported for manual selection. Distinguishing it reliably from High and Max requires empirical evaluation that this pre-task advisor usually lacks, so do not recommend it from ticket characteristics alone.
 
 The [GPT-6 launch evidence](https://openai.com/index/introducing-gpt-6-sol-and-luna/) supports high-effort Luna for long-horizon engineering at low API cost, while the coding and mergeability results still show a Sol capability advantage; its general-agent results also show that Max is not universally optimal. Use these findings as calibration, not benchmark thresholds. Revisit the policy when new evidence materially changes the frontier. API dollar cost can favor high-effort Luna, while Codex or ChatGPT subscription quota may behave differently; apply explicit user-provided quota pressure independently.
 
 ## Skill baseline
 
-Let the inspected target skill establish the baseline, then let the specific task shape both decisions. For `/implement`, start from GPT-6 Luna Max when the autonomous work is serious and well specified; use Luna Medium for bounded, mechanical, or local work. Architecture, design, or deep-review work normally starts with Sol High; use Sol Max when the reasoning and verification loop or rework cost justifies a quality-first budget. A substantially specified lifecycle abstraction can stay Sol; a major cross-system evaluation with late verification can rise to Astra High or, when maximum reasoning is also justified, Astra Max. These are tendencies, not a hardcoded name lookup.
+Let the inspected target skill establish the baseline, then let the specific task shape both decisions. Well-specified `/implement` work normally uses Luna capability, with Medium unless the shared Max trigger applies. Architecture, design, or deep-review work normally uses Sol capability. A substantially specified lifecycle abstraction can stay Sol; a major cross-system evaluation with late verification can rise to Astra. Apply the same Max trigger to every tier after choosing capability. These are tendencies, not a hardcoded name lookup.
 
 ## Session boundary
 
@@ -83,7 +83,7 @@ Session: fresh
 
 Why:
 * Model: concrete task properties that require this capability
-* Effort: why the selected model's normal or quality-first Max budget fits
+* Effort: which shared Max trigger applies, or why normal effort suffices
 * Cost or quota constraint, when relevant and known
 
 Route comparison:
@@ -105,13 +105,13 @@ Escalation triggers are task-specific signs that the starting assumptions failed
 ## Calibration examples
 
 - **Mechanical local edit:** change one documented display field with an exact expected value and a direct check. This is GPT-6 Luna Medium because capability and inference demands are both limited.
-- **Bounded candidate normalization:** correlate a known GRE envelope, preserve specified identity fields, reject stale, incomplete, or ambiguous input, normalize choices, and produce stable IDs and a deterministic hash behind an established adapter boundary. This is GPT-6 Luna Medium when fixtures and property tests directly prove the specified semantics and the implementation loop is bounded. Multiple invariants do not make it Sol because no architecture, ownership, or domain semantics need discovery. Choose Luna Max if the same settled work becomes serious autonomous implementation; choose Sol if implementation exposes missing or contradictory repository-owned identity semantics, unresolved GRE semantics, a required seam change, or loss of local completeness and correlation checks.
+- **Bounded candidate normalization:** correlate a known GRE envelope, preserve specified identity fields, reject stale, incomplete, or ambiguous input, normalize choices, and produce stable IDs and a deterministic hash behind an established adapter boundary. This is GPT-6 Luna Medium when fixtures and property tests directly prove the specified semantics and the implementation loop is bounded. Multiple invariants do not make it Sol because no architecture, ownership, or domain semantics need discovery. Choose Luna Max if the same settled work requires a sustained autonomous reasoning, search, and verification loop; choose Sol if implementation exposes missing or contradictory repository-owned identity semantics, unresolved GRE semantics, a required seam change, or loss of local completeness and correlation checks.
 - **Long-horizon settled implementation:** build several specified slices across established boundaries, with local oracles for their interactions and a substantial autonomous search and verification loop. This is GPT-6 Luna Max because additional inference improves first-pass execution while capability demands stay within Luna's route.
 - **Short ownership decision:** determine which of two components owns a new invariant when the spec leaves that boundary unresolved. This is GPT-6 Sol High despite the short task because architectural judgment, not more Luna iteration, determines correctness.
-- **Lifecycle protocol:** define or implement content identity, activation, lineage, stale asynchronous completion, atomic transitions, retries, supersession, and cache reuse whose interactions determine the abstraction's semantics. This needs GPT-6 Sol capability because local correctness does not settle the protocol as a whole. Use Sol High for a bounded design pass or Sol Max when the full reasoning and verification loop or rework cost warrants a quality-first budget.
-- **Foundational probabilistic belief protocol:** combine multiple evidence sources and meanings with late calibration and plausible semantic error, where a subtle Sol mistake would invalidate substantial downstream work. This can justify GPT-6 Astra High; use Astra Max when the exceptional work also warrants maximum reasoning.
+- **Lifecycle protocol:** define or implement content identity, activation, lineage, stale asynchronous completion, atomic transitions, retries, supersession, and cache reuse whose interactions determine the abstraction's semantics. This needs GPT-6 Sol capability because local correctness does not settle the protocol as a whole. Use Sol High for a bounded design pass; apply the shared Max trigger if the full run is sustained or a failed first pass would cause materially costly rework.
+- **Foundational probabilistic belief protocol:** combine multiple evidence sources and meanings with late calibration and plausible semantic error, where a subtle Sol mistake would invalidate substantial downstream work. This can justify GPT-6 Astra Max when a failed first pass would cause materially costly rework.
 - Running `/improve-codebase-architecture` after the first bounded domain pipeline: normally GPT-6 Sol High unless repository evidence makes it a major cross-system decision.
-- Independently reviewing a complete end-to-end production loop after implementation: potentially GPT-6 Astra High in a fresh session when subsystem interaction, late verification, and downstream rework make a Sol mistake unusually costly; use Astra Max when the review also warrants maximum reasoning.
+- Independently reviewing a complete end-to-end production loop after implementation: potentially GPT-6 Astra Max in a fresh session when subsystem interaction and late verification require a sustained autonomous review loop.
 
 ## Stop boundary
 
