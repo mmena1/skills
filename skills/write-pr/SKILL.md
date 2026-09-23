@@ -1,6 +1,6 @@
 ---
 name: write-pr
-description: Prepare and open a GitHub pull request from the current branch, repository guidance, the configured issue-tracker workflow, and verified change evidence.
+description: Prepare and open a GitHub pull request from a clean, committed branch delta, repository guidance, the configured issue-tracker workflow, and verified change evidence.
 disable-model-invocation: true
 triggers:
   - user
@@ -10,12 +10,12 @@ triggers:
 
 Use this workflow when the user asks to prepare, write, open, or create a pull request. Repository guidance overrides the defaults in this skill.
 
-The skill asks before committing, pushing, or opening a pull request. It may inspect the repository and generate a draft without those confirmations.
+This workflow handles pull-request preparation and handoff, not implementation or branch preparation. It does not create or switch branches, stage or commit changes, or fix implementation findings. It asks before pushing or creating a pull request. It may inspect the repository and prepare a draft without those confirmations.
 
 ## Terms
 
-- **Base branch**: the branch the pull request targets, discovered from repository guidance or the remote's default branch.
-- **Branch delta**: commits and file changes on the current branch that are not in the base branch.
+- **Base branch**: the branch the pull request targets, discovered from the configured primary remote and repository guidance.
+- **Branch delta**: committed changes on the current branch that are not in the base branch.
 - **Change brief**: the authoritative explanation of the work, assembled from the configured issue tracker, linked issue or specification files, repository guidance, commits, and the diff.
 - **Supporting change**: a changed file or theme not explained by the change brief but plausibly related to the pull request. The body must explain why it is included.
 - **Evidence**: concrete output showing that the change works, such as a test result, command output, rendered result, or a clearly stated verification gap.
@@ -27,7 +27,7 @@ Before analyzing the branch, read the repository's `AGENTS.md` files and referen
 
 If `docs/agents/issue-tracker.md` is missing, stop and tell the user to run `setup-skills` before continuing. Do not infer where issues or specifications live when the repository contract is absent.
 
-Read `docs/agents/issue-tracker.md` and follow its instructions for locating the issue, specification, or task that explains the branch. Read the repository's PR template when one exists. Repository-specific rules may override every default in this skill, including the base branch, branch naming, commit format, verification commands, and pull-request creation command.
+Read `docs/agents/issue-tracker.md` and follow its instructions for locating the issue, specification, or task that explains the branch, including tracker-defined PR/merge linkage, closure, and handoff requirements. Read the repository's PR template when one exists. Repository-specific rules may override every default in this skill, including the primary remote, base branch, verification commands, and pull-request creation command.
 
 ## Workflow
 
@@ -39,62 +39,42 @@ Read, in this order:
 2. The documents those files explicitly require for Git, pull requests, issue tracking, security, and verification.
 3. `docs/agents/issue-tracker.md`.
 4. The repository pull-request template, if present.
-5. The current branch and worktree state.
+5. The current branch, worktree state, and committed branch delta.
 
-Use commands equivalent to:
+Resolve the configured primary remote explicitly from repository guidance or repository configuration. In fork/upstream setups, do not assume that `origin` is the primary remote. If the primary remote cannot be identified unambiguously, stop and ask the user which remote is authoritative.
+
+Resolve the base branch in this order:
+
+1. The symbolic remote `HEAD` for the configured primary remote, for example `git symbolic-ref --quiet --short refs/remotes/<primary-remote>/HEAD`.
+2. The provider's authoritative default branch for the repository represented by that remote. For GitHub, use `gh repo view <owner>/<repo> --json defaultBranchRef --jq '.defaultBranchRef.name'`, deriving `<owner>/<repo>` from the primary remote URL.
+3. The repository's explicitly documented default branch.
+4. Stop and ask the user if none resolves.
+
+A failed or empty provider lookup proceeds to the next fallback. Do not guess `main`, `master`, or another branch name.
+
+Inspect the current branch and worktree with `git branch --show-current` and `git status --porcelain`. If the branch is detached or the worktree is dirty, stop, report the state, and ask the user to finish implementation and commit the intended changes through the owning workflow before retrying. Do not create a branch, stage, commit, stash, or otherwise modify the worktree. If the current branch is the base branch or has no committed delta from it, stop and ask the user to return with the intended feature branch and committed changes.
+
+Inspect the delta with commands equivalent to:
 
 ```bash
-git rev-parse --abbrev-ref HEAD
-git status --short
-git remote -v
 git log --oneline <base>..HEAD
-git diff --stat <base>..HEAD
+git diff --stat <base>...HEAD
+git rev-list --left-right --count <base>...HEAD
 ```
 
-Discover the base branch from repository guidance first, then the remote's default branch, then a conventional local branch such as `main` or `master`. Do not assume a branch name. Discover required commit and branch formats from repository guidance and existing history.
+Being behind the base branch alone does not require a rebase. Report the behind state and continue unless repository guidance requires synchronization. If synchronization is required, follow its documented update strategy. Do not rebase a published branch or force-push without explicit approval; when a force-push is approved and permitted by repository guidance, use the repository's safe convention, typically `--force-with-lease`. If conflicts occur, stop and ask the user to resolve them. Never auto-resolve code conflicts.
 
-Classify the state:
+Check for an existing open pull request from the current head branch to the configured primary repository. For GitHub, scope the query to the base repository and head owner, for example `gh pr list --repo <base-owner>/<base-repo> --head <head-owner>:<branch> --state open --json number,title,url,baseRefName,isDraft`. Record any matching pull request; do not create a duplicate or update it implicitly.
 
-1. Feature branch with a branch delta and a clean tree: continue.
-2. Feature branch with uncommitted changes: show the changes and ask for an approved commit message before committing.
-3. Base or another non-feature branch with uncommitted changes: identify the change brief, propose a feature branch and commit message, and ask before creating either.
-4. A clean branch with no delta: ask for the intended change or issue before drafting a pull request.
+**Completion criterion**: the configured primary remote, base branch, current branch, clean worktree, committed branch delta, behind/ahead state, existing pull-request status, repository obligations, and required ticket or issue identifier are known.
 
-**Completion criterion**: the base branch, current branch, worktree state, branch delta, repository obligations, and required ticket or issue identifier are known.
-
-### 2. Rebase when required
-
-If repository guidance requires an up-to-date base branch, or the branch is behind it, propose rebasing onto the discovered base branch. Ask before any repository rule requires confirmation. Run the rebase only after the required confirmation.
-
-If conflicts occur:
-
-1. Run `git status --short` and list the conflicted files.
-2. Stop and ask the user to resolve the conflicts.
-3. Continue only after the user confirms resolution.
-4. Never auto-resolve code conflicts.
-
-**Completion criterion**: the branch is based on the required base branch, or a conflict is explicitly handed back to the user.
-
-### 3. Prepare the branch and commit if needed
-
-When the worktree is dirty, use the repository's required commit format. If none is documented, propose a concise message based on the change brief and use the format `<issue-or-ticket>: <summary>` only when the repository already uses identifiers in commits.
-
-Before any commit:
-
-- Show the files that will be committed.
-- Show the proposed commit message.
-- Ask for confirmation.
-- Stage only the intended files. Do not stage secrets, environment files, generated artifacts, or unrelated changes.
-
-When on a non-feature branch, propose a branch name using the repository's convention. If none exists, use `feature/<short-kebab-summary>`.
-
-**Completion criterion**: the current branch has the intended committed delta and the worktree is clean, or the user has declined the required commit action.
-
-### 4. Build the change brief
+### 2. Build the change brief
 
 Use `docs/agents/issue-tracker.md` to locate the authoritative issue, specification, or task files. Read all files that the tracker workflow identifies as part of the change brief. Also read linked design or implementation notes when repository guidance requires them.
 
 If the tracker identifies multiple plausible sources, list them and ask the user to choose. If the tracker source is missing or does not explain the branch, ask the user for the issue or specification path rather than inventing requirements.
+
+Capture the tracker-defined PR/merge lifecycle, including required issue references, close directives, and handoff or post-merge reconciliation steps. For example, when the tracker requires the PR/merge owner to close a GitHub issue through the PR, include the exact `Closes #<issue>` reference in the final PR body. Do not close the issue directly unless the configured tracker workflow explicitly assigns that action to this workflow.
 
 Compare the change brief with:
 
@@ -104,11 +84,11 @@ Compare the change brief with:
 
 Record every changed theme as either described by the change brief or a supporting change requiring rationale.
 
-**Completion criterion**: the change brief, issue identifier, intended implementation areas, tests, documentation, and every supporting change are accounted for.
+**Completion criterion**: the change brief, issue identifier, tracker-defined PR/merge lifecycle, intended implementation areas, tests, documentation, and every supporting change are accounted for.
 
-### 5. Check repository conventions and security
+### 3. Check repository conventions and security
 
-Apply the repository's coding, testing, documentation, and Git conventions to the branch delta. Flag likely violations and ask the user to fix or explicitly override each one before drafting the final pull request.
+Apply the repository's coding, testing, documentation, and Git conventions to the branch delta. Flag likely violations. Do not make implementation fixes; return actionable findings to the user and ask them to resolve or explicitly override each one before drafting the final pull request.
 
 At minimum, check for:
 
@@ -123,20 +103,20 @@ Stop and warn the user before creating the pull request if the diff contains lik
 
 **Completion criterion**: every flagged convention or security concern is resolved, explicitly overridden, or blocks pull-request creation.
 
-### 6. Collect evidence
+### 4. Collect evidence
 
 Run the smallest relevant verification commands required by the repository. Prefer execution-based evidence. Capture concise before-and-after evidence when the change fixes an existing behavior:
 
 - **Before**: failing test, reproduced output, or previous observable behavior.
 - **After**: passing test, corrected output, or new observable behavior.
 
-For a new feature, use the relevant test or command proving the new behavior. For documentation or configuration changes, use the validation command, rendered result, or structural check. If no meaningful executable evidence exists, say so and name the remaining verification gap.
+For a new feature, use the relevant test or command proving the new behavior. For documentation or configuration changes, use the validation command, rendered result, or structural check. If no meaningful executable evidence exists, say so and name the remaining verification gap. Do not fix implementation failures in this workflow; report them and return the branch to its owning implementation workflow.
 
 Do not claim evidence that was not observed.
 
 **Completion criterion**: each behavior claim in the pull-request body has concrete evidence or an explicit verification gap.
 
-### 7. Draft the pull request
+### 5. Draft the pull request
 
 Use the repository pull-request template when present. Preserve its headings and checklist semantics. When no template exists, use this structure:
 
@@ -146,6 +126,8 @@ Use the repository pull-request template when present. Preserve its headings and
 <the smallest useful visual: a diff sketch, pseudocode block, call tree, file tree, or Mermaid diagram>
 
 <brief explanation in the repository's domain language>
+
+<tracker-required PR/merge references, including an exact close directive such as Closes #<issue> when applicable>
 
 ## Evidence
 
@@ -176,33 +158,37 @@ Include:
 - Grouped changed themes from the diff.
 - Every supporting change with its rationale and appropriate depth.
 - Verification evidence and gaps.
+- Tracker-required PR/merge references and handoff directives, including `Closes #<issue>` when the tracker requires it.
 - Merge danger with reversibility and blast radius.
 - Template checkboxes that the diff and verification can actually prove.
 
-**Completion criterion**: the title and body follow the repository template or generic structure, use the repository's domain language, and account for the entire branch delta.
+**Completion criterion**: the title and body follow the repository template or generic structure, use the repository's domain language, account for the entire branch delta, and satisfy tracker-defined PR/merge lifecycle requirements.
 
-### 8. Confirm with the user
+### 6. Confirm with the user
 
-Print the final title and body. Ask:
+Print the final title and body. If an open pull request for this branch was found, also print its URL and stop without pushing, creating a duplicate, or updating it. The prepared title and body are returned for the user to apply to the existing pull request if desired.
+
+If no existing pull request was found, ask:
 
 ```text
 Create pull request? (ready / draft / edit / abort)
 ```
 
-- `ready` or `draft`: continue.
+- `ready` or `draft`: continue. This approves pushing the branch and creating the pull request with the exact displayed title and body.
 - `edit`: accept inline changes, regenerate the body, and ask again.
 - `abort`: stop without pushing or creating anything.
 
-**Completion criterion**: the user has approved the exact title and body and selected ready or draft.
+**Completion criterion**: the user has approved the exact title and body and selected ready or draft, or has received the prepared content and URL for an existing pull request.
 
-### 9. Push and create the pull request
+### 7. Push and create the pull request
 
 After confirmation:
 
-1. Follow repository guidance for the remote and branch push.
-2. Write the approved body to a temporary file when the CLI supports a body-file option.
-3. Use the repository's documented pull-request command. If none exists, use `gh pr create` with the approved title, body, discovered base branch, and `--draft` when requested.
-4. If the CLI is unavailable, unauthenticated, or a pull request already exists, print the approved title, body, and an equivalent manual command without exposing secrets.
-5. Remove temporary files created by this workflow.
+1. Re-check for an open pull request from this head branch to the configured primary repository. If one now exists, print its URL and the approved title and body, then stop. Do not create a duplicate or update it implicitly.
+2. Follow repository guidance for the remote and branch push.
+3. Write the approved body to a temporary file when the CLI supports a body-file option.
+4. Use the repository's documented pull-request command. If none exists, use `gh pr create` with the approved title, body, discovered base branch, and `--draft` when requested.
+5. If the CLI is unavailable or unauthenticated, print the approved title, body, and an equivalent manual command without exposing secrets.
+6. Remove temporary files created by this workflow.
 
 **Completion criterion**: a pull-request URL is returned, or a complete manual fallback is printed. Never claim that a pull request was created without a confirmed result.
