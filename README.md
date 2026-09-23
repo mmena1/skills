@@ -72,6 +72,7 @@ User-invoked skills run only when the user names them. Model-invoked skills may 
 - [`triage`](./skills/triage/SKILL.md): Move issues and external pull requests through explicit triage roles.
 - [`wait-what`](./skills/wait-what/SKILL.md): Re-pitch the last answer with simpler language and missing context.
 - [`wayfinder`](./skills/wayfinder/SKILL.md): Map a large effort as decision tickets and resolve the path incrementally.
+- [`write-pr`](./skills/write-pr/SKILL.md): Prepare and open a repository-aware pull request.
 
 ### Model-invoked
 

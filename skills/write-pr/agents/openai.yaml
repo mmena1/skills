@@ -1,0 +1,5 @@
+interface:
+  display_name: "Write PR"
+  short_description: "Prepare and open a repository-aware pull request"
+policy:
+  allow_implicit_invocation: false
