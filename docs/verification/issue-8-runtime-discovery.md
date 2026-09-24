@@ -8,13 +8,13 @@ The test verifies files and links at the paths documented by each runtime. It do
 
 ## Runtime discovery
 
-Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. Devin CLI and Claude Code executables were not available on this host, so their runtime discovery was not observed.
+Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. After the user reloaded the shell session, Claude Code 2.1.282 resolved on `PATH`. Its personal `evaluate-model` folder is a regular directory with a `SKILL.md`, but its files differ from this repository's version. A read-only print-mode discovery request returned `Not logged in`, so live skill discovery was not observed. Devin CLI was not available on this host.
 
 Smallest manual procedure for Devin CLI and Claude Code:
 
 1. Run `./install.sh --all` or `./install.ps1 -All` from this repository.
 2. Start a fresh Devin CLI session and a fresh Claude Code session.
-3. Confirm that `evaluate-model` appears in Devin's available skills and Claude Code's `/` skill menu.
+3. Sign in to Claude Code if prompted, then confirm that `evaluate-model` appears in Devin's available skills and Claude Code's `/` skill menu.
 
 For Codex, confirm `evaluate-model` appears in the skill picker after installation. Codex documents `~/.agents/skills` as its global skill location and follows symlinked skill folders. Devin documents the same global location and supports the `.agents` skills standard. Claude Code documents `~/.claude/skills` as its personal skill location and follows symlinked skill folders.
 
