@@ -2,6 +2,7 @@
 param(
     [switch]$Codex,
     [switch]$Devin,
+    [switch]$Claude,
     [switch]$All,
     [switch]$Experimental,
     [string]$HomePath = $HOME
@@ -155,18 +156,26 @@ function Install-Collection {
 
 $installCodex = $Codex -or $All
 $installDevin = $Devin -or $All
-if (-not $installCodex -and -not $installDevin) {
-    $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
-        (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
-        (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
-    $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
-        (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
-    if (-not $installCodex -and -not $installDevin) {
-        throw 'No supported harness detected. Use -Codex, -Devin, or -All.'
-    }
+$installClaude = $Claude -or $All
+if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
+  $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
+    (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
+    (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
+  $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
+    (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
+  $installClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue) -or
+    (Test-Path -LiteralPath (Join-Path $HomePath '.claude'))
+  if (-not $installCodex -and -not $installDevin -and -not $installClaude) {
+    throw 'No supported harness detected. Use -Codex, -Devin, -Claude, or -All.'
+  }
 }
 
-if ($installCodex) { Install-Collection (Join-Path $HomePath '.agents/skills') }
-if ($installDevin) { Install-Collection (Join-Path $HomePath '.config/devin/skills') }
+if ($installCodex -or $installDevin) {
+  Install-Collection (Join-Path $HomePath '.agents/skills')
+}
+if ($installDevin) {
+  Sync-InstalledCollection (Join-Path $HomePath '.config/devin/skills') @()
+}
+if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
 
 Write-Host 'Install complete.'

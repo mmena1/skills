@@ -6,15 +6,17 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 MANAGED_MARKER=".skills-repo-managed"
 INSTALL_CODEX=0
 INSTALL_DEVIN=0
+INSTALL_CLAUDE=0
 SELECTED_HARNESS=0
 INCLUDE_EXPERIMENTAL=0
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--codex] [--devin] [--all] [--experimental]
+Usage: ./install.sh [--codex] [--devin] [--claude] [--all] [--experimental]
 
 With no harness option, install stable skills into every detected supported
-harness. --experimental additionally installs skills/experimental entries.
+harness. Codex and Devin share ~/.agents/skills. --experimental additionally
+installs skills/experimental entries.
 EOF
 }
 
@@ -22,7 +24,8 @@ for argument in "$@"; do
   case "$argument" in
     --codex) INSTALL_CODEX=1; SELECTED_HARNESS=1 ;;
     --devin) INSTALL_DEVIN=1; SELECTED_HARNESS=1 ;;
-    --all) INSTALL_CODEX=1; INSTALL_DEVIN=1; SELECTED_HARNESS=1 ;;
+    --claude) INSTALL_CLAUDE=1; SELECTED_HARNESS=1 ;;
+    --all) INSTALL_CODEX=1; INSTALL_DEVIN=1; INSTALL_CLAUDE=1; SELECTED_HARNESS=1 ;;
     --experimental) INCLUDE_EXPERIMENTAL=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -246,13 +249,19 @@ install_collection() {
 if [ "$SELECTED_HARNESS" -eq 0 ]; then
   if command -v codex >/dev/null 2>&1 || [ -d "${HOME}/.codex" ] || [ -d "${HOME}/.agents" ]; then INSTALL_CODEX=1; fi
   if command -v devin >/dev/null 2>&1 || [ -d "${HOME}/.config/devin" ]; then INSTALL_DEVIN=1; fi
-  if [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_DEVIN" -eq 0 ]; then
-    echo "No supported harness detected. Use --codex, --devin, or --all." >&2
+  if command -v claude >/dev/null 2>&1 || [ -d "${HOME}/.claude" ]; then INSTALL_CLAUDE=1; fi
+  if [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_DEVIN" -eq 0 ] && [ "$INSTALL_CLAUDE" -eq 0 ]; then
+    echo "No supported harness detected. Use --codex, --devin, --claude, or --all." >&2
     exit 1
   fi
 fi
 
-if [ "$INSTALL_CODEX" -eq 1 ]; then install_collection "${HOME}/.agents/skills"; fi
-if [ "$INSTALL_DEVIN" -eq 1 ]; then install_collection "${HOME}/.config/devin/skills"; fi
+if [ "$INSTALL_CODEX" -eq 1 ] || [ "$INSTALL_DEVIN" -eq 1 ]; then
+  install_collection "${HOME}/.agents/skills"
+fi
+if [ "$INSTALL_DEVIN" -eq 1 ]; then
+  reconcile_collection "${HOME}/.config/devin/skills" "|"
+fi
+if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_collection "${HOME}/.claude/skills"; fi
 
 echo "Install complete."

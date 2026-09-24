@@ -421,10 +421,9 @@ def assert_skill(path: Path, expected_text: str = "Stable fixture.") -> None:
         fail(f"missing or stale installed skill: {skill}")
 
 
-def create_broken_directory_link(link: Path, target: Path) -> None:
+def create_directory_link(link: Path, target: Path) -> None:
     link.parent.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
-        target.mkdir(parents=True)
         powershell = find_powershell()
         env = os.environ.copy()
         env["SKILLS_TEST_LINK"] = str(link)
@@ -434,9 +433,14 @@ def create_broken_directory_link(link: Path, target: Path) -> None:
             cwd=link.parent,
             env=env,
         )
-        target.rmdir()
     else:
         link.symlink_to(target, target_is_directory=True)
+
+
+def create_broken_directory_link(link: Path, target: Path) -> None:
+    target.mkdir(parents=True)
+    create_directory_link(link, target)
+    target.rmdir()
 
 
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
@@ -465,19 +469,56 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
 
     devin_home = temporary / "shell-devin"
     invoke(devin_home, "--devin")
-    assert_skill(devin_home / ".config" / "devin" / "skills" / "stable-skill")
-    if (devin_home / ".agents").exists():
-        fail("--devin shell install wrote to Codex")
+    assert_skill(devin_home / ".agents" / "skills" / "stable-skill")
+    if os.path.lexists(devin_home / ".config" / "devin" / "skills"):
+        fail("--devin shell install retained the legacy destination")
 
     all_home = temporary / "shell-all"
-    invoke(all_home, "--all")
+    all_result = invoke(all_home, "--all")
     assert_skill(all_home / ".agents" / "skills" / "stable-skill")
-    assert_skill(all_home / ".config" / "devin" / "skills" / "stable-skill")
+    assert_skill(all_home / ".claude" / "skills" / "stable-skill")
+    if os.path.lexists(all_home / ".agents" / "skills" / "lab-skill") or os.path.lexists(all_home / ".claude" / "skills" / "lab-skill"):
+        fail("--all shell install included experimental skills without the experimental option")
+    shared_links = [line for line in all_result.stdout.splitlines() if "Linked " in line and ".agents" in line and "stable-skill" in line]
+    if len(shared_links) != 1:
+        fail("--all shell install did not materialize the shared destination exactly once")
+    if os.path.lexists(all_home / ".config" / "devin" / "skills"):
+        fail("--all shell install retained the legacy destination")
+
+    claude_home = temporary / "shell-claude"
+    invoke(claude_home, "--claude")
+    assert_skill(claude_home / ".claude" / "skills" / "stable-skill")
+    if os.path.lexists(claude_home / ".agents" / "skills"):
+        fail("--claude shell install wrote to the shared Codex and Devin destination")
+
+    all_experimental_home = temporary / "shell-all-experimental"
+    invoke(all_experimental_home, "--all", "--experimental")
+    assert_skill(all_experimental_home / ".agents" / "skills" / "lab-skill", "Experimental fixture.")
+    assert_skill(all_experimental_home / ".claude" / "skills" / "lab-skill", "Experimental fixture.")
 
     detected_home = temporary / "shell-detected"
     (detected_home / ".agents").mkdir(parents=True)
     invoke(detected_home)
     assert_skill(detected_home / ".agents" / "skills" / "stable-skill")
+
+    detected_claude_home = temporary / "shell-detected-claude"
+    (detected_claude_home / ".claude").mkdir(parents=True)
+    invoke(detected_claude_home)
+    assert_skill(detected_claude_home / ".claude" / "skills" / "stable-skill")
+
+    legacy_home = temporary / "shell-legacy"
+    legacy_managed = legacy_home / ".config" / "devin" / "skills" / "stable-skill"
+    legacy_managed.parent.mkdir(parents=True)
+    create_directory_link(legacy_managed, fixture / "skills" / "stable-skill")
+    legacy_unrelated = legacy_home / ".config" / "devin" / "skills" / "local-skill"
+    legacy_unrelated.mkdir()
+    (legacy_unrelated / "local.txt").write_text("keep me\n", encoding="utf-8")
+    invoke(legacy_home)
+    assert_skill(legacy_home / ".agents" / "skills" / "stable-skill")
+    if os.path.lexists(legacy_managed):
+        fail("shell installer retained a repository-managed skill in the legacy Devin destination")
+    if (legacy_unrelated / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+        fail("shell installer changed unrelated content in the legacy Devin destination")
 
     backup_home = temporary / "shell-backup"
     unrelated = backup_home / ".agents" / "skills" / "stable-skill"
@@ -564,19 +605,56 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
 
     devin_home = temporary / "powershell-devin"
     invoke(devin_home, "-Devin")
-    assert_skill(devin_home / ".config" / "devin" / "skills" / "stable-skill")
-    if (devin_home / ".agents").exists():
-        fail("-Devin PowerShell install wrote to Codex")
+    assert_skill(devin_home / ".agents" / "skills" / "stable-skill")
+    if os.path.lexists(devin_home / ".config" / "devin" / "skills"):
+        fail("-Devin PowerShell install retained the legacy destination")
 
     all_home = temporary / "powershell-all"
-    invoke(all_home, "-All")
+    all_result = invoke(all_home, "-All")
     assert_skill(all_home / ".agents" / "skills" / "stable-skill")
-    assert_skill(all_home / ".config" / "devin" / "skills" / "stable-skill")
+    assert_skill(all_home / ".claude" / "skills" / "stable-skill")
+    if os.path.lexists(all_home / ".agents" / "skills" / "lab-skill") or os.path.lexists(all_home / ".claude" / "skills" / "lab-skill"):
+        fail("-All PowerShell install included experimental skills without the experimental option")
+    shared_links = [line for line in all_result.stdout.splitlines() if "Linked " in line and ".agents" in line and "stable-skill" in line]
+    if len(shared_links) != 1:
+        fail("-All PowerShell install did not materialize the shared destination exactly once")
+    if os.path.lexists(all_home / ".config" / "devin" / "skills"):
+        fail("-All PowerShell install retained the legacy destination")
+
+    claude_home = temporary / "powershell-claude"
+    invoke(claude_home, "-Claude")
+    assert_skill(claude_home / ".claude" / "skills" / "stable-skill")
+    if os.path.lexists(claude_home / ".agents" / "skills"):
+        fail("-Claude PowerShell install wrote to the shared Codex and Devin destination")
+
+    all_experimental_home = temporary / "powershell-all-experimental"
+    invoke(all_experimental_home, "-All", "-Experimental")
+    assert_skill(all_experimental_home / ".agents" / "skills" / "lab-skill", "Experimental fixture.")
+    assert_skill(all_experimental_home / ".claude" / "skills" / "lab-skill", "Experimental fixture.")
 
     detected_home = temporary / "powershell-detected"
     (detected_home / ".agents").mkdir(parents=True)
     invoke(detected_home)
     assert_skill(detected_home / ".agents" / "skills" / "stable-skill")
+
+    detected_claude_home = temporary / "powershell-detected-claude"
+    (detected_claude_home / ".claude").mkdir(parents=True)
+    invoke(detected_claude_home)
+    assert_skill(detected_claude_home / ".claude" / "skills" / "stable-skill")
+
+    legacy_home = temporary / "powershell-legacy"
+    legacy_managed = legacy_home / ".config" / "devin" / "skills" / "stable-skill"
+    legacy_managed.mkdir(parents=True)
+    (legacy_managed / ".skills-repo-managed").write_text(str(fixture / "skills" / "stable-skill") + "\n", encoding="utf-8")
+    legacy_unrelated = legacy_home / ".config" / "devin" / "skills" / "local-skill"
+    legacy_unrelated.mkdir()
+    (legacy_unrelated / "local.txt").write_text("keep me\n", encoding="utf-8")
+    invoke(legacy_home)
+    assert_skill(legacy_home / ".agents" / "skills" / "stable-skill")
+    if os.path.lexists(legacy_managed):
+        fail("PowerShell installer retained a repository-managed skill in the legacy Devin destination")
+    if (legacy_unrelated / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+        fail("PowerShell installer changed unrelated content in the legacy Devin destination")
 
     backup_home = temporary / "powershell-backup"
     unrelated = backup_home / ".agents" / "skills" / "stable-skill"
