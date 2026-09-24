@@ -8,9 +8,9 @@ The test verifies files and links at the paths documented by each runtime. It do
 
 ## Runtime discovery
 
-Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. After the user reloaded the shell session, Claude Code 2.1.282 resolved on `PATH`. Its personal `evaluate-model` folder is a regular directory with a `SKILL.md`, but its files differ from this repository's version. A read-only print-mode discovery request returned `Not logged in`, so live skill discovery was not observed. Devin CLI was not available on this host.
+Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. Claude Code 2.1.282 resolves on `PATH`. After running `install.ps1 -Claude`, all 28 stable Claude skill entries were verified as junctions to the repository. The previous `evaluate-model` directory was preserved in a timestamped backup. Claude Code's local doctor reports that it is not signed in, and a read-only print-mode discovery request returned `Not logged in`, so live skill-menu discovery was not observed. Devin CLI was not available on this host.
 
-Smallest manual procedure for Devin CLI and Claude Code:
+Smallest remaining manual procedure for Devin CLI and Claude Code:
 
 1. Run `./install.sh --all` or `./install.ps1 -All` from this repository.
 2. Start a fresh Devin CLI session and a fresh Claude Code session.
