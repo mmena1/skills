@@ -20,9 +20,9 @@ For a ticket-driven run, require `docs/agents/issue-tracker.md` to define all si
 
 Resolve the user's reference through the configured tracker workflow. For a ticket:
 
-- Fetch its current body, comments, state, labels or status, blockers, and parent relationship.
+- Fetch its current body, comments with author identity and GitHub `author_association`, state, labels or status, blockers, and parent relationship.
 - If the issue has a direct parent/spec reference or native parent, follow it and read it completely, including its approval record. A missing, unapproved, or unresolvable referenced parent fails closed; never fall back to standalone authority.
-- If it has no parent/spec, resolve standalone authority only from the complete tracker record defined in `docs/agents/issue-tracker.md`. A readiness label, brief, or conversation history is not that record.
+- If it has no parent/spec, resolve standalone authority only from the complete tracker record defined in `docs/agents/issue-tracker.md`, and verify the approval comment's human account and trusted GitHub `author_association`. A readiness label, brief, or conversation history is not that record.
 - Treat the issue's acceptance criteria and boundaries as scope. For parent-backed work, treat the approved parent/spec as authority for architecture, public seams, and settled decisions. For standalone work, the approved issue itself is the authority; do not require or invent a synthetic spec.
 
 For a directly requested spec, read the complete spec and its approval record. If a required source cannot be resolved unambiguously, stop before making changes and report exactly what is missing.

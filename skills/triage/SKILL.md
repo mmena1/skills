@@ -87,7 +87,7 @@ Show counts and a one-line summary per item. Let the maintainer pick.
      - **Rejected (enhancement)**: write to `.out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
    - `needs-triage`: apply the role. Optional comment if there's partial progress.
 
-Applying `ready-for-agent` during triage records triage readiness only. It does not establish standalone implementation authority. Add the standalone authority record defined in `docs/agents/issue-tracker.md` only when the maintainer explicitly authorizes both that the issue itself is the authority with no parent/spec intended and that it is ready for implementation. Otherwise, do not add the record. A valid parent-backed issue continues to use its parent approval.
+Applying `ready-for-agent` during triage records triage readiness only. It does not establish standalone implementation authority. Add the standalone authority record defined in `docs/agents/issue-tracker.md` only when the maintainer explicitly authorizes both that the issue itself is the authority with no parent/spec intended and that it is ready for implementation. Verify the comment's author is a human account with a trusted GitHub association; otherwise, report that standalone authority was not recorded. A valid parent-backed issue continues to use its parent approval.
 
 ## Quick state override
 
