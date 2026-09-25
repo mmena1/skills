@@ -66,6 +66,8 @@ Publish the approved tickets. **How** depends on the tracker `/setup-skills` con
 - **Local files**: write one file per ticket under `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Each file's "Blocked by" lists the numbers or titles it depends on. Use the per-ticket file template below: one ticket per file, never a single combined file.
 - **A real issue tracker (GitHub, Linear, etc.)**: publish one issue per ticket in dependency order so blocking edges can reference real identifiers. Use native blocking relationships as the canonical gate where the tracker supports them; use body text only as the configured fallback.
 
+For each approved issue published without a parent/spec, record standalone implementation authority using the exact tracker convention in `docs/agents/issue-tracker.md`. On GitHub, add its standalone authority comment only after the user has approved the proposed breakdown and the issue has been published without a parent. Verify the comment author is a human with effective repository permission `write` (including `maintain`) or `admin`; `author_association` is supplemental context only. If permission is missing or cannot be verified, do not claim standalone authority was established. Do not add this record to parent-backed issues or infer approval from a ready label.
+
 After every ticket and blocking edge exists, compute the initial **frontier**: every open, unblocked, unclaimed ticket. Put only frontier tickets in the implementation-ready state configured by `docs/agents/issue-tracker.md`. Put blocked tickets in that tracker's configured planned or non-ready state. For a purely linear chain, only the first ticket begins ready.
 
 Do NOT close or modify any parent issue.
