@@ -1,5 +1,5 @@
 interface:
   display_name: "Evaluate Model"
-  short_description: "Choose a model and effort before a task"
+  short_description: "Recommend task capability, reasoning depth, and session boundary"
 policy:
   allow_implicit_invocation: false
