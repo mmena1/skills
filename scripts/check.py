@@ -57,7 +57,6 @@ MODEL_INVOKED_SKILLS = {
     "prototype", "research", "resolving-merge-conflicts", "tdd", "wizard",
     "writing-for-agents",
 }
-CLAUDE_REFERENCE_ONLY_SKILLS = {"codebase-design", "writing-for-agents"}
 
 
 class CheckFailure(RuntimeError):
@@ -139,8 +138,6 @@ def validate_layout_and_skills() -> list[str]:
     names: dict[str, Path] = {}
     if USER_INVOKED_SKILLS & MODEL_INVOKED_SKILLS:
         fail("stable skill invocation classifications overlap")
-    if not CLAUDE_REFERENCE_ONLY_SKILLS <= MODEL_INVOKED_SKILLS:
-        fail("Claude reference-only skills must be model-invoked")
     for directory in skill_directories():
         skill_file = directory / "SKILL.md"
         if not skill_file.is_file():
@@ -169,17 +166,16 @@ def validate_layout_and_skills() -> list[str]:
             expected = "user" if name in USER_INVOKED_SKILLS else "model" if name in MODEL_INVOKED_SKILLS else None
             if expected is None:
                 fail(f"{directory.relative_to(ROOT)}: stable skill has no reviewed invocation classification")
-            triggers = [trigger for trigger in fields.get("triggers", "").splitlines() if trigger]
-            expected_triggers = ["user"] if expected == "user" else ["user", "model"]
+            triggers = [trigger for trigger in fields["triggers"].splitlines() if trigger] if "triggers" in fields else None
+            expected_triggers = ["user"] if expected == "user" else None
             if triggers != expected_triggers:
-                fail(f"{skill_file.relative_to(ROOT)}: Devin triggers must be {expected_triggers}")
+                requirement = "must be ['user']" if expected == "user" else "must be omitted to use the default [user, model]"
+                fail(f"{skill_file.relative_to(ROOT)}: Devin triggers {requirement}")
             disabled = fields.get("disable-model-invocation")
             if disabled != ("true" if expected == "user" else None):
                 fail(f"{skill_file.relative_to(ROOT)}: Claude model invocation disagrees with {expected} classification")
-            user_invocable = fields.get("user-invocable")
-            expected_user_invocable = "false" if name in CLAUDE_REFERENCE_ONLY_SKILLS else None
-            if user_invocable != expected_user_invocable:
-                fail(f"{skill_file.relative_to(ROOT)}: Claude user invocation disagrees with reviewed classification")
+            if "user-invocable" in fields:
+                fail(f"{skill_file.relative_to(ROOT)}: Claude user-invocable must be omitted")
             implicit = codex_implicit_policy_values(metadata_text, metadata)
             expected_implicit = ["false"] if expected == "user" else []
             if implicit != expected_implicit:

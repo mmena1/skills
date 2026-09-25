@@ -89,13 +89,13 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 
 ## Invocation verification
 
-The catalog above records the reviewed classification of every stable skill. `SKILL.md` holds the Claude and Devin controls, while `agents/openai.yaml` holds Codex's invocation policy. `python scripts/check.py` checks the complete stable-skill roster and rejects missing or contradictory controls. Claude's `user-invocable: false` field hides reference-only skills from the slash menu and prevents a typed `/name` from running them, while keeping them available to the model. Claude Code 2.1.283 matched that behavior for `codebase-design`; see the [Issue #9 audit](./docs/agents/skill-invocation-audit-issue-9.md) for the trace. All other model-invoked skills remain directly invocable by the user.
+The catalog above records the reviewed classification of every stable skill. `SKILL.md` holds the Claude and Devin controls, while `agents/openai.yaml` holds Codex's invocation policy. `python scripts/check.py` checks the complete stable-skill roster and rejects missing or contradictory controls. Model-invoked skills omit Devin `triggers` because Devin's default already enables user and model invocation. No skill sets Claude's `user-invocable: false`, so every model-invoked skill remains directly invocable by the user. See the [Issue #9 audit](./docs/agents/skill-invocation-audit-issue-9.md) for the recorded traces.
 
 After installing updated skills, use a fresh session in each available harness for a runtime smoke check:
 
 1. Invoke `design-review` explicitly (`$design-review` in Codex, `/design-review` in Devin or Claude) without a spec reference. It should load and ask for an exact reference without changing a spec.
 2. Ask for help diagnosing a reproducible bug without naming a skill. Check the invocation trace for automatic selection of `diagnosing-bugs`. In a separate turn, invoke it directly (`$diagnosing-bugs` in Codex or `/diagnosing-bugs` in Devin or Claude) on the same bug.
-3. Ask for a design review without naming a skill. Check the invocation trace: `design-review` must not load automatically. In Claude, verify that `codebase-design` is absent from the slash menu and does not run when `/codebase-design` is typed, but can still be selected by the model for module-design work.
+3. Ask for a design review without naming a skill. Check the invocation trace: `design-review` must not load automatically. Check that the model can still select `codebase-design` for module-design work.
 
 Prompt-based selection is probabilistic; the metadata check is the deterministic policy gate. Record the harness version, installed skill path, prompt, and invocation trace for runtime checks. If a harness is unavailable, retain these steps for its next installation. The controls follow [Codex](https://learn.chatgpt.com/docs/build-skills), [Devin CLI](https://docs.devin.ai/cli/extensibility/skills/overview), and [Claude Code](https://code.claude.com/docs/en/skills) documentation.
 
