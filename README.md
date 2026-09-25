@@ -51,7 +51,7 @@ Stable skills live directly under [`skills/`](./skills/). Experimental skills li
 
 ## Skill catalog
 
-User-invoked skills run only when the user names them. Model-invoked skills may also be selected automatically when a request matches their description.
+User-invoked skills are not selected autonomously. A user may invoke them directly, and an already user-authorized workflow may explicitly compose a named user-only dependency when its documented contract requires that step. Model-invoked skills may also be selected automatically when a request matches their description.
 
 ### User-invoked
 
@@ -89,7 +89,7 @@ User-invoked skills run only when the user names them. Model-invoked skills may 
 
 ## Invocation verification
 
-The catalog above records the reviewed classification of every stable skill. `SKILL.md` holds the Claude and Devin controls, while `agents/openai.yaml` holds Codex's invocation policy. `python scripts/check.py` checks the complete stable-skill roster and rejects missing or contradictory controls. Claude hides the reference-only `codebase-design` and `writing-for-agents` skills from its slash menu while keeping them available to the model. All other model-invoked skills remain directly invocable by the user.
+The catalog above records the reviewed classification of every stable skill. `SKILL.md` holds the Claude and Devin controls, while `agents/openai.yaml` holds Codex's invocation policy. `python scripts/check.py` checks the complete stable-skill roster and rejects missing or contradictory controls. Claude's `user-invocable: false` field is intended to hide reference-only skills from the slash menu while keeping them available to the model. In the current smoke check, Claude Code 2.1.282 still suggested `codebase-design` in slash autocomplete; see the [Issue #9 audit](./docs/agents/skill-invocation-audit-issue-9.md) for the trace. All other model-invoked skills remain directly invocable by the user.
 
 After installing updated skills, use a fresh session in each available harness for a runtime smoke check:
 
