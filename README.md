@@ -20,16 +20,18 @@ Set-Location skills
 ./install.ps1
 ```
 
-With no harness option, the installer detects configured Codex and Devin installations and installs all stable skills into their canonical locations:
+With no harness option, the installer detects configured Codex, Devin CLI, and Claude Code installations and installs all stable skills into their canonical locations:
 
-- Codex: `~/.agents/skills/<skill>`
-- Devin: `~/.config/devin/skills/<skill>`
+- Codex and Devin CLI: `~/.agents/skills/<skill>`
+- Claude Code: `~/.claude/skills/<skill>`
 
-Select a harness explicitly with `--codex`, `--devin`, or `--all` on Unix-like shells, and `-Codex`, `-Devin`, or `-All` in PowerShell. `all` means both supported harnesses. It does not include experimental skills.
+Select harnesses explicitly with `--codex`, `--devin`, `--claude`, or `--all` on Unix-like shells, and `-Codex`, `-Devin`, `-Claude`, or `-All` in PowerShell. `all` selects all three harnesses. Codex and Devin share one destination, so selecting both reconciles `~/.agents/skills` once. Harness selection does not include experimental skills.
 
 Add `--experimental` or `-Experimental` to install the experimental collection as well. Harness selection and experimental selection are independent, so commands such as `./install.sh --codex --experimental` and `./install.ps1 -All -Experimental` are valid.
 
 The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Bash and native Windows PowerShell use directory junctions. If the environment cannot create a link safely, the installer copies the skill and warns that it must be rerun after repository updates. Existing unrelated destinations are backed up, not deleted.
+
+When Devin is selected, the installer also removes repository-managed skills from the former `~/.config/devin/skills` destination after updating `~/.agents/skills`. Unrelated files and folders in the old location are left in place. The installer recognizes its symlinks, junctions, and marked copy fallbacks; it does not guess that an unmarked directory belongs to this repository.
 
 ## Updating
 
@@ -44,6 +46,10 @@ git pull
 git pull
 ./install.ps1
 ```
+
+## Verify harness discovery
+
+The canonical check runs both installers in isolated home directories and verifies that Codex and Devin selections resolve to the shared destination, Claude resolves to its personal destination, `--all`/`-All` creates the shared collection once, and legacy cleanup preserves unrelated content. To confirm discovery in the actual applications, run the installer with `--all` or `-All`, then check that a representative skill such as `evaluate-model` appears in Codex's skill picker, Devin CLI's available skills, and Claude Code's `/` menu. The automated distribution check verifies the files and links at each documented location; it does not launch those applications.
 
 ## Stable and experimental skills
 
