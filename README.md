@@ -87,6 +87,18 @@ User-invoked skills run only when the user names them. Model-invoked skills may 
 - [`wizard`](./skills/wizard/SKILL.md): Generate an interactive shell wizard for steps only a human can perform.
 - [`writing-for-agents`](./skills/writing-for-agents/SKILL.md): Write predictable skills and instruction documents for agents.
 
+## Invocation verification
+
+The catalog above records the reviewed classification of every stable skill. `SKILL.md` holds the Claude and Devin controls, while `agents/openai.yaml` holds Codex's invocation policy. `python scripts/check.py` checks the complete stable-skill roster and rejects missing or contradictory controls. Claude hides the reference-only `codebase-design` and `writing-for-agents` skills from its slash menu while keeping them available to the model. All other model-invoked skills remain directly invocable by the user.
+
+After installing updated skills, use a fresh session in each available harness for a runtime smoke check:
+
+1. Invoke `design-review` explicitly (`$design-review` in Codex, `/design-review` in Devin or Claude) without a spec reference. It should load and ask for an exact reference without changing a spec.
+2. Ask for help diagnosing a reproducible bug without naming a skill. Check the invocation trace for automatic selection of `diagnosing-bugs`. In a separate turn, invoke it directly (`$diagnosing-bugs` in Codex or `/diagnosing-bugs` in Devin or Claude) on the same bug.
+3. Ask for a design review without naming a skill. Check the invocation trace: `design-review` must not load automatically. In Claude, verify that `codebase-design` is absent from the slash menu but can still be selected by the model for module-design work.
+
+Prompt-based selection is probabilistic; the metadata check is the deterministic policy gate. Record the harness version, installed skill path, prompt, and invocation trace for runtime checks. If a harness is unavailable, retain these steps for its next installation. The controls follow [Codex](https://learn.chatgpt.com/docs/build-skills), [Devin CLI](https://docs.devin.ai/cli/extensibility/skills/overview), and [Claude Code](https://code.claude.com/docs/en/skills) documentation.
+
 ## Provenance and license
 
 This repository originated as a fork of [`mattpocock/skills`](https://github.com/mattpocock/skills) and later diverged substantially into an independent collection. The original MIT copyright and permission notice are preserved in [`LICENSE`](./LICENSE); modifications and new work remain available under the same license.

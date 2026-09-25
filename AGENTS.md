@@ -16,6 +16,8 @@ Every skill is either user-invoked or model-invoked:
 
 - A user-invoked skill has `disable-model-invocation: true` in `SKILL.md` frontmatter and `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
 - A model-invoked skill omits both of those restrictions and uses a description specific enough for automatic selection.
+- Every stable skill declares Devin `triggers` in `SKILL.md`: `user` only for user-invoked skills, or both `user` and `model` for model-invoked skills.
+- Claude's `user-invocable: false` is reserved for reviewed reference-only skills that have no useful direct command. Keep it absent from other skills.
 - A user-invoked skill may direct the agent to apply a model-invoked skill. It must not invoke another user-invoked skill on the user's behalf.
 
 The `agents/openai.yaml` file is permitted minimal Codex metadata. Keep its display fields and invocation policy consistent with the canonical `SKILL.md`; do not move workflow semantics into it.
