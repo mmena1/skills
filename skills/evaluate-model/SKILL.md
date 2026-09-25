@@ -1,6 +1,6 @@
 ---
 name: evaluate-model
-description: Recommend a starting model, reasoning effort, and session boundary for one upcoming task, then stop.
+description: Recommend task capability, reasoning depth, and session boundary for one upcoming task, then stop.
 disable-model-invocation: true
 triggers:
   - user
@@ -8,111 +8,89 @@ triggers:
 
 # Evaluate Model
 
-Recommend how to start one specific upcoming task. This is a pre-task advisor: inspect only far enough to classify the work, give the recommendation, and stop. The user owns model selection and whether to start a new session.
+Recommend the task capability, reasoning depth, and session boundary needed for one specific upcoming task. This is a pre-task advisor: inspect only far enough to classify the work, give the recommendation, and stop. The user decides how to map these requirements to a model or harness and whether to start a new session.
 
 ## Evaluate the task
 
 1. Identify the exact task and preserve the next invocation or prompt.
 2. When the request names another skill, locate and read that skill's current `SKILL.md` before classifying it. Its actual workflow supplies the baseline task class; a remembered summary does not. If the file cannot be inspected, state that limitation and lower confidence rather than inventing its behavior.
-3. Read referenced issues, specs, repository instructions, context, or code only when a concrete unknown could change the route. Gather task-classification evidence, not a solution. Stop inspecting once more detail is unlikely to change the recommendation.
-4. Select the model capability needed for a correct result. Distinguish semantics that must be designed or discovered from semantics that are already specified, and assess:
+3. Read referenced issues, specs, repository instructions, context, or code only when a concrete unknown could change the recommendation. Gather task-classification evidence, not a solution. Stop inspecting once more detail is unlikely to change the recommendation.
+4. Assess the task using these dimensions:
    - **Semantic novelty:** whether the task must define how its invariants compose or apply a defined composition.
    - **Boundary novelty:** whether it creates or changes responsibility boundaries or stays inside an established one.
-   - **Verification locality:** whether tests directly prove the important behavior or correctness only emerges across the system.
-   - **Determinism:** whether a strong deterministic oracle exists.
-   - **Rework radius:** whether a wrong implementation stays localized or invalidates downstream work.
+   - **Verification locality:** whether checks directly prove the important behavior or correctness only emerges across the system.
+   - **Determinism:** whether a strong, repeatable correctness check exists.
+   - **Rework radius:** whether a wrong result stays localized or invalidates downstream work.
    - **Plausible-wrong risk:** whether an incorrect result can pass local checks and remain convincing.
 
-Interpret interacting invariants through these dimensions. Their number is not an independent promotion signal.
+Interpret interacting requirements through these dimensions. Their number is not an independent capability signal. Do not use task size, duration, file count, line count, prompt length, or invariant count as direct capability signals.
 
-5. Select reasoning effort separately within the chosen model using the shared Max trigger below. More Luna reasoning can help execute settled semantics; it does not supply Sol-level judgment when model capability is the limiting factor. Choose Sol directly when the task characteristics require it.
-6. Compare the expected cost of reaching a correct result. Account for API dollar cost and, when the user supplies it, Codex or ChatGPT subscription quota as distinct constraints. Do not infer quota use from API prices.
+## Choose task capability
 
-Raw task length, prompt length, file count, line count, and prestige are not model-tier signals. Apply the shared Max trigger to the work itself, not its size. A supplied plan lowers uncertainty only when it settles the important choices instead of hiding them.
+Choose the tier that supplies the judgment the task needs. These tiers describe task properties, not model families or harness controls.
 
-## Starting routes
+- **Execution:** The semantics are settled, responsibility boundaries are established, and correct work mainly applies the defined behavior. Verification is direct and rework is bounded. More judgment would not materially reduce uncertainty.
+- **Judgment:** The task must settle important semantics, ownership, or lifecycle behavior, or coordinate interactions where local correctness alone cannot establish system correctness. A locally plausible answer could violate a deeper requirement.
+- **Frontier:** Reserve this for exceptional work where consequential uncertainty remains, multiple difficult systems interact, verification is weak or late, and a mistake could cause substantial rework. Complexity or duration alone does not qualify.
 
-Prefer the current GPT-6 Luna, Sol, and Astra models when the harness supports them. Use an older model only for a concrete compatibility constraint.
+Choose **Frontier** only when the combined risk warrants it. Do not promote a task because it has many criteria or touches many files.
 
-### Model capability: GPT-6 Luna
+## Choose reasoning depth
 
-Choose Luna when the problem is already decomposed, acceptance criteria explicitly define the semantics, public responsibility boundaries and surrounding architecture already exist, behavior is deterministic and locally verifiable, and rework stays bounded. This includes nontrivial implementation of several interacting invariants when the task applies rather than invents their composition.
+Choose one depth separately from capability. Depth describes how much sustained reasoning, search, and verification the task needs. It does not change the capability tier or map to a harness setting.
 
-Many acceptance criteria, identity fields, canonicalization or stable hashing, fail-closed behavior, property tests, input validation, ordering constraints, a long ticket, or several domain types within one established adapter boundary do not justify Sol on their own. Treat them as implementation details whose significance depends on novelty, verification, and rework risk.
+- **Medium:** Normal depth when semantics are clear and the work can be completed with a bounded reasoning and verification loop.
+- **High:** Use when correctness requires sustained analysis across dependent questions, evidence, or interacting constraints.
+- **Max:** Use when the task needs an extended autonomous loop of reasoning, search, and verification, or when a failed first pass would cause materially costly rework.
 
-### Model capability: GPT-6 Sol
+Many steps or a long task do not automatically require **Max**. **Execution / Max** is appropriate when the semantics are settled but the execution loop itself is unusually sustained. Apply the same depth criteria at every capability tier.
 
-Choose Sol when the task establishes an important abstraction, decides ownership between components, designs how lifecycle or state-machine invariants compose, resolves ambiguous domain contracts, or coordinates components where local correctness does not prove system correctness. Concurrency, staleness, identity, ordering, retries, supersession, activation, and lineage support Sol when their interactions require substantial semantic reasoning, not merely because those concepts appear in the ticket. Architecture, design, and deep review also normally begin here. Prefer Sol when a locally plausible answer could violate deeper semantics, even if the task is short.
+## Choose the session boundary
 
-### Model capability: GPT-6 Astra
+After selecting capability and depth, apply the ordered policy in [`PHASE-BOUNDARIES.md`](PHASE-BOUNDARIES.md). Report `Session: current` when that policy selects Continue or a subagent that leaves this session intact. Report `Session: fresh` when it selects a boundary that starts work in a new session, such as `/clear`, `/handoff-doc`, or `/compact`; name the boundary in the reasons.
 
-Reserve Astra for exceptional or frontier work where a Sol mistake would have unusually large downstream cost: consequential early choices remain uncertain; many downstream steps depend on them; multiple independently complex systems or domains interact; verification is late or end-to-end; or semantic, probabilistic, or statistical errors can look convincing while invalidating substantial later work. Astra is a risk route, not a synonym for complex.
-
-### Reasoning effort within the selected model
-
-- **GPT-6 Luna:** Medium is the normal effort.
-- **GPT-6 Sol:** High is the normal effort.
-- **GPT-6 Astra:** High is the normal effort.
-
-Use Max for any tier when the task requires a sustained autonomous loop of reasoning, search, and verification, or when a failed first pass would cause materially costly rework. Otherwise use that tier's normal effort. Model tier answers what capability and judgment the task requires; effort answers whether its normal or quality-first Max budget fits. xHigh remains supported for manual selection. Distinguishing it reliably from High and Max requires empirical evaluation that this pre-task advisor usually lacks, so do not recommend it from ticket characteristics alone.
-
-The [GPT-6 launch evidence](https://openai.com/index/introducing-gpt-6-sol-and-luna/) supports high-effort Luna for long-horizon engineering at low API cost, while the coding and mergeability results still show a Sol capability advantage; its general-agent results also show that Max is not universally optimal. Use these findings as calibration, not benchmark thresholds. Revisit the policy when new evidence materially changes the frontier. API dollar cost can favor high-effort Luna, while Codex or ChatGPT subscription quota may behave differently; apply explicit user-provided quota pressure independently.
-
-## Skill baseline
-
-Let the inspected target skill establish the baseline, then let the specific task shape both decisions. Well-specified `/implement` work normally uses Luna capability, with Medium unless the shared Max trigger applies. Architecture, design, or deep-review work normally uses Sol capability. A substantially specified lifecycle abstraction can stay Sol; a major cross-system evaluation with late verification can rise to Astra. Apply the same Max trigger to every tier after choosing capability. These are tendencies, not a hardcoded name lookup.
-
-## Session boundary
-
-Choose the model and effort first. Then apply the canonical phase-boundary policy in [`PHASE-BOUNDARIES.md`](PHASE-BOUNDARIES.md). Its ordered tree owns the context decision: continue when the next phase needs the current session as a primary source or still fits the smart zone; otherwise choose the policy's least costly precise boundary such as `/clear`, `/handoff-doc`, a subagent, or `/compact`.
-
-Report `Session: current` when that policy selects Continue. Report `Session: fresh` when it selects a new session boundary such as `/clear`, `/handoff-doc`, or `/compact`; name the boundary in the reasons. A subagent recommendation can remain current-session work because it leaves the main session intact.
-
-Finally apply the harness overlay. For Codex, determine the current model when it is observable. If it differs from the recommended model, report `Session: fresh` and tell the user to select the recommended model in a new Codex session. If the current model is unknown, state that condition rather than guessing. This overlay takes precedence over Continue because Codex does not switch the main model inside an existing session.
-
-When phase-boundary or current-model state is not observable, omit the `Session` field and give a short conditional sentence instead of inventing state.
+If a required context fact for applying the policy cannot be observed, do not guess. Omit the `Session` field and state the condition that prevents the recommendation. Do not add a model, vendor, or harness overlay.
 
 ## Output
 
 Keep the recommendation compact:
 
 ```text
-Recommended: GPT-6 Luna: Max
+Capability: Execution
+Reasoning depth: Medium
 Confidence: High
-Session: fresh
+Session: current
 
 Why:
-* Model: concrete task properties that require this capability
-* Effort: which shared Max trigger applies, or why normal effort suffices
-* Cost or quota constraint, when relevant and known
+* Capability: task properties that require this tier
+* Depth: why normal or extended reasoning is appropriate
+* Session: how the phase-boundary policy applies
 
-Route comparison:
-* Luna: explain why Sol is unnecessary when Luna is selected.
-* Sol: explain why Luna is insufficient, and why Astra would not reduce expected rework enough when that distinction is useful.
-* Astra: explain why Sol is insufficient.
+Tier comparison:
+* For Execution, explain why Judgment is unnecessary. For Judgment, explain why Execution is insufficient and, when useful, why Frontier is unnecessary. For Frontier, explain why Judgment is insufficient.
 
 Escalate if:
-* concise evidence that would change the route during execution
+* Evidence that would change the capability or depth during the work
 
 Next:
 `/implement issue 21`
 ```
 
-Use qualitative confidence to reflect evidence completeness, not model prestige. Explain the model-tier choice and the normal-versus-Max effort choice separately. When recommending Sol or Astra, explain why the nearest weaker route is insufficient. Explain why the nearest stronger route is unnecessary when that distinction is useful. End with the exact next invocation or prompt after removing `/evaluate-model` when it can be derived safely.
+Qualitative confidence reflects evidence completeness, not tier. Explain capability and depth separately. When recommending **Judgment** or **Frontier**, explain why the nearest weaker tier is insufficient. When useful, explain why the nearest stronger tier would not reduce expected rework enough to justify it. End with the exact next invocation or prompt after removing `/evaluate-model` when it can be derived safely.
 
 Escalation triggers are task-specific signs that the starting assumptions failed, such as newly discovered cross-system ownership, irreconcilable invariants, or loss of local verification. Keep them concise; global runtime policy owns capability-ceiling handling.
 
 ## Calibration examples
 
-- **Mechanical local edit:** change one documented display field with an exact expected value and a direct check. This is GPT-6 Luna Medium because capability and inference demands are both limited.
-- **Bounded candidate normalization:** correlate a known GRE envelope, preserve specified identity fields, reject stale, incomplete, or ambiguous input, normalize choices, and produce stable IDs and a deterministic hash behind an established adapter boundary. This is GPT-6 Luna Medium when fixtures and property tests directly prove the specified semantics and the implementation loop is bounded. Multiple invariants do not make it Sol because no architecture, ownership, or domain semantics need discovery. Choose Luna Max if the same settled work requires a sustained autonomous reasoning, search, and verification loop; choose Sol if implementation exposes missing or contradictory repository-owned identity semantics, unresolved GRE semantics, a required seam change, or loss of local completeness and correlation checks.
-- **Long-horizon settled implementation:** build several specified slices across established boundaries, with local oracles for their interactions and a substantial autonomous search and verification loop. This is GPT-6 Luna Max because additional inference improves first-pass execution while capability demands stay within Luna's route.
-- **Short ownership decision:** determine which of two components owns a new invariant when the spec leaves that boundary unresolved. This is GPT-6 Sol High despite the short task because architectural judgment, not more Luna iteration, determines correctness.
-- **Lifecycle protocol:** define or implement content identity, activation, lineage, stale asynchronous completion, atomic transitions, retries, supersession, and cache reuse whose interactions determine the abstraction's semantics. This needs GPT-6 Sol capability because local correctness does not settle the protocol as a whole. Use Sol High for a bounded design pass; apply the shared Max trigger if the full run is sustained or a failed first pass would cause materially costly rework.
-- **Foundational probabilistic belief protocol:** combine multiple evidence sources and meanings with late calibration and plausible semantic error, where a subtle Sol mistake would invalidate substantial downstream work. This can justify GPT-6 Astra Max when a failed first pass would cause materially costly rework.
-- Running `/improve-codebase-architecture` after the first bounded domain pipeline: normally GPT-6 Sol High unless repository evidence makes it a major cross-system decision.
-- Independently reviewing a complete end-to-end production loop after implementation: potentially GPT-6 Astra Max in a fresh session when subsystem interaction and late verification require a sustained autonomous review loop.
+- **Mechanical local edit:** Change one documented display field with an exact expected value and a direct check. This is **Execution / Medium** because semantics are settled and verification is local.
+- **Bounded specified implementation:** Normalize a known input, preserve specified identity fields, reject stale or ambiguous input, and produce a stable result inside an established boundary. This is **Execution / Medium** when the specification and fixtures settle the semantics. Several interacting requirements do not promote the capability tier by themselves.
+- **Long-horizon settled implementation:** Complete several specified slices across established boundaries with local checks for their interactions. This can be **Execution / Max** when the autonomous search and verification loop is sustained. Duration raises depth only when the loop warrants it; it does not create a need for more judgment.
+- **Short ownership decision:** Decide which of two components owns an invariant when the specification leaves that boundary unresolved. This is **Judgment / High** despite the short task because architectural judgment determines correctness.
+- **Lifecycle protocol:** Define or implement identity, activation, stale completion, retries, supersession, and reuse when their interactions determine the protocol's semantics. This is **Judgment / High** for a bounded design or implementation. Use **Max** if the work requires a sustained reasoning and verification loop or a failed first pass would cause costly rework.
+- **Foundational cross-system probabilistic work:** Combine evidence across difficult systems when consequential uncertainty remains, calibration is late, and a plausible semantic error could invalidate substantial downstream work. This may warrant **Frontier / Max**.
+- **Architecture review:** Review responsibility boundaries, dependency direction, and whether a proposed seam owns its behavior. This is normally **Judgment / High**; raise the tier only when the exceptional Frontier conditions hold.
+- **End-to-end review:** Reviewing a complete production loop can be **Judgment / High** when its invariants and checks are clear. Use **Frontier / Max** only when difficult subsystem interactions, weak late verification, consequential uncertainty, and substantial rework risk occur together.
 
 ## Stop boundary
 
-Read-only inspection for routing is the full scope. Do not invoke the target skill, begin its workflow, solve the task, edit its artifacts, switch models, create a session, dispatch an agent, call an external model, or persist a routing record. Return the recommendation and stop.
+Read-only inspection for routing is the full scope. Do not invoke the target skill, begin its workflow, solve the task, edit its artifacts, select a concrete model or harness, create a session, dispatch an agent, call an external model, or persist a routing record. Return the recommendation and stop.
