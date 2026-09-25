@@ -111,6 +111,24 @@ def skill_directories() -> list[Path]:
     return sorted(stable + experimental, key=lambda path: path.as_posix())
 
 
+def codex_implicit_policy_values(metadata_text: str, metadata: Path) -> list[str]:
+    """Read the supported policy field without treating an unrelated key as policy."""
+    section = None
+    values = []
+    for line in metadata_text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line[0].isspace():
+            section = line.split(":", 1)[0]
+        if "allow_implicit_invocation" not in line:
+            continue
+        match = re.fullmatch(r"  allow_implicit_invocation:\s*(true|false)\s*", line)
+        if section != "policy" or match is None:
+            fail(f"{metadata.relative_to(ROOT)}: allow_implicit_invocation must be a boolean under policy")
+        values.append(match.group(1))
+    return values
+
+
 def validate_layout_and_skills() -> list[str]:
     if not (SKILLS / "experimental").is_dir():
         fail("skills/experimental must exist")
@@ -162,9 +180,7 @@ def validate_layout_and_skills() -> list[str]:
             expected_user_invocable = "false" if name in CLAUDE_REFERENCE_ONLY_SKILLS else None
             if user_invocable != expected_user_invocable:
                 fail(f"{skill_file.relative_to(ROOT)}: Claude user invocation disagrees with reviewed classification")
-            implicit = [value.strip() for value in re.findall(
-                r"(?m)^\s*allow_implicit_invocation\s*:\s*([^\r\n]*)", metadata_text
-            )]
+            implicit = codex_implicit_policy_values(metadata_text, metadata)
             expected_implicit = ["false"] if expected == "user" else []
             if implicit != expected_implicit:
                 fail(f"{metadata.relative_to(ROOT)}: Codex policy disagrees with {expected} classification")
