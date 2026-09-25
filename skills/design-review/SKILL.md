@@ -2,6 +2,8 @@
 name: design-review
 description: Check a spec's proposed modules for shallow seams before ticket breakdown.
 disable-model-invocation: true
+triggers:
+  - user
 ---
 
 # Design Review
