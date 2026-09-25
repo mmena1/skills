@@ -158,23 +158,23 @@ $installCodex = $Codex -or $All
 $installDevin = $Devin -or $All
 $installClaude = $Claude -or $All
 if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
-  $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
-    (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
-    (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
-  $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
-    (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
-  $installClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue) -or
-    (Test-Path -LiteralPath (Join-Path $HomePath '.claude'))
-  if (-not $installCodex -and -not $installDevin -and -not $installClaude) {
-    throw 'No supported harness detected. Use -Codex, -Devin, -Claude, or -All.'
-  }
+    $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
+        (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
+        (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
+    $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
+        (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
+    $installClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue) -or
+        (Test-Path -LiteralPath (Join-Path $HomePath '.claude'))
+    if (-not $installCodex -and -not $installDevin -and -not $installClaude) {
+        throw 'No supported harness detected. Use -Codex, -Devin, -Claude, or -All.'
+    }
 }
 
 if ($installCodex -or $installDevin) {
-  Install-Collection (Join-Path $HomePath '.agents/skills')
+    Install-Collection (Join-Path $HomePath '.agents/skills')
 }
 if ($installDevin) {
-  Sync-InstalledCollection (Join-Path $HomePath '.config/devin/skills') @()
+    Sync-InstalledCollection (Join-Path $HomePath '.config/devin/skills') @()
 }
 if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
 

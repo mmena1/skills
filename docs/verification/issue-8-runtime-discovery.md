@@ -8,13 +8,17 @@ The test verifies files and links at the paths documented by each runtime. It do
 
 ## Runtime discovery
 
-Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. Claude Code 2.1.282 resolves on `PATH`. After running `install.ps1 -Claude`, all 28 stable Claude skill entries were verified as junctions to the repository. The previous `evaluate-model` directory was preserved in a timestamped backup. Claude Code's local doctor reports that it is not signed in, and a read-only print-mode discovery request returned `Not logged in`, so live skill-menu discovery was not observed. Devin CLI was not available on this host.
+Codex desktop exposed `evaluate-model` in this session, and its global entry is a junction to the canonical repository skill at `C:\code\skills\skills\evaluate-model`; its `SKILL.md` is present. Devin CLI was not available on this host.
 
-Smallest remaining manual procedure for Devin CLI and Claude Code:
+On 2026-09-25, after rebasing onto `main`, Claude Code 2.1.283 was checked while signed in. All 28 entries in `~/.claude/skills` are junctions to the repository, and the unrelated `synced` folder there was left in place. A fresh print-mode session (`claude -p --output-format stream-json --verbose`) listed all 28 stable skills in its `init` event under both `skills` and `slash_commands`, so each one is reachable from the `/` menu. In a separate Claude Code session in this repository, only the 10 model-invoked skills were offered for automatic selection, and the 18 user-invoked skills were withheld as `disable-model-invocation: true` requires.
 
-1. Run `./install.sh --all` or `./install.ps1 -All` from this repository.
-2. Start a fresh Devin CLI session and a fresh Claude Code session.
-3. Sign in to Claude Code if prompted, then confirm that `evaluate-model` appears in Devin's available skills and Claude Code's `/` skill menu.
+Both installers were also run with `--claude` / `-Claude` in isolated home directories that contained an unrelated `synced` folder and an existing `evaluate-model` directory. Each run installed 28 links, preserved the unrelated folder, backed up the existing directory once, did not add a backup on a second run, and did not create `~/.agents`. With only `~/.claude` present, automatic detection in both installers installed into `~/.claude/skills` alone.
+
+Smallest remaining manual procedure for Devin CLI:
+
+1. Run `./install.sh --devin` or `./install.ps1 -Devin` from this repository.
+2. Start a fresh Devin CLI session.
+3. Confirm that `evaluate-model` appears in Devin's available skills.
 
 For Codex, confirm `evaluate-model` appears in the skill picker after installation. Codex documents `~/.agents/skills` as its global skill location and follows symlinked skill folders. Devin documents the same global location and supports the `.agents` skills standard. Claude Code documents `~/.claude/skills` as its personal skill location and follows symlinked skill folders.
 
