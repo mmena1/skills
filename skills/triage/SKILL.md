@@ -87,9 +87,11 @@ Show counts and a one-line summary per item. Let the maintainer pick.
      - **Rejected (enhancement)**: write to `.out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
    - `needs-triage`: apply the role. Optional comment if there's partial progress.
 
+Applying `ready-for-agent` during triage records triage readiness only. It does not establish standalone implementation authority. Add the standalone authority record defined in `docs/agents/issue-tracker.md` only when the maintainer explicitly authorizes both that the issue itself is the authority with no parent/spec intended and that it is ready for implementation. Otherwise, do not add the record. A valid parent-backed issue continues to use its parent approval.
+
 ## Quick state override
 
-If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. Confirm what you're about to do (role changes, comment, close), then act. Skip grilling. If moving to `ready-for-agent` without a grilling session, ask whether they want to write an agent brief.
+If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. This instruction changes readiness only; it does not approve standalone authority. Confirm what you're about to do (role changes, comment, close), then act. Skip grilling. If moving to `ready-for-agent` without a grilling session, ask whether they want to write an agent brief. To authorize standalone implementation, the maintainer must separately and explicitly say that no parent/spec is intended and that the issue itself is approved as the implementation authority; then record that approval using the tracker convention.
 
 ## Needs-info template
 

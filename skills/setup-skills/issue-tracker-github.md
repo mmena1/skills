@@ -36,7 +36,17 @@ Run `gh issue view <number> --comments`.
 ## Implementation workflow
 
 - **Implementation-ready state**: the issue has the label mapped from the `ready-for-agent` role in `docs/agents/triage-labels.md`; when no mapping file exists, the default label is `ready-for-agent`. Only open, unblocked, unassigned implementation issues have this label. Absence of the label is the planned or non-ready state.
-- **Parent/spec**: follow the direct reference in the issue's `## Parent` section, or its native parent relationship when available. Read the parent's body and comments. The ticket defines scope and acceptance criteria; the approved parent defines architecture and public seams.
+- **Authority**: use the approved direct parent/spec when the issue has a `## Parent` reference or native parent. A present but unapproved or unresolvable parent fails closed and never falls back to standalone authority. A parentless issue may use itself as authority only with the complete standalone approval record below. The issue defines scope and acceptance criteria; an approved parent defines architecture and public seams. Standalone issues need no synthetic parent/spec.
+- **Standalone authority record**: add a GitHub issue comment with exactly this structure after `/to-tickets` has published a parentless issue whose breakdown the user explicitly approved, or after `/triage` receives explicit maintainer approval both that no parent/spec is intended and that the issue itself is implementation authority:
+
+  ```markdown
+  ## Standalone implementation authority
+  - Parent/spec: intentionally none
+  - Authority: this issue
+  - Upstream approval: explicit user approval in `/to-tickets`
+  ```
+
+  The recognized approval values are `/to-tickets` and `/triage`. Triage comments must retain their required AI disclaimer before the record. `/implement` accepts this record only when the issue has no parent. A ready label or agent brief alone is insufficient.
 - **Open and unblocked**: fetch state, labels, assignees, and dependency data. The issue must be open. Native `blocked_by` dependencies are the canonical gate when available; otherwise use the configured fallback `Blocked by` references. Every blocker must be closed.
 - **Claim**: after all readiness checks pass, assign the issue with `gh issue edit <n> --add-assignee @me` and remove the implementation-ready label so the claimed issue leaves the frontier.
 - **Resolve**: for implementation closeout, update acceptance criteria when supported and comment with commit and verification evidence, but leave the issue open. Record a PR/merge handoff naming the issue that must be closed. Do not close the parent spec. Explicit issue closure is reserved for tracker workflows whose lifecycle requires it outside `/implement`.

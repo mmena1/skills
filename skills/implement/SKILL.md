@@ -8,7 +8,7 @@ triggers:
 
 # Implement
 
-Implement exactly one approved issue or spec. The requested ticket defines the delivery scope; its directly referenced approved parent or spec defines the architectural authority.
+Implement exactly one approved issue or spec. The requested issue defines delivery scope and uses either its directly referenced approved parent/spec for architectural authority or the issue itself when the tracker has a valid standalone approval record.
 
 This is a self-contained worker. Finish the ticket through commits, review, and tracker closeout, but never pull downstream tickets into the change. A parallel orchestrator must give each worker one ticket and an isolated working copy; frontier selection and scheduling stay outside this skill.
 
@@ -21,8 +21,9 @@ For a ticket-driven run, require `docs/agents/issue-tracker.md` to define all si
 Resolve the user's reference through the configured tracker workflow. For a ticket:
 
 - Fetch its current body, comments, state, labels or status, blockers, and parent relationship.
-- Follow the ticket's direct parent or spec reference and read that source completely, including its approval record.
-- Treat the ticket's acceptance criteria and boundaries as scope. Treat the approved parent or spec as authority for architecture, public seams, and settled decisions.
+- If the issue has a direct parent/spec reference or native parent, follow it and read it completely, including its approval record. A missing, unapproved, or unresolvable referenced parent fails closed; never fall back to standalone authority.
+- If it has no parent/spec, resolve standalone authority only from the complete tracker record defined in `docs/agents/issue-tracker.md`. A readiness label, brief, or conversation history is not that record.
+- Treat the issue's acceptance criteria and boundaries as scope. For parent-backed work, treat the approved parent/spec as authority for architecture, public seams, and settled decisions. For standalone work, the approved issue itself is the authority; do not require or invent a synthetic spec.
 
 For a directly requested spec, read the complete spec and its approval record. If a required source cannot be resolved unambiguously, stop before making changes and report exactly what is missing.
 
@@ -30,7 +31,7 @@ For a directly requested spec, read the complete spec and its approval record. I
 
 Before any write to the tracker or worktree:
 
-1. Verify the governing parent or spec carries the approval required by the upstream workflow.
+1. Verify either that the governing parent/spec carries the approval required by the upstream workflow, or that the parentless issue has the valid standalone authority record required by `docs/agents/issue-tracker.md`.
 2. For a ticket, verify it is open, every blocker is resolved, and it is in the implementation-ready state defined by `docs/agents/issue-tracker.md`. A user may explicitly override a failed ticket-state gate.
 3. Require `git status --porcelain` to be empty. Continue from a dirty worktree only when the user explicitly authorizes that exact starting state.
 4. Capture `git rev-parse HEAD` as `BASELINE`. Keep this exact commit SHA fixed for the whole run.
@@ -60,7 +61,7 @@ After the implementation and required verification pass:
 1. Inspect the diff and stage only files belonging to this ticket.
 2. Confirm `git branch --show-current` is non-empty and is not the resolved default branch. If this invariant is false, stop without committing and report it.
 3. Commit the implementation to the current non-default branch, referencing the ticket or spec. The commit must exist before review so `<BASELINE>...HEAD` contains the work.
-4. Explicitly compose the `code-review` workflow with `BASELINE` and the originating source bundle: the ticket plus its approved parent or spec, or the directly requested spec. If the harness cannot invoke an explicit-only skill as a dependency, read `code-review/SKILL.md` from the active skill root and follow it directly. This instruction authorizes only this named review step; it does not make code review implicitly invokable.
+4. Explicitly compose the `code-review` workflow with `BASELINE` and the originating source bundle: the issue plus its approved parent/spec, the issue plus its recognized standalone approval record, or the directly requested spec. If the harness cannot invoke an explicit-only skill as a dependency, read `code-review/SKILL.md` from the active skill root and follow it directly. This instruction authorizes only this named review step; it does not make code review implicitly invokable.
 5. Treat documented-standards violations and every missing, partial, incorrect, or out-of-scope Spec finding as blocking. Smell-baseline findings are advisory unless they demonstrate a documented or correctness violation.
 6. Fix every blocking finding that is within the approved scope, rerun the affected targeted checks and required final verification, commit the fixes on the same non-default branch, then repeat review against the same `BASELINE` and source bundle.
 
