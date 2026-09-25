@@ -213,8 +213,9 @@ def resolve_issue_authority(
     *,
     parent: str | None,
     comments: list[str],
+    ready_for_agent: bool = False,
 ) -> str | None:
-    """Model the tracker contract: a present parent never falls back to standalone."""
+    """Model authority resolution; readiness does not establish authority."""
     if parent is not None:
         return "parent" if parent == "approved" else None
     if has_standalone_authority_record(comments):
@@ -256,7 +257,7 @@ def validate_implementation_authority_contract() -> None:
         fail("issue with unapproved parent fell back to standalone authority")
     if resolve_issue_authority(parent="unresolvable", comments=[approved_record]) is not None:
         fail("issue with unresolvable parent fell back to standalone authority")
-    if resolve_issue_authority(parent=None, comments=[]) is not None:
+    if resolve_issue_authority(parent=None, comments=[], ready_for_agent=True) is not None:
         fail("ready-for-agent alone granted standalone authority")
     if resolve_issue_authority(parent=None, comments=[triage_record]) != "standalone":
         fail("explicitly approved standalone /triage issue was not accepted")
