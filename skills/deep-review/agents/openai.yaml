@@ -1,0 +1,7 @@
+interface:
+  display_name: "Deep Review"
+  short_description: "Strict multi-agent PR-gate review"
+  default_prompt: "Review this committed target with Deep Review."
+
+policy:
+  allow_implicit_invocation: false

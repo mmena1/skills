@@ -74,6 +74,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 ### User-invoked
 
 - [`code-review`](./skills/code-review/SKILL.md): Review a diff against repository standards and its originating issue or spec.
+- [`deep-review`](./skills/deep-review/SKILL.md): Run a strict PR-gate review with parallel read-only scouts and independent hypothesis validation.
 - [`design-review`](./skills/design-review/SKILL.md): Check a spec's proposed modules for shallow seams before ticket breakdown.
 - [`evaluate-model`](./skills/evaluate-model/SKILL.md): Recommend a model, reasoning effort, and session boundary for an upcoming task, then stop.
 - [`grill-me`](./skills/grill-me/SKILL.md): Sharpen a plan or design through a relentless interview.
