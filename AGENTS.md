@@ -39,6 +39,8 @@ python scripts/check.py
 
 The same command runs in CI on Ubuntu, macOS, and Windows. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, and installer safety and selection behavior.
 
+A skill that ships native reviewer agents declares them in `harnesses/roles.toml` (see ADR-0001). After changing that manifest or a reviewer body it embeds, run `python scripts/generate_agents.py` and commit the regenerated files under `harnesses/<harness>/`. Never edit generated agent files by hand.
+
 Also run `git diff --check` before committing.
 
 ## Installation and updates
@@ -48,7 +50,7 @@ Also run `git diff --check` before committing.
 - Bare invocation detects supported configured harnesses and installs stable skills only.
 - Harness selection and experimental selection are independent. `all` selects all supported harness destinations, not all stability tiers.
 - Installers may replace only destinations they can recognize as managed by this repository. Back up unrelated existing destinations before installing.
-- Prefer symbolic links on Unix, macOS, and WSL. Use directory junctions on Windows, including Git Bash. A copy fallback must warn that the installer needs to be rerun after repository updates.
+- Prefer symbolic links on Unix, macOS, and WSL. Use directory junctions for directories on Windows, including Git Bash. Junctions cannot target files, so a single-file native reviewer agent uses a Windows symbolic link when the account may create one. A copy fallback must warn that the installer needs to be rerun after repository updates.
 
 After pulling repository changes, rerun the appropriate installer so new, removed, renamed, or copied skills are reconciled.
 

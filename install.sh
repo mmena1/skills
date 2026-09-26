@@ -15,8 +15,9 @@ usage() {
 Usage: ./install.sh [--codex] [--devin] [--claude] [--all] [--experimental]
 
 With no harness option, install stable skills into every detected supported
-harness. Codex and Devin share ~/.agents/skills. --experimental additionally
-installs skills/experimental entries.
+harness. Codex and Devin share ~/.agents/skills. Native reviewer agents that a
+selected skill ships are linked into each selected harness's agent directory.
+--experimental additionally installs skills/experimental entries.
 EOF
 }
 
@@ -108,10 +109,22 @@ junction_points_into_repo() {
   ' >/dev/null 2>&1
 }
 
+marker_path() {
+  if [ -d "$1" ]; then
+    printf '%s\n' "$1/$MANAGED_MARKER"
+  else
+    printf '%s\n' "$1$MANAGED_MARKER"
+  fi
+}
+
 managed_copy_points_into_repo() {
-  local destination="$1" recorded candidate
-  [ -f "$destination/$MANAGED_MARKER" ] || return 1
-  recorded="$(cat "$destination/$MANAGED_MARKER")"
+  marker_points_into_repo "$(marker_path "$1")"
+}
+
+marker_points_into_repo() {
+  local marker="$1" recorded candidate
+  [ -f "$marker" ] || return 1
+  recorded="$(cat "$marker")"
   candidate="$recorded"
   if is_windows_shell; then
     candidate="$(cygpath -u "$recorded" 2>/dev/null || printf '%s' "$recorded")"
@@ -136,12 +149,13 @@ path_exists() {
 remove_managed_path() {
   local destination="$1"
   if junction_points_into_repo "$destination"; then
-    cmd.exe //d //c rmdir "$(cygpath -w "$destination")" >/dev/null
-  elif [ -L "$destination" ]; then
+    cmd.exe //d //c rmdir "$(cygpath -w "$destination")" >/dev/null 2>&1 || rm -f "$destination"
+  elif [ -L "$destination" ] || [ ! -d "$destination" ]; then
     rm -f "$destination"
   else
     rm -rf "$destination"
   fi
+  rm -f "$destination$MANAGED_MARKER"
 }
 
 backup_path() {
@@ -154,17 +168,23 @@ backup_path() {
   mv "$destination" "$backup"
 }
 
-materialize_skill() {
+create_link() {
+  local source="$1" destination="$2"
+  [ "${SKILLS_INSTALLER_FORCE_COPY:-0}" != "1" ] || return 1
+  if ! is_windows_shell; then
+    ln -s "$source" "$destination" 2>/dev/null
+  elif [ -d "$source" ]; then
+    cmd.exe //d //c mklink //J "$(cygpath -w "$destination")" "$(cygpath -w "$source")" >/dev/null 2>&1
+  else
+    cmd.exe //d //c mklink "$(cygpath -w "$destination")" "$(cygpath -w "$source")" >/dev/null 2>&1
+  fi
+}
+
+materialize_path() {
   local source="$1" destination="$2" action="Linked"
-  if is_windows_shell; then
-    if ! cmd.exe //d //c mklink //J "$(cygpath -w "$destination")" "$(cygpath -w "$source")" >/dev/null 2>&1; then
-      cp -R "$source" "$destination"
-      printf '%s\n' "$source" > "$destination/$MANAGED_MARKER"
-      action="Copied"
-    fi
-  elif ! ln -s "$source" "$destination" 2>/dev/null; then
+  if ! create_link "$source" "$destination"; then
     cp -R "$source" "$destination"
-    printf '%s\n' "$source" > "$destination/$MANAGED_MARKER"
+    printf '%s\n' "$source" > "$(marker_path "$destination")"
     action="Copied"
   fi
   echo "$action $destination -> $source"
@@ -173,7 +193,7 @@ materialize_skill() {
   fi
 }
 
-install_skill() {
+install_managed_path() {
   local source="$1" destination="$2"
   if [ -L "$destination" ] && symlink_points_into_repo "$destination"; then
     remove_managed_path "$destination"
@@ -185,7 +205,7 @@ install_skill() {
     backup_path "$destination"
   fi
   mkdir -p "$(dirname "$destination")"
-  materialize_skill "$source" "$destination"
+  materialize_path "$source" "$destination"
 }
 
 managed_path_points_into_repo() {
@@ -196,53 +216,99 @@ managed_path_points_into_repo() {
 }
 
 reconcile_collection() {
-  local destination_root="$1" desired_names="$2" destination name
+  local destination_root="$1" desired_names="$2" kind="${3:-skill}" destination name
   for destination in "$destination_root"/*; do
     path_exists "$destination" || continue
     name="${destination##*/}"
+    case "$name" in
+      *"$MANAGED_MARKER")
+        if ! path_exists "${destination%"$MANAGED_MARKER"}" && marker_points_into_repo "$destination"; then
+          rm -f "$destination"
+        fi
+        continue
+        ;;
+    esac
     case "$desired_names" in
       *"|$name|"*) continue ;;
     esac
     if managed_path_points_into_repo "$destination"; then
-      echo "Removing repository-managed skill absent from desired set: $destination"
+      echo "Removing repository-managed $kind absent from desired set: $destination"
       remove_managed_path "$destination"
     fi
   done
 }
 
-install_collection() {
-  local destination_root="$1" source name desired_names="|"
-  mkdir -p "$destination_root"
+# Collect selected skill directories into SELECTED_SKILLS. Plain loops keep this
+# deterministic under Bash 3.2, whose nested process substitutions can drop output.
+collect_selected_skills() {
+  local source
+  SELECTED_SKILLS=()
   for source in "$REPO_ROOT"/skills/*; do
     [ -d "$source" ] || continue
-    name="${source##*/}"
-    [ "$name" = "experimental" ] && continue
+    [ "${source##*/}" = "experimental" ] && continue
     [ -f "$source/SKILL.md" ] || continue
-    desired_names="${desired_names}${name}|"
+    SELECTED_SKILLS+=("$source")
   done
   if [ "$INCLUDE_EXPERIMENTAL" -eq 1 ]; then
     for source in "$REPO_ROOT"/skills/experimental/*; do
       [ -d "$source" ] || continue
       [ -f "$source/SKILL.md" ] || continue
-      name="${source##*/}"
-      desired_names="${desired_names}${name}|"
+      SELECTED_SKILLS+=("$source")
     done
   fi
-  reconcile_collection "$destination_root" "$desired_names"
-  for source in "$REPO_ROOT"/skills/*; do
-    [ -d "$source" ] || continue
-    name="${source##*/}"
-    [ "$name" = "experimental" ] && continue
-    [ -f "$source/SKILL.md" ] || continue
-    install_skill "$source" "$destination_root/$name"
+}
+
+install_collection() {
+  local destination_root="$1" source desired_names="|"
+  mkdir -p "$destination_root"
+  for source in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
+    desired_names="${desired_names}${source##*/}|"
   done
-  if [ "$INCLUDE_EXPERIMENTAL" -eq 1 ]; then
-    for source in "$REPO_ROOT"/skills/experimental/*; do
-      [ -d "$source" ] || continue
-      [ -f "$source/SKILL.md" ] || continue
-      name="${source##*/}"
-      install_skill "$source" "$destination_root/$name"
+  reconcile_collection "$destination_root" "$desired_names"
+  for source in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
+    install_managed_path "$source" "$destination_root/${source##*/}"
+  done
+}
+
+# Collect into SELECTED_AGENTS the generated native reviewer agents that selected skills
+# ship for one harness: Codex <name>.toml files, Devin <name>/AGENT.md directories, and
+# Claude <name>.md files.
+collect_selected_agents() {
+  local harness="$1" skill source
+  SELECTED_AGENTS=()
+  for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
+    for source in "$skill/harnesses/$harness"/*; do
+      case "$harness:$source" in
+        codex:*.toml|claude:*.md) [ -f "$source" ] || continue ;;
+        devin:*) [ -f "$source/AGENT.md" ] || continue ;;
+        *) continue ;;
+      esac
+      SELECTED_AGENTS+=("$source")
     done
+  done
+}
+
+install_agents() {
+  local harness="$1" destination_root="$2" source desired_names="|"
+  collect_selected_agents "$harness"
+  for source in ${SELECTED_AGENTS[@]+"${SELECTED_AGENTS[@]}"}; do
+    desired_names="${desired_names}${source##*/}|"
+  done
+  if [ -d "$destination_root" ]; then
+    reconcile_collection "$destination_root" "$desired_names" agent
+  fi
+  [ "${#SELECTED_AGENTS[@]}" -gt 0 ] || return 0
+  mkdir -p "$destination_root"
+  for source in "${SELECTED_AGENTS[@]}"; do
+    install_managed_path "$source" "$destination_root/${source##*/}"
+  done
+}
+
+devin_agents_root() {
+  if is_windows_shell && [ -n "${APPDATA:-}" ]; then
+    printf '%s\n' "$(cygpath -u "$APPDATA")/devin/agents"
+  else
+    printf '%s\n' "${HOME}/.config/devin/agents"
   fi
 }
 
@@ -256,6 +322,7 @@ if [ "$SELECTED_HARNESS" -eq 0 ]; then
   fi
 fi
 
+collect_selected_skills
 if [ "$INSTALL_CODEX" -eq 1 ] || [ "$INSTALL_DEVIN" -eq 1 ]; then
   install_collection "${HOME}/.agents/skills"
 fi
@@ -263,5 +330,8 @@ if [ "$INSTALL_DEVIN" -eq 1 ]; then
   reconcile_collection "${HOME}/.config/devin/skills" "|"
 fi
 if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_collection "${HOME}/.claude/skills"; fi
+if [ "$INSTALL_CODEX" -eq 1 ]; then install_agents codex "${HOME}/.codex/agents"; fi
+if [ "$INSTALL_DEVIN" -eq 1 ]; then install_agents devin "$(devin_agents_root)"; fi
+if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_agents claude "${HOME}/.claude/agents"; fi
 
 echo "Install complete."

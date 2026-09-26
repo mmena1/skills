@@ -31,11 +31,23 @@ Add `--experimental` or `-Experimental` to install the experimental collection a
 
 The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Bash and native Windows PowerShell use directory junctions. If the environment cannot create a link safely, the installer copies the skill and warns that it must be rerun after repository updates. Existing unrelated destinations are backed up, not deleted.
 
+### Native reviewer agents
+
+Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with their own model, tools, and sandbox. For each selected harness, the installer links the agents that selected skills ship into that harness's personal agent directory:
+
+- Codex: `~/.codex/agents/<agent>.toml`
+- Devin CLI: `~/.config/devin/agents/<agent>/AGENT.md`, or `%APPDATA%\devin\agents\<agent>\AGENT.md` on Windows
+- Claude Code: `~/.claude/agents/<agent>.md`
+
+Agents follow the same rules as skills. Agents from experimental skills are installed only with the experimental option. Repository-managed agents are replaced, or removed when no skill ships them any longer, and unrelated agents with the same name are backed up. Devin agents are directories and use junctions on Windows. Codex and Claude Code agents are single files: on Windows they are symbolic links when the account may create them, which normally requires Developer Mode or an administrator shell. Otherwise the installer copies the file, writes a `<agent-file>.skills-repo-managed` marker beside it, and warns that it must be rerun after repository updates.
+
+A skill declares its agents in `harnesses/roles.toml`. `python scripts/generate_agents.py` writes the agent files under `harnesses/<harness>/`, and they are never edited by hand. The canonical check fails when a generated agent file is stale, missing, or edited.
+
 When Devin is selected, the installer also removes repository-managed skills from the former `~/.config/devin/skills` destination after updating `~/.agents/skills`. Unrelated files and folders in the old location are left in place. The installer recognizes its symlinks, junctions, and marked copy fallbacks; it does not guess that an unmarked directory belongs to this repository.
 
 ## Updating
 
-Linked and junctioned skills reflect repository edits immediately. After pulling changes, rerun the installer to add, remove, or refresh installed skills safely:
+Linked and junctioned skills and agents reflect repository edits immediately. After pulling changes, rerun the installer to add, remove, or refresh installed skills and agents safely:
 
 ```bash
 git pull
@@ -49,7 +61,7 @@ git pull
 
 ## Verify harness discovery
 
-The canonical check runs both installers in isolated home directories and verifies that Codex and Devin selections resolve to the shared destination, Claude resolves to its personal destination, `--all`/`-All` creates the shared collection once, and legacy cleanup preserves unrelated content. To confirm discovery in the actual applications, run the installer with `--all` or `-All`, then check that a representative skill such as `evaluate-model` appears in Codex's skill picker, Devin CLI's available skills, and Claude Code's `/` menu. The automated distribution check verifies the files and links at each documented location; it does not launch those applications.
+The canonical check runs both installers in isolated home directories and verifies that Codex and Devin selections resolve to the shared destination, Claude resolves to its personal destination, `--all`/`-All` creates the shared collection once, and legacy cleanup preserves unrelated content. It also installs the native agents of the test skill in `tests/fixtures/agent-skill` and checks their linking, reconciliation, backup, and copy fallback for each harness. To confirm discovery in the actual applications, run the installer with `--all` or `-All`, then check that a representative skill such as `evaluate-model` appears in Codex's skill picker, Devin CLI's available skills, and Claude Code's `/` menu. The automated distribution check verifies the files and links at each documented location; it does not launch those applications.
 
 ## Stable and experimental skills
 

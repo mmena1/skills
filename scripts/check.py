@@ -9,13 +9,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.parse
 from pathlib import Path
+
+import generate_agents
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
-TEXT_SUFFIXES = {".md", ".yaml", ".yml", ".json", ".py", ".sh", ".ps1"}
+TEXT_SUFFIXES = {".md", ".yaml", ".yml", ".json", ".py", ".sh", ".ps1", ".toml"}
 RETIRED_BUCKETS = {"engineering", "productivity", "misc", "deprecated", "in-progress"}
 RETIRED_FILES = {
     "CLAUDE.md",
@@ -371,6 +374,94 @@ def validate_implementation_authority_contract() -> None:
         fail("closing a standalone blocker did not promote its approved standalone dependent")
 
 
+def validate_native_agents() -> None:
+    """Generated native reviewer agents must match their role manifests exactly."""
+    owners: dict[str, str] = {}
+    for skill in generate_agents.agent_skill_directories(ROOT):
+        harnesses = sorted(path.name for path in (skill / "harnesses").iterdir() if path.is_dir())
+        unsupported = sorted(set(harnesses) - set(generate_agents.HARNESSES))
+        if unsupported:
+            fail(f"{skill.relative_to(ROOT).as_posix()}/harnesses: unsupported harness directories {', '.join(unsupported)}")
+        problems = generate_agents.stale_agents(skill)
+        if problems:
+            fail("; ".join(problems) + "; run python scripts/generate_agents.py")
+        for role in generate_agents.load_roles(skill):
+            if role.agent_name in owners:
+                fail(f"agent name {role.agent_name!r} is shipped by both {owners[role.agent_name]} and {skill.name}")
+            owners[role.agent_name] = skill.name
+            codex_file = skill / "harnesses" / "codex" / f"{role.agent_name}.toml"
+            if codex_file.is_file():
+                parsed = tomllib.loads(codex_file.read_text(encoding="utf-8"))
+                if parsed.get("name") != role.agent_name or parsed.get("developer_instructions") != role.body:
+                    fail(f"{codex_file.relative_to(ROOT).as_posix()}: generated Codex agent does not round-trip its name and body")
+    if "agent-skill" not in owners.values():
+        fail("tests/fixtures/agent-skill must ship native reviewer agents")
+
+
+def validate_agent_generation_contract() -> None:
+    """Prove the freshness check rejects stale, missing, and hand-edited files."""
+    source = ROOT / "tests" / "fixtures" / "agent-skill"
+    with tempfile.TemporaryDirectory(prefix="skills-agents-") as temp_value:
+        skill = Path(temp_value) / "agent-skill"
+        shutil.copytree(source, skill)
+        expected_files = {
+            "harnesses/codex/agent-skill-scout.toml",
+            "harnesses/devin/agent-skill-scout/AGENT.md",
+            "harnesses/claude/agent-skill-scout.md",
+        }
+        if not expected_files <= set(generate_agents.render_agents(skill)):
+            fail("agent generation does not produce one shared agent name per role for every harness")
+        if generate_agents.stale_agents(skill):
+            fail("committed fixture agents are not fresh")
+
+        codex_scout = skill / "harnesses" / "codex" / "agent-skill-scout.toml"
+        cases = {
+            "stale": lambda: (skill / "reviewers" / "reviewer.md").write_text("changed body\n", encoding="utf-8"),
+            "missing": lambda: (skill / "harnesses" / "claude" / "agent-skill-probe.md").unlink(),
+            "hand-edited": lambda: codex_scout.write_text(codex_scout.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8"),
+            "unexpected": lambda: (skill / "harnesses" / "claude" / "agent-skill-extra.md").write_text("extra\n", encoding="utf-8"),
+            "malformed": lambda: (skill / "harnesses" / "roles.toml").write_text("[roles.scout]\nbody = 3\n", encoding="utf-8"),
+        }
+        for label, mutate in cases.items():
+            shutil.rmtree(skill)
+            shutil.copytree(source, skill)
+            mutate()
+            if not generate_agents.stale_agents(skill):
+                fail(f"agent freshness check accepted a {label} generated agent file")
+            if label != "malformed":
+                generate_agents.write_agents(skill)
+                if generate_agents.stale_agents(skill):
+                    fail(f"regeneration did not repair a {label} generated agent file")
+
+        manifest = (source / "harnesses" / "roles.toml").read_text(encoding="utf-8")
+        for harness, fields in generate_agents.HARNESS_FIELDS.items():
+            for field in fields:
+                (skill / "harnesses" / "roles.toml").write_text(
+                    without_manifest_field(manifest, f"roles.scout.{harness}", field), encoding="utf-8"
+                )
+                try:
+                    generate_agents.load_roles(skill)
+                except generate_agents.AgentManifestError:
+                    continue
+                fail(f"role manifest accepted a {harness} role without {field!r}")
+
+
+def without_manifest_field(manifest: str, table: str, field: str) -> str:
+    """Drop one key from one table of a role manifest, failing if it is absent."""
+    kept, section, removed = [], None, False
+    for line in manifest.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1]
+        elif section == table and stripped.split("=", 1)[0].strip() == field:
+            removed = True
+            continue
+        kept.append(line)
+    if not removed:
+        fail(f"test skill manifest has no {field!r} in [{table}]")
+    return "".join(kept)
+
+
 def find_bash() -> str:
     if os.name != "nt":
         bash = shutil.which("bash")
@@ -395,6 +486,23 @@ def find_bash() -> str:
     fail("Git Bash is required for install.sh distribution tests on Windows")
 
 
+def write_agent_skill(skill: Path, body: str) -> None:
+    """Give a fixture skill one generated native reviewer agent role on every harness."""
+    (skill / "reviewers").mkdir(parents=True, exist_ok=True)
+    (skill / "harnesses").mkdir(exist_ok=True)
+    (skill / "reviewers" / "probe.md").write_text(body + "\n", encoding="utf-8")
+    (skill / "harnesses" / "roles.toml").write_text(
+        "[roles.probe]\n"
+        'description = "Fixture probe."\n'
+        'body = ["reviewers/probe.md"]\n'
+        '[roles.probe.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nsandbox_mode = "read-only"\n'
+        '[roles.probe.devin]\nmodel = "gpt-5-6-luna-high"\nallowed-tools = ["read"]\n'
+        '[roles.probe.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n',
+        encoding="utf-8",
+    )
+    generate_agents.write_agents(skill)
+
+
 def write_fixture(root: Path) -> None:
     shutil.copy2(ROOT / "install.sh", root / "install.sh")
     shutil.copy2(ROOT / "install.ps1", root / "install.ps1")
@@ -404,6 +512,8 @@ def write_fixture(root: Path) -> None:
     experimental.mkdir(parents=True)
     (stable / "SKILL.md").write_text("---\nname: stable-skill\ndescription: Stable fixture.\n---\n", encoding="utf-8")
     (experimental / "SKILL.md").write_text("---\nname: lab-skill\ndescription: Experimental fixture.\n---\n", encoding="utf-8")
+    shutil.copytree(ROOT / "tests" / "fixtures" / "agent-skill", root / "skills" / "agent-skill")
+    write_agent_skill(experimental, "Experimental reviewer.")
     if os.name != "nt":
         (root / "install.sh").chmod(0o755)
 
@@ -443,11 +553,176 @@ def create_broken_directory_link(link: Path, target: Path) -> None:
     target.rmdir()
 
 
+def isolated_environment(home: Path, extra_env: dict[str, str] | None) -> dict[str, str]:
+    """Keep Windows Devin agent installs inside the test home."""
+    env = os.environ.copy()
+    env.pop("SKILLS_INSTALLER_FORCE_COPY", None)
+    env["APPDATA"] = str(home / "AppData" / "Roaming")
+    env.update(extra_env or {})
+    return env
+
+
+AGENT_FILES = {"codex": "{name}.toml", "devin": "{name}/AGENT.md", "claude": "{name}.md"}
+AGENT_HARNESSES = generate_agents.HARNESSES
+MANAGED_MARKER = ".skills-repo-managed"
+
+
+def agent_destinations(home: Path) -> dict[str, Path]:
+    devin = home / "AppData" / "Roaming" / "devin" / "agents" if os.name == "nt" else home / ".config" / "devin" / "agents"
+    return {"codex": home / ".codex" / "agents", "devin": devin, "claude": home / ".claude" / "agents"}
+
+
+def installed_agent(home: Path, harness: str, name: str) -> Path:
+    return agent_destinations(home)[harness] / AGENT_FILES[harness].format(name=name)
+
+
+def installed_agent_entry(home: Path, harness: str, name: str) -> Path:
+    """The linked destination: the agent directory for Devin, the agent file elsewhere."""
+    installed = installed_agent(home, harness, name)
+    return installed.parent if harness == "devin" else installed
+
+
+def assert_agent(home: Path, harness: str, name: str, skill: Path) -> None:
+    installed = installed_agent(home, harness, name)
+    source = skill / "harnesses" / harness / AGENT_FILES[harness].format(name=name)
+    if not installed.is_file() or installed.read_bytes() != source.read_bytes():
+        fail(f"missing or stale installed agent: {installed}")
+
+
+def agent_marker(entry: Path, harness: str) -> Path:
+    return entry / MANAGED_MARKER if harness == "devin" else Path(str(entry) + MANAGED_MARKER)
+
+
+def assert_agent_linked(home: Path, harness: str, name: str, context: str) -> None:
+    """A normal install links every agent; only a Windows file agent may fall back to a marked copy."""
+    entry = installed_agent_entry(home, harness, name)
+    if entry.is_symlink() or (os.name == "nt" and os.path.isjunction(entry)):
+        if harness != "devin" and agent_marker(entry, harness).exists():
+            fail(f"{context}: linked {harness} agent kept a copy marker")
+        return
+    if os.name == "nt" and harness != "devin" and agent_marker(entry, harness).is_file():
+        return
+    fail(f"{context}: {harness} agent is neither linked nor a marked Windows copy: {entry}")
+
+
+def assert_no_agent(home: Path, harness: str, name: str, context: str) -> None:
+    entry = installed_agent_entry(home, harness, name)
+    if os.path.lexists(entry):
+        fail(f"{context}: unexpected installed agent {entry}")
+
+
+def backups_of(path: Path) -> list[Path]:
+    return list(path.parent.glob(path.name + ".bak-*"))
+
+
+def orphaned_markers(root: Path) -> list[Path]:
+    return [
+        marker for marker in root.glob("*" + MANAGED_MARKER)
+        if not os.path.lexists(str(marker)[: -len(MANAGED_MARKER)])
+    ]
+
+
+def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    """Exercise native agent linking, reconciliation, backup, and copy fallback for one installer."""
+    stable = fixture / "skills" / "agent-skill"
+    experimental = fixture / "skills" / "experimental" / "lab-skill"
+    roles = ("agent-skill-scout", "agent-skill-probe")
+
+    all_home = temporary / f"{label}-agents-all"
+    invoke(all_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        for name in roles:
+            assert_agent(all_home, harness, name, stable)
+            assert_agent_linked(all_home, harness, name, f"{label} install")
+        assert_no_agent(all_home, harness, "lab-skill-probe", f"{label} stable install included an experimental agent")
+
+    for selected in AGENT_HARNESSES:
+        home = temporary / f"{label}-agents-{selected}"
+        invoke(home, option(selected))
+        for harness in AGENT_HARNESSES:
+            if harness == selected:
+                assert_agent(home, harness, "agent-skill-scout", stable)
+                assert_agent_linked(home, harness, "agent-skill-scout", f"{label} {selected} install")
+            elif os.path.lexists(agent_destinations(home)[harness]):
+                fail(f"{label} {selected} install wrote agents for unselected harness {harness}")
+
+    experimental_home = temporary / f"{label}-agents-experimental"
+    invoke(experimental_home, option("all"), option("experimental"))
+    for harness in AGENT_HARNESSES:
+        assert_agent(experimental_home, harness, "lab-skill-probe", experimental)
+    invoke(experimental_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        assert_no_agent(experimental_home, harness, "lab-skill-probe", f"{label} reconciliation retained an experimental agent")
+        assert_agent(experimental_home, harness, "agent-skill-scout", stable)
+        if orphaned_markers(agent_destinations(experimental_home)[harness]):
+            fail(f"{label} reconciliation left a managed marker for a removed agent")
+
+    retired = fixture / "skills" / f"{label}-retired-agents"
+    retired.mkdir()
+    (retired / "SKILL.md").write_text(f"---\nname: {retired.name}\ndescription: Retired fixture.\n---\n", encoding="utf-8")
+    write_agent_skill(retired, "Retired reviewer.")
+    removal_home = temporary / f"{label}-agents-removal"
+    invoke(removal_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        assert_agent(removal_home, harness, f"{retired.name}-probe", retired)
+    shutil.rmtree(retired)
+    invoke(removal_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        assert_no_agent(removal_home, harness, f"{retired.name}-probe", f"{label} reconciliation retained a removed agent")
+        if orphaned_markers(agent_destinations(removal_home)[harness]):
+            fail(f"{label} reconciliation left a managed marker for a removed agent")
+
+    backup_home = temporary / f"{label}-agents-backup"
+    for harness in AGENT_HARNESSES:
+        path = installed_agent(backup_home, harness, "agent-skill-scout")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("keep me\n", encoding="utf-8")
+    foreign = agent_destinations(backup_home)["claude"] / "my-agent.md"
+    foreign.write_text("leave me\n", encoding="utf-8")
+    for _ in range(2):
+        invoke(backup_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        backups = backups_of(installed_agent_entry(backup_home, harness, "agent-skill-scout"))
+        preserved = (backups[0] / "AGENT.md" if harness == "devin" else backups[0]) if len(backups) == 1 else None
+        if preserved is None or preserved.read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer did not back up an unrelated same-named {harness} agent exactly once")
+        assert_agent(backup_home, harness, "agent-skill-scout", stable)
+    if foreign.read_text(encoding="utf-8") != "leave me\n":
+        fail(f"{label} installer changed an unrelated agent")
+
+    copy_home = temporary / f"{label}-agents-copy"
+    force_copy = {"SKILLS_INSTALLER_FORCE_COPY": "1"}
+    result = invoke(copy_home, option("all"), option("experimental"), extra_env=force_copy)
+    output = result.stdout + result.stderr
+    reported = output.replace("\\", "/")
+    copies = re.findall(r"(?m)^Copied ", output)
+    warnings = output.lower().count("rerun the installer after repository updates")
+    if not copies or warnings != len(copies):
+        fail(f"{label} copy fallback printed {warnings} rerun warnings for {len(copies)} copies")
+    for harness in AGENT_HARNESSES:
+        entry = installed_agent_entry(copy_home, harness, "lab-skill-probe")
+        if not re.search(rf"Copied .*{re.escape('/'.join(entry.parts[-3:]))} -> ", reported):
+            fail(f"{label} copy fallback did not report copying the {harness} agent")
+        if not agent_marker(entry, harness).is_file():
+            fail(f"{label} copy fallback did not mark the copied {harness} agent")
+        assert_agent(copy_home, harness, "lab-skill-probe", experimental)
+    invoke(copy_home, option("all"), extra_env=force_copy)
+    invoke(copy_home, option("all"))
+    for harness in AGENT_HARNESSES:
+        assert_no_agent(copy_home, harness, "lab-skill-probe", f"{label} reconciliation retained a copied experimental agent")
+        if backups_of(installed_agent_entry(copy_home, harness, "agent-skill-scout")):
+            fail(f"{label} installer backed up a repository-managed {harness} agent copy")
+        assert_agent(copy_home, harness, "agent-skill-scout", stable)
+        assert_agent_linked(copy_home, harness, "agent-skill-scout", f"{label} relink after copy fallback")
+        if orphaned_markers(agent_destinations(copy_home)[harness]):
+            fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
+
+
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
 
-    def invoke(home: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
+    def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        env = isolated_environment(home, extra_env)
         env["HOME"] = str(home)
         return run([bash, "./install.sh", *arguments], cwd=fixture, env=env)
 
@@ -572,6 +847,9 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     if (foreign / "local.txt").read_text(encoding="utf-8") != "leave me\n":
         fail("shell reconciliation changed an unrelated destination")
 
+    shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
+    test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
+
 
 def find_powershell() -> str:
     for name in ("pwsh", "powershell.exe"):
@@ -586,10 +864,11 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
         return
     powershell = find_powershell()
 
-    def invoke(home: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         return run(
             [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(fixture / "install.ps1"), *arguments, "-HomePath", str(home)],
             cwd=fixture,
+            env=isolated_environment(home, extra_env),
         )
 
     codex_home = temporary / "powershell-codex"
@@ -699,6 +978,9 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     if (foreign / "local.txt").read_text(encoding="utf-8") != "leave me\n":
         fail("PowerShell reconciliation changed an unrelated destination")
 
+    powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
+    test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+
 
 def validate_installers() -> None:
     with tempfile.TemporaryDirectory(prefix="skills-check-") as temp_value:
@@ -715,6 +997,8 @@ def main() -> int:
         skill_names = validate_layout_and_skills()
         validate_repository_references(skill_names)
         validate_implementation_authority_contract()
+        validate_native_agents()
+        validate_agent_generation_contract()
         validate_installers()
     except CheckFailure as error:
         print(f"FAIL: {error}", file=sys.stderr)

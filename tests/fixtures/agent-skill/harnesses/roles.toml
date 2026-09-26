@@ -1,0 +1,39 @@
+# Native reviewer agent roles. Each role generates one agent per declared
+# harness, named "<skill>-<role>" everywhere. Regenerate with
+# `python scripts/generate_agents.py` after editing this file or a body.
+
+[roles.scout]
+description = "Read-only fixture reviewer that reports findings."
+body = ["reviewers/reviewer.md"]
+
+[roles.scout.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+
+[roles.scout.devin]
+model = "gpt-5-6-luna-medium"
+allowed-tools = ["read", "grep", "glob"]
+
+[roles.scout.claude]
+model = "inherit"
+tools = ["Read", "Grep", "Glob"]
+effort = "medium"
+
+[roles.probe]
+description = "Fixture validator that may run one bounded writable probe."
+body = ["reviewers/reviewer.md", "reviewers/probe.md"]
+
+[roles.probe.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+
+[roles.probe.devin]
+model = "gpt-5-6-luna-high"
+allowed-tools = ["read", "grep", "glob", "exec", "write", "edit"]
+
+[roles.probe.claude]
+model = "sonnet"
+tools = ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
+effort = "high"
