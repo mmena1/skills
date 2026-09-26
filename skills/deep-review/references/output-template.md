@@ -1,7 +1,7 @@
-# Code Review Output Template
+# Deep Review Output Template
 
 ```markdown
-## Code Review Results
+## Deep Review Results
 
 Reviewed: [confirmed target]
 Base / reviewed head / current head: [base] / [reviewed SHA] / [current SHA]

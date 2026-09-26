@@ -799,7 +799,13 @@ def write_legacy_deep_review_checkout(checkout: Path) -> None:
         "harnesses/codex/skills/deep-review/agents/openai.yaml": "old metadata\n",
         "harnesses/devin/skills/deep-review/SKILL.md": "old devin wrapper\n",
         **{f"harnesses/codex/agents/{name}.toml": f"old {name}\n" for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS},
-        **{f"harnesses/devin/agents/{name}/AGENT.md": f"old {name}\n" for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS},
+        **{
+            f"harnesses/devin/agents/{name}/AGENT.md": (
+                f"---\nname: {name}\nmodel: old\n---\n\n<!-- BEGIN GENERATED: shared reviewer body -->\n"
+                f"old {name}\n<!-- END GENERATED: shared reviewer body -->\n"
+            )
+            for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS
+        },
     }
     for relative, text in files.items():
         (checkout / relative).parent.mkdir(parents=True, exist_ok=True)
@@ -819,24 +825,31 @@ def create_file_link(link: Path, target: Path) -> None:
         link.symlink_to(target)
 
 
-def install_legacy_deep_review(home: Path, checkout: Path) -> None:
-    """Recreate what mmena1/deep-review's installer wrote for Codex and Devin."""
+def install_legacy_deep_review(home: Path, checkout: Path, *, copies: bool = False) -> None:
+    """Recreate what mmena1/deep-review's installer wrote for Codex and Devin.
+
+    With copies, recreate its fallback when links could not be created: copied skill
+    root entries and Devin agent directories. Codex agents stay linked either way.
+    """
+    link_file = (lambda link, target: shutil.copy2(target, link)) if copies else create_file_link
+    link_directory = (lambda link, target: shutil.copytree(target, link)) if copies else create_directory_link
     for harness, root in (("codex", home / ".agents" / "skills" / "deep-review"), ("devin", home / ".config" / "devin" / "skills" / "deep-review")):
         root.mkdir(parents=True)
         (root / ".deep-review-managed").write_text(str(checkout) + "\n", encoding="utf-8")
         wrapper = checkout / "harnesses" / harness / "skills" / "deep-review"
         shared = checkout / "skills" / "deep-review"
-        create_file_link(root / "SKILL.md", wrapper / "SKILL.md")
-        create_file_link(root / "protocol.md", shared / "protocol.md")
-        create_file_link(root / "GLOSSARY.md", shared / "GLOSSARY.md")
-        create_directory_link(root / "references", shared / "references")
-        create_directory_link(root / "reviewers", shared / "reviewers")
+        link_file(root / "SKILL.md", wrapper / "SKILL.md")
+        link_file(root / "protocol.md", shared / "protocol.md")
+        link_file(root / "GLOSSARY.md", shared / "GLOSSARY.md")
+        link_directory(root / "references", shared / "references")
+        link_directory(root / "reviewers", shared / "reviewers")
         if harness == "codex":
-            create_directory_link(root / "agents", wrapper / "agents")
+            link_directory(root / "agents", wrapper / "agents")
     for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
         create_file_link(home / ".codex" / "agents" / f"{name}.toml", checkout / "harnesses" / "codex" / "agents" / f"{name}.toml")
     for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
-        create_directory_link(home / ".config" / "devin" / "agents" / name, checkout / "harnesses" / "devin" / "agents" / name)
+        (home / ".config" / "devin" / "agents").mkdir(parents=True, exist_ok=True)
+        link_directory(home / ".config" / "devin" / "agents" / name, checkout / "harnesses" / "devin" / "agents" / name)
 
 
 def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
@@ -852,26 +865,27 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
     checkout = temporary / f"{label}-old-deep-review"
     write_legacy_deep_review_checkout(checkout)
     checkout_files = snapshot_files(checkout)
-    home = temporary / f"{label}-legacy-replaced"
-    install_legacy_deep_review(home, checkout)
-    invoke(home, option("all"))
-    shared_skill = home / ".agents" / "skills" / "deep-review"
-    assert_skill(shared_skill, "name: deep-review")
-    if not (shared_skill.is_symlink() or (os.name == "nt" and os.path.isjunction(shared_skill))):
-        fail(f"{label} installer did not link deep-review over the old shared skill root")
-    if os.path.lexists(home / ".config" / "devin" / "skills" / "deep-review"):
-        fail(f"{label} installer retained the old deep-review Devin skill root")
-    for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
-        assert_agent(home, "codex", name, skill)
-        assert_agent(home, "devin", name, skill)
-    for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
-        if os.path.lexists(home / ".config" / "devin" / "agents" / name):
-            fail(f"{label} installer retained the old deep-review Devin agent {name}")
-    backups = [path for path in home.rglob("*.bak-*")]
-    if backups:
-        fail(f"{label} installer backed up an old deep-review installation instead of replacing it: {backups[0]}")
-    if snapshot_files(checkout) != checkout_files:
-        fail(f"{label} installer changed the old deep-review checkout while replacing its installation")
+    for shape, copies in (("linked", False), ("copied", True)):
+        home = temporary / f"{label}-legacy-{shape}"
+        install_legacy_deep_review(home, checkout, copies=copies)
+        invoke(home, option("all"))
+        shared_skill = home / ".agents" / "skills" / "deep-review"
+        assert_skill(shared_skill, "name: deep-review")
+        if not (shared_skill.is_symlink() or (os.name == "nt" and os.path.isjunction(shared_skill))):
+            fail(f"{label} installer did not link deep-review over the old {shape} shared skill root")
+        if os.path.lexists(home / ".config" / "devin" / "skills" / "deep-review"):
+            fail(f"{label} installer retained the old {shape} deep-review Devin skill root")
+        for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
+            assert_agent(home, "codex", name, skill)
+            assert_agent(home, "devin", name, skill)
+        for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
+            if os.path.lexists(home / ".config" / "devin" / "agents" / name):
+                fail(f"{label} installer retained the old {shape} deep-review Devin agent {name}")
+        backups = [path for path in home.rglob("*.bak-*")]
+        if backups:
+            fail(f"{label} installer backed up an old {shape} deep-review installation instead of replacing it: {backups[0]}")
+        if snapshot_files(checkout) != checkout_files:
+            fail(f"{label} installer changed the old deep-review checkout while replacing its {shape} installation")
 
     unrelated_home = temporary / f"{label}-legacy-unrelated"
     marked_root = unrelated_home / ".agents" / "skills" / "deep-review"

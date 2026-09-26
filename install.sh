@@ -239,7 +239,7 @@ links_into_legacy_deep_review() {
   return 1
 }
 
-legacy_deep_review_skill_root() {
+is_legacy_deep_review_skill_root() {
   local destination="$1" entry
   [ "${destination##*/}" = "deep-review" ] && [ -d "$destination" ] && [ ! -L "$destination" ] || return 1
   [ -f "$destination/$LEGACY_DEEP_REVIEW_MARKER" ] || return 1
@@ -253,10 +253,10 @@ legacy_deep_review_skill_root() {
   done
 }
 
-legacy_deep_review_installation() {
+is_legacy_deep_review_installation() {
   local destination="$1" name="${1##*/}"
   case "$name" in
-    deep-review) legacy_deep_review_skill_root "$destination" ;;
+    deep-review) is_legacy_deep_review_skill_root "$destination" ;;
     deep-review-*.toml) links_into_legacy_deep_review "$destination" "harnesses/codex/agents/$name" ;;
     *) return 1 ;;
   esac
@@ -281,17 +281,30 @@ remove_legacy_deep_review() {
   rmdir "$destination"
 }
 
+# A Devin agent the old installer linked from a checkout, or copied from one when
+# the link failed: a directory holding only an AGENT.md from its generator.
+is_legacy_deep_review_devin_agent() {
+  local destination="$1" name="${1##*/}" entry
+  links_into_legacy_deep_review "$destination" "harnesses/devin/agents/$name" && return 0
+  [ -d "$destination" ] && [ ! -L "$destination" ] && [ -f "$destination/AGENT.md" ] || return 1
+  for entry in "$destination"/* "$destination"/.*; do
+    case "${entry##*/}" in .|..|AGENT.md) continue ;; esac
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    return 1
+  done
+  tr -d '\r' < "$destination/AGENT.md" | grep -qx "name: $name" &&
+    tr -d '\r' < "$destination/AGENT.md" | grep -qx '<!-- BEGIN GENERATED: shared reviewer body -->'
+}
+
 # Devin names the old installation used that this repository does not install.
 remove_legacy_deep_review_devin() {
   local root name destination
   destination="${HOME}/.config/devin/skills/deep-review"
-  if legacy_deep_review_skill_root "$destination"; then remove_legacy_deep_review "$destination"; fi
+  if is_legacy_deep_review_skill_root "$destination"; then remove_legacy_deep_review "$destination"; fi
   for root in "${HOME}/.config/devin/agents" "$(devin_agents_root)"; do
     for name in $LEGACY_DEEP_REVIEW_DEVIN_AGENTS; do
       destination="$root/$name"
-      if links_into_legacy_deep_review "$destination" "harnesses/devin/agents/$name"; then
-        remove_legacy_deep_review "$destination"
-      fi
+      if is_legacy_deep_review_devin_agent "$destination"; then remove_legacy_deep_review "$destination"; fi
     done
   done
 }
@@ -304,7 +317,7 @@ install_managed_path() {
     remove_managed_path "$destination"
   elif managed_copy_points_into_repo "$destination"; then
     remove_managed_path "$destination"
-  elif legacy_deep_review_installation "$destination"; then
+  elif is_legacy_deep_review_installation "$destination"; then
     remove_legacy_deep_review "$destination"
   elif path_exists "$destination"; then
     backup_path "$destination"

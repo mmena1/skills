@@ -191,6 +191,20 @@ function Remove-LegacyDeepReview {
     Remove-InstalledPath $Path
 }
 
+# A Devin agent the old installer linked from a checkout, or copied from one when
+# the link failed: a directory holding only an AGENT.md from its generator.
+function Test-LegacyDeepReviewDevinAgent {
+    param([string]$Path)
+    $name = Split-Path -Leaf $Path
+    if (Test-LinkIntoLegacyDeepReview $Path "harnesses/devin/agents/$name") { return $true }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item -or -not $item.PSIsContainer -or $item.LinkType) { return $false }
+    $entries = @(Get-ChildItem -LiteralPath $Path -Force)
+    if ($entries.Count -ne 1 -or $entries[0].Name -ne 'AGENT.md' -or $entries[0].PSIsContainer) { return $false }
+    $lines = @(Get-Content -LiteralPath $entries[0].FullName)
+    return ($lines -ccontains "name: $name") -and ($lines -ccontains '<!-- BEGIN GENERATED: shared reviewer body -->')
+}
+
 # Devin names the old installation used that this repository does not install.
 function Remove-LegacyDeepReviewDevin {
     param([string[]]$AgentRoots)
@@ -199,7 +213,7 @@ function Remove-LegacyDeepReviewDevin {
     foreach ($agentRoot in $AgentRoots) {
         foreach ($name in $LegacyDeepReviewDevinAgents) {
             $path = Join-Path $agentRoot $name
-            if (Test-LinkIntoLegacyDeepReview $path "harnesses/devin/agents/$name") { Remove-LegacyDeepReview $path }
+            if (Test-LegacyDeepReviewDevinAgent $path) { Remove-LegacyDeepReview $path }
         }
     }
 }
