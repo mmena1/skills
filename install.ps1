@@ -138,6 +138,14 @@ $LegacyDeepReviewMarker = '.deep-review-managed'
 $LegacyDeepReviewEntries = @($LegacyDeepReviewMarker, 'SKILL.md', 'protocol.md', 'GLOSSARY.md', 'references', 'reviewers', 'agents')
 $LegacyDeepReviewDevinAgents = @('code-reviewer', 'code-reviewer-structural', 'code-reviewer-validator-static', 'code-reviewer-validator-probe')
 
+# A standalone deep-review checkout: the shared protocol plus a harness wrapper.
+function Test-DeepReviewCheckout {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath (Join-Path $Path 'skills/deep-review/protocol.md') -PathType Leaf)) { return $false }
+    return (Test-Path -LiteralPath (Join-Path $Path 'harnesses/codex/skills/deep-review/SKILL.md') -PathType Leaf) -or
+        (Test-Path -LiteralPath (Join-Path $Path 'harnesses/devin/skills/deep-review/SKILL.md') -PathType Leaf)
+}
+
 # True when the link at Path (symlink, junction, or hard link) shares its content
 # with <checkout>/<Relative> in a deep-review checkout.
 function Test-LinkIntoLegacyDeepReview {
@@ -161,7 +169,7 @@ function Test-LinkIntoLegacyDeepReview {
         try { $target = ConvertTo-NormalizedPath $target } catch { continue }
         if (-not $target.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
         $checkout = $target.Substring(0, $target.Length - $suffix.Length)
-        if (Test-Path -LiteralPath (Join-Path $checkout 'skills/deep-review/protocol.md') -PathType Leaf) { return $true }
+        if (Test-DeepReviewCheckout $checkout) { return $true }
     }
     return $false
 }
@@ -171,7 +179,11 @@ function Test-LegacyDeepReviewSkillRoot {
     if ((Split-Path -Leaf $Path) -ne 'deep-review') { return $false }
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     if ($null -eq $item -or -not $item.PSIsContainer -or $item.LinkType) { return $false }
-    if (-not (Test-Path -LiteralPath (Join-Path $Path $LegacyDeepReviewMarker) -PathType Leaf)) { return $false }
+    $marker = Join-Path $Path $LegacyDeepReviewMarker
+    if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { return $false }
+    # The old installer recorded its checkout in the marker, as a Windows or Git Bash path.
+    try { $recorded = ConvertTo-NormalizedPath ([string](Get-Content -LiteralPath $marker -Raw)).Trim() } catch { return $false }
+    if (-not (Test-DeepReviewCheckout $recorded)) { return $false }
     foreach ($entry in @(Get-ChildItem -LiteralPath $Path -Force)) {
         if ($LegacyDeepReviewEntries -notcontains $entry.Name) { return $false }
     }

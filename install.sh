@@ -222,6 +222,12 @@ link_targets() {
   fi
 }
 
+# A standalone deep-review checkout: the shared protocol plus a harness wrapper.
+is_deep_review_checkout() {
+  [ -f "$1/skills/deep-review/protocol.md" ] || return 1
+  [ -f "$1/harnesses/codex/skills/deep-review/SKILL.md" ] || [ -f "$1/harnesses/devin/skills/deep-review/SKILL.md" ]
+}
+
 # True when destination links to <checkout>/<relative> in a deep-review checkout.
 links_into_legacy_deep_review() {
   local destination="$1" relative="$2" targets target checkout
@@ -234,15 +240,20 @@ links_into_legacy_deep_review() {
       */"$relative") checkout="${target%/"$relative"}" ;;
       *) continue ;;
     esac
-    [ -f "$checkout/skills/deep-review/protocol.md" ] && return 0
+    is_deep_review_checkout "$checkout" && return 0
   done <<< "$targets"
   return 1
 }
 
+# The old installer recorded its checkout in the marker, as a Unix or Windows path.
 is_legacy_deep_review_skill_root() {
-  local destination="$1" entry
+  local destination="$1" entry recorded
   [ "${destination##*/}" = "deep-review" ] && [ -d "$destination" ] && [ ! -L "$destination" ] || return 1
   [ -f "$destination/$LEGACY_DEEP_REVIEW_MARKER" ] || return 1
+  recorded="$(tr -d '\r' < "$destination/$LEGACY_DEEP_REVIEW_MARKER")"
+  [ -n "$recorded" ] || return 1
+  if is_windows_shell; then recorded="$(cygpath -u "$recorded" 2>/dev/null || printf '%s' "$recorded")"; fi
+  is_deep_review_checkout "$recorded" || return 1
   for entry in "$destination"/* "$destination"/.*; do
     case "${entry##*/}" in .|..) continue ;; esac
     [ -e "$entry" ] || [ -L "$entry" ] || continue

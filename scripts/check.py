@@ -932,6 +932,26 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
         if not kept.is_file() or kept.read_text(encoding="utf-8") != "leave me\n":
             fail(f"{label} installer changed unrecognised content that it does not replace: {kept}")
 
+    # A marker only counts when it names a deep-review checkout with the old harness layout.
+    lookalike = temporary / f"{label}-legacy-lookalike"
+    (lookalike / "skills" / "deep-review").mkdir(parents=True)
+    (lookalike / "skills" / "deep-review" / "protocol.md").write_text("not a checkout\n", encoding="utf-8")
+    for case, recorded in (("missing", temporary / f"{label}-legacy-missing-checkout"), ("lookalike", lookalike)):
+        stale_home = temporary / f"{label}-legacy-stale-{case}"
+        shared_root = stale_home / ".agents" / "skills" / "deep-review"
+        devin_root = stale_home / ".config" / "devin" / "skills" / "deep-review"
+        for root in (shared_root, devin_root):
+            root.mkdir(parents=True)
+            (root / ".deep-review-managed").write_text(f"{recorded}\n", encoding="utf-8")
+            (root / "SKILL.md").write_text("keep me\n", encoding="utf-8")
+        invoke(stale_home, option("all"))
+        found = backups_of(shared_root)
+        if len(found) != 1 or (found[0] / "SKILL.md").read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer did not back up a deep-review skill root whose marker names a {case} checkout")
+        assert_skill(shared_root, "name: deep-review")
+        if (devin_root / "SKILL.md").read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer removed a Devin deep-review skill root whose marker names a {case} checkout")
+
 
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
