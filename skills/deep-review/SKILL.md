@@ -28,7 +28,7 @@ The protocol uses four roles. Every role runs as the native agent named `deep-re
 
 ## Orchestration
 
-- Check scout capacity with the harness mechanism below before analysis. Stop with required and available counts when the complete selected scout set cannot launch simultaneously.
+- Check scout capacity with the harness mechanism below before analysis. Stop with required and available counts when the complete selected scout set cannot launch simultaneously. A harness that exposes no capacity to check observes this gate at launch instead, as its mechanism describes.
 - Launch every selected scout in one concurrent wave and wait for the complete wave. Preserve completed scout evidence when one invocation fails and mark the run incomplete.
 - When hypotheses survive deduplication, queue canonical hypotheses in `H1`, `H2`, … order and launch one `deep-review-validator-static` invocation per hypothesis using the static validator capacity below. Refill a slot whenever an invocation finishes, including after failure or timeout, until every queued hypothesis has been attempted exactly once. Static failures mark the run incomplete but do not stop queue drainage.
 - After every static invocation has finished, verify the baseline and launch `deep-review-validator-probe` sequentially only when the static phase completed without failure. Any static failure or timeout blocks the entire writable phase.
