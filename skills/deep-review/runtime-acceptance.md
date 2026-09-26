@@ -6,9 +6,9 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 | --- | --- | --- | --- |
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same | Same |
 | Surviving hypotheses | Independent static validator launches for every canonical hypothesis | Same | Same |
-| Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same, with a fixed pool of 4 slots refilled in canonical hypothesis order | Same |
+| Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same, with at most 4 slots bounded by the concurrent subagent cap; a concurrency refusal requeues the hypothesis instead of failing it | Same |
 | Multiple selected scouts | Every selected scout starts in one simultaneous wave | Every selected scout launches as a parallel agent call in one message | Same |
-| Insufficient scout capacity | Review stops before launching any scout and reports required versus available capacity | No capacity is checked in advance; a refused or non-starting scout launch stops the review and marks it incomplete, and the receipt records the gate as observed at launch | Same |
+| Insufficient scout capacity | Review stops before launching any scout and reports required versus available capacity | Same when the selected scouts exceed the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap; a concurrency refusal at launch from slots occupied outside the session stops the review and marks it incomplete, and the receipt records that part of the gate as observed at launch | Same |
 | Validator probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same | Same |
 | Scout failure | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same | Same |
 | Validator partial failure | Completed outcomes remain; queued hypotheses continue in canonical order until each is attempted once; run is incomplete and the writable phase is blocked | Same | Same |
