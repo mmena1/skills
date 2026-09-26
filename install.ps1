@@ -144,9 +144,15 @@ function Test-LinkIntoLegacyDeepReview {
     param([string]$Path, [string]$Relative)
     if (-not (Test-InstalledPath $Path)) { return $false }
     $item = Get-Item -LiteralPath $Path -Force
-    if (-not $item.LinkType -or -not $item.Target) { return $false }
+    $candidates = @($item.Target | Where-Object { $_ })
+    if (-not $item.PSIsContainer) {
+        # PowerShell 7 does not report a hard link's other names in Target, so ask fsutil,
+        # which prints each name without its drive.
+        $drive = [System.IO.Path]::GetPathRoot($item.FullName).TrimEnd('\')
+        $candidates += @(fsutil hardlink list $item.FullName 2>$null | Where-Object { $_ } | ForEach-Object { $drive + $_ })
+    }
     $suffix = '\' + $Relative.Replace('/', '\')
-    foreach ($candidate in @($item.Target)) {
+    foreach ($candidate in $candidates) {
         $target = [string]$candidate
         if (-not $target) { continue }
         if (-not [System.IO.Path]::IsPathRooted($target)) {
