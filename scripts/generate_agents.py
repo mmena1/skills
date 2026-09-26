@@ -90,12 +90,11 @@ def _validate_harness(harness: str, table: object, where: str) -> dict[str, obje
     unknown = sorted(set(table) - set(allowed))
     if unknown:
         raise AgentManifestError(f"{where}: unsupported fields {', '.join(unknown)}")
-    if "model" not in table:
-        raise AgentManifestError(f"{where}: missing required 'model'")
+    missing = [key for key in allowed if key not in table]
+    if missing:
+        raise AgentManifestError(f"{where}: missing required fields {', '.join(missing)}")
     fields: dict[str, object] = {}
     for key, kind in allowed.items():
-        if key not in table:
-            continue
         value = table[key]
         if kind is str:
             fields[key] = _require_string(value, f"{where}.{key}")
@@ -103,9 +102,9 @@ def _validate_harness(harness: str, table: object, where: str) -> dict[str, obje
             if not isinstance(value, list) or not value:
                 raise AgentManifestError(f"{where}.{key} must be a non-empty list of strings")
             fields[key] = [_require_string(item, f"{where}.{key}") for item in value]
-    if harness == "codex" and fields.get("sandbox_mode", "read-only") not in CODEX_SANDBOX_MODES:
+    if harness == "codex" and fields["sandbox_mode"] not in CODEX_SANDBOX_MODES:
         raise AgentManifestError(f"{where}.sandbox_mode must be one of {', '.join(sorted(CODEX_SANDBOX_MODES))}")
-    if harness == "claude" and fields.get("effort", "low") not in CLAUDE_EFFORTS:
+    if harness == "claude" and fields["effort"] not in CLAUDE_EFFORTS:
         raise AgentManifestError(f"{where}.effort must be one of {', '.join(sorted(CLAUDE_EFFORTS))}")
     return fields
 
@@ -179,20 +178,19 @@ def render_codex(role: Role) -> str:
     fields = role.harnesses["codex"]
     lines = [f"# {HEADER}", f"name = {_toml_string(role.agent_name)}", f"description = {_toml_string(role.description)}"]
     for key in ("model", "model_reasoning_effort", "sandbox_mode"):
-        if key in fields:
-            lines.append(f"{key} = {_toml_string(fields[key])}")
+        lines.append(f"{key} = {_toml_string(fields[key])}")
     lines.append(f"developer_instructions = {_toml_multiline(role.body)}")
     return "\n".join(lines) + "\n"
 
 
 def render_devin(role: Role) -> str:
     fields = role.harnesses["devin"]
-    return _markdown_agent(role, [(key, fields[key]) for key in ("model", "allowed-tools") if key in fields])
+    return _markdown_agent(role, [(key, fields[key]) for key in ("model", "allowed-tools")])
 
 
 def render_claude(role: Role) -> str:
     fields = role.harnesses["claude"]
-    return _markdown_agent(role, [(key, fields[key]) for key in ("tools", "model", "effort") if key in fields])
+    return _markdown_agent(role, [(key, fields[key]) for key in ("tools", "model", "effort")])
 
 
 def render_agents(skill: Path) -> dict[str, str]:

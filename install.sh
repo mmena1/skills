@@ -238,19 +238,22 @@ reconcile_collection() {
   done
 }
 
-selected_skills() {
+# Collect selected skill directories into SELECTED_SKILLS. Plain loops keep this
+# deterministic under Bash 3.2, whose nested process substitutions can drop output.
+collect_selected_skills() {
   local source
+  SELECTED_SKILLS=()
   for source in "$REPO_ROOT"/skills/*; do
     [ -d "$source" ] || continue
     [ "${source##*/}" = "experimental" ] && continue
     [ -f "$source/SKILL.md" ] || continue
-    printf '%s\n' "$source"
+    SELECTED_SKILLS+=("$source")
   done
   if [ "$INCLUDE_EXPERIMENTAL" -eq 1 ]; then
     for source in "$REPO_ROOT"/skills/experimental/*; do
       [ -d "$source" ] || continue
       [ -f "$source/SKILL.md" ] || continue
-      printf '%s\n' "$source"
+      SELECTED_SKILLS+=("$source")
     done
   fi
 }
@@ -258,45 +261,47 @@ selected_skills() {
 install_collection() {
   local destination_root="$1" source desired_names="|"
   mkdir -p "$destination_root"
-  while IFS= read -r source; do
+  for source in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
     desired_names="${desired_names}${source##*/}|"
-  done < <(selected_skills)
+  done
   reconcile_collection "$destination_root" "$desired_names"
-  while IFS= read -r source; do
+  for source in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
     install_managed_path "$source" "$destination_root/${source##*/}"
-  done < <(selected_skills)
+  done
 }
 
-# Print the generated native agents that selected skills ship for one harness:
-# Codex <name>.toml files, Devin <name>/AGENT.md directories, and Claude <name>.md files.
-selected_agents() {
+# Collect into SELECTED_AGENTS the generated native reviewer agents that selected skills
+# ship for one harness: Codex <name>.toml files, Devin <name>/AGENT.md directories, and
+# Claude <name>.md files.
+collect_selected_agents() {
   local harness="$1" skill source
-  while IFS= read -r skill; do
+  SELECTED_AGENTS=()
+  for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
     for source in "$skill/harnesses/$harness"/*; do
       case "$harness:$source" in
         codex:*.toml|claude:*.md) [ -f "$source" ] || continue ;;
         devin:*) [ -f "$source/AGENT.md" ] || continue ;;
         *) continue ;;
       esac
-      printf '%s\n' "$source"
+      SELECTED_AGENTS+=("$source")
     done
-  done < <(selected_skills)
+  done
 }
 
 install_agents() {
-  local harness="$1" destination_root="$2" source desired_names="|" count=0
-  while IFS= read -r source; do
+  local harness="$1" destination_root="$2" source desired_names="|"
+  collect_selected_agents "$harness"
+  for source in ${SELECTED_AGENTS[@]+"${SELECTED_AGENTS[@]}"}; do
     desired_names="${desired_names}${source##*/}|"
-    count=$((count + 1))
-  done < <(selected_agents "$harness")
+  done
   if [ -d "$destination_root" ]; then
     reconcile_collection "$destination_root" "$desired_names" agent
   fi
-  [ "$count" -gt 0 ] || return 0
+  [ "${#SELECTED_AGENTS[@]}" -gt 0 ] || return 0
   mkdir -p "$destination_root"
-  while IFS= read -r source; do
+  for source in "${SELECTED_AGENTS[@]}"; do
     install_managed_path "$source" "$destination_root/${source##*/}"
-  done < <(selected_agents "$harness")
+  done
 }
 
 devin_agents_root() {
@@ -317,6 +322,7 @@ if [ "$SELECTED_HARNESS" -eq 0 ]; then
   fi
 fi
 
+collect_selected_skills
 if [ "$INSTALL_CODEX" -eq 1 ] || [ "$INSTALL_DEVIN" -eq 1 ]; then
   install_collection "${HOME}/.agents/skills"
 fi

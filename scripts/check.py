@@ -433,6 +433,34 @@ def validate_agent_generation_contract() -> None:
                 if generate_agents.stale_agents(skill):
                     fail(f"regeneration did not repair a {label} generated agent file")
 
+        manifest = (source / "harnesses" / "roles.toml").read_text(encoding="utf-8")
+        for harness, fields in generate_agents.HARNESS_FIELDS.items():
+            for field in fields:
+                (skill / "harnesses" / "roles.toml").write_text(
+                    without_manifest_field(manifest, f"roles.scout.{harness}", field), encoding="utf-8"
+                )
+                try:
+                    generate_agents.load_roles(skill)
+                except generate_agents.AgentManifestError:
+                    continue
+                fail(f"role manifest accepted a {harness} role without {field!r}")
+
+
+def without_manifest_field(manifest: str, table: str, field: str) -> str:
+    """Drop one key from one table of a role manifest, failing if it is absent."""
+    kept, section, removed = [], None, False
+    for line in manifest.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1]
+        elif section == table and stripped.split("=", 1)[0].strip() == field:
+            removed = True
+            continue
+        kept.append(line)
+    if not removed:
+        fail(f"test skill manifest has no {field!r} in [{table}]")
+    return "".join(kept)
+
 
 def find_bash() -> str:
     if os.name != "nt":
@@ -467,9 +495,9 @@ def write_agent_skill(skill: Path, body: str) -> None:
         "[roles.probe]\n"
         'description = "Fixture probe."\n'
         'body = ["reviewers/probe.md"]\n'
-        '[roles.probe.codex]\nmodel = "gpt-6-luna"\n'
-        '[roles.probe.devin]\nmodel = "gpt-5-6-luna-high"\n'
-        '[roles.probe.claude]\nmodel = "inherit"\n',
+        '[roles.probe.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nsandbox_mode = "read-only"\n'
+        '[roles.probe.devin]\nmodel = "gpt-5-6-luna-high"\nallowed-tools = ["read"]\n'
+        '[roles.probe.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n',
         encoding="utf-8",
     )
     generate_agents.write_agents(skill)
