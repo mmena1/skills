@@ -535,7 +535,8 @@ def isolated_environment(home: Path, extra_env: dict[str, str] | None) -> dict[s
 
 
 AGENT_FILES = {"codex": "{name}.toml", "devin": "{name}/AGENT.md", "claude": "{name}.md"}
-AGENT_HARNESSES = ("codex", "devin", "claude")
+AGENT_HARNESSES = generate_agents.HARNESSES
+MANAGED_MARKER = ".skills-repo-managed"
 
 
 def agent_destinations(home: Path) -> dict[str, Path]:
@@ -560,6 +561,22 @@ def assert_agent(home: Path, harness: str, name: str, skill: Path) -> None:
         fail(f"missing or stale installed agent: {installed}")
 
 
+def agent_marker(entry: Path, harness: str) -> Path:
+    return entry / MANAGED_MARKER if harness == "devin" else Path(str(entry) + MANAGED_MARKER)
+
+
+def assert_agent_linked(home: Path, harness: str, name: str, context: str) -> None:
+    """A normal install links every agent; only a Windows file agent may fall back to a marked copy."""
+    entry = installed_agent_entry(home, harness, name)
+    if entry.is_symlink() or (os.name == "nt" and os.path.isjunction(entry)):
+        if harness != "devin" and agent_marker(entry, harness).exists():
+            fail(f"{context}: linked {harness} agent kept a copy marker")
+        return
+    if os.name == "nt" and harness != "devin" and agent_marker(entry, harness).is_file():
+        return
+    fail(f"{context}: {harness} agent is neither linked nor a marked Windows copy: {entry}")
+
+
 def assert_no_agent(home: Path, harness: str, name: str, context: str) -> None:
     entry = installed_agent_entry(home, harness, name)
     if os.path.lexists(entry):
@@ -572,8 +589,8 @@ def backups_of(path: Path) -> list[Path]:
 
 def orphaned_markers(root: Path) -> list[Path]:
     return [
-        marker for marker in root.glob("*.skills-repo-managed")
-        if not os.path.lexists(str(marker)[: -len(".skills-repo-managed")])
+        marker for marker in root.glob("*" + MANAGED_MARKER)
+        if not os.path.lexists(str(marker)[: -len(MANAGED_MARKER)])
     ]
 
 
@@ -588,6 +605,7 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
     for harness in AGENT_HARNESSES:
         for name in roles:
             assert_agent(all_home, harness, name, stable)
+            assert_agent_linked(all_home, harness, name, f"{label} install")
         assert_no_agent(all_home, harness, "lab-skill-probe", f"{label} stable install included an experimental agent")
 
     for selected in AGENT_HARNESSES:
@@ -596,6 +614,7 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
         for harness in AGENT_HARNESSES:
             if harness == selected:
                 assert_agent(home, harness, "agent-skill-scout", stable)
+                assert_agent_linked(home, harness, "agent-skill-scout", f"{label} {selected} install")
             elif os.path.lexists(agent_destinations(home)[harness]):
                 fail(f"{label} {selected} install wrote agents for unselected harness {harness}")
 
@@ -648,14 +667,15 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
     result = invoke(copy_home, option("all"), option("experimental"), extra_env=force_copy)
     output = result.stdout + result.stderr
     reported = output.replace("\\", "/")
-    if "rerun the installer after repository updates" not in output.lower():
-        fail(f"{label} agent copy fallback did not warn that the installer must be rerun")
+    copies = re.findall(r"(?m)^Copied ", output)
+    warnings = output.lower().count("rerun the installer after repository updates")
+    if not copies or warnings != len(copies):
+        fail(f"{label} copy fallback printed {warnings} rerun warnings for {len(copies)} copies")
     for harness in AGENT_HARNESSES:
         entry = installed_agent_entry(copy_home, harness, "lab-skill-probe")
         if not re.search(rf"Copied .*{re.escape('/'.join(entry.parts[-3:]))} -> ", reported):
             fail(f"{label} copy fallback did not report copying the {harness} agent")
-        marker = entry / ".skills-repo-managed" if harness == "devin" else Path(str(entry) + ".skills-repo-managed")
-        if not marker.is_file():
+        if not agent_marker(entry, harness).is_file():
             fail(f"{label} copy fallback did not mark the copied {harness} agent")
         assert_agent(copy_home, harness, "lab-skill-probe", experimental)
     invoke(copy_home, option("all"), extra_env=force_copy)
@@ -665,6 +685,7 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
         if backups_of(installed_agent_entry(copy_home, harness, "agent-skill-scout")):
             fail(f"{label} installer backed up a repository-managed {harness} agent copy")
         assert_agent(copy_home, harness, "agent-skill-scout", stable)
+        assert_agent_linked(copy_home, harness, "agent-skill-scout", f"{label} relink after copy fallback")
         if orphaned_markers(agent_destinations(copy_home)[harness]):
             fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
 

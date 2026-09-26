@@ -31,7 +31,7 @@ Add `--experimental` or `-Experimental` to install the experimental collection a
 
 The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Bash and native Windows PowerShell use directory junctions. If the environment cannot create a link safely, the installer copies the skill and warns that it must be rerun after repository updates. Existing unrelated destinations are backed up, not deleted.
 
-### Native agents
+### Native reviewer agents
 
 Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with their own model, tools, and sandbox. For each selected harness, the installer links the agents that selected skills ship into that harness's personal agent directory:
 

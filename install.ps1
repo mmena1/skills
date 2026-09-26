@@ -107,7 +107,7 @@ function Backup-InstalledPath {
     Move-Item -LiteralPath $Path -Destination $backup
 }
 
-function New-InstalledSkill {
+function New-InstalledPath {
     param([string]$Source, [string]$Destination)
     $action = 'Linked'
     $isDirectory = Test-Path -LiteralPath $Source -PathType Container
@@ -120,7 +120,7 @@ function New-InstalledSkill {
         }
     } catch {
         Copy-Item -LiteralPath $Source -Destination $Destination -Recurse
-        $marker = if ($isDirectory) { Join-Path $Destination $ManagedMarker } else { "$Destination$ManagedMarker" }
+        $marker = Get-ManagedMarkerPath $Destination
         Set-Content -LiteralPath $marker -Value $Source
         $action = 'Copied'
     }
@@ -130,7 +130,7 @@ function New-InstalledSkill {
     }
 }
 
-function Install-Skill {
+function Install-ManagedPath {
     param([string]$Source, [string]$Destination)
     if (Test-InstalledPath $Destination) {
         if ((Test-LinkIntoRepo $Destination) -or (Test-ManagedCopy $Destination)) {
@@ -140,7 +140,7 @@ function Install-Skill {
         }
     }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
-    New-InstalledSkill $Source $Destination
+    New-InstalledPath $Source $Destination
 }
 
 function Test-ManagedPath {
@@ -184,7 +184,7 @@ function Install-Collection {
     New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
     $sources = @(Get-SelectedSkills)
     Sync-InstalledCollection $DestinationRoot @($sources | ForEach-Object { $_.Name })
-    foreach ($source in $sources) { Install-Skill $source.FullName (Join-Path $DestinationRoot $source.Name) }
+    foreach ($source in $sources) { Install-ManagedPath $source.FullName (Join-Path $DestinationRoot $source.Name) }
 }
 
 # Generated native agents that selected skills ship for one harness:
@@ -213,7 +213,7 @@ function Install-Agents {
     }
     if ($agents.Count -eq 0) { return }
     New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
-    foreach ($agent in $agents) { Install-Skill $agent.FullName (Join-Path $DestinationRoot $agent.Name) }
+    foreach ($agent in $agents) { Install-ManagedPath $agent.FullName (Join-Path $DestinationRoot $agent.Name) }
 }
 
 $installCodex = $Codex -or $All

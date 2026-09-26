@@ -15,8 +15,8 @@ usage() {
 Usage: ./install.sh [--codex] [--devin] [--claude] [--all] [--experimental]
 
 With no harness option, install stable skills into every detected supported
-harness. Codex and Devin share ~/.agents/skills. Native agents that a selected
-skill ships are linked into each selected harness's agent directory.
+harness. Codex and Devin share ~/.agents/skills. Native reviewer agents that a
+selected skill ships are linked into each selected harness's agent directory.
 --experimental additionally installs skills/experimental entries.
 EOF
 }
@@ -180,7 +180,7 @@ create_link() {
   fi
 }
 
-materialize_skill() {
+materialize_path() {
   local source="$1" destination="$2" action="Linked"
   if ! create_link "$source" "$destination"; then
     cp -R "$source" "$destination"
@@ -193,7 +193,7 @@ materialize_skill() {
   fi
 }
 
-install_skill() {
+install_managed_path() {
   local source="$1" destination="$2"
   if [ -L "$destination" ] && symlink_points_into_repo "$destination"; then
     remove_managed_path "$destination"
@@ -205,7 +205,7 @@ install_skill() {
     backup_path "$destination"
   fi
   mkdir -p "$(dirname "$destination")"
-  materialize_skill "$source" "$destination"
+  materialize_path "$source" "$destination"
 }
 
 managed_path_points_into_repo() {
@@ -263,7 +263,7 @@ install_collection() {
   done < <(selected_skills)
   reconcile_collection "$destination_root" "$desired_names"
   while IFS= read -r source; do
-    install_skill "$source" "$destination_root/${source##*/}"
+    install_managed_path "$source" "$destination_root/${source##*/}"
   done < <(selected_skills)
 }
 
@@ -295,7 +295,7 @@ install_agents() {
   [ "$count" -gt 0 ] || return 0
   mkdir -p "$destination_root"
   while IFS= read -r source; do
-    install_skill "$source" "$destination_root/${source##*/}"
+    install_managed_path "$source" "$destination_root/${source##*/}"
   done < <(selected_agents "$harness")
 }
 
