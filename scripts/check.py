@@ -782,13 +782,140 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
             fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
 
 
+LEGACY_DEEP_REVIEW_CODEX_AGENTS = tuple(f"deep-review-{role}" for role in DEEP_REVIEW_ROLES)
+LEGACY_DEEP_REVIEW_DEVIN_AGENTS = (
+    "code-reviewer", "code-reviewer-structural", "code-reviewer-validator-static", "code-reviewer-validator-probe",
+)
+
+
+def write_legacy_deep_review_checkout(checkout: Path) -> None:
+    """The layout of a standalone mmena1/deep-review checkout that its installer linked from."""
+    files = {
+        "skills/deep-review/protocol.md": "old protocol\n",
+        "skills/deep-review/GLOSSARY.md": "old glossary\n",
+        "skills/deep-review/references/output-template.md": "old template\n",
+        "skills/deep-review/reviewers/SCOUT.md": "old scout\n",
+        "harnesses/codex/skills/deep-review/SKILL.md": "old codex wrapper\n",
+        "harnesses/codex/skills/deep-review/agents/openai.yaml": "old metadata\n",
+        "harnesses/devin/skills/deep-review/SKILL.md": "old devin wrapper\n",
+        **{f"harnesses/codex/agents/{name}.toml": f"old {name}\n" for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS},
+        **{f"harnesses/devin/agents/{name}/AGENT.md": f"old {name}\n" for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS},
+    }
+    for relative, text in files.items():
+        (checkout / relative).parent.mkdir(parents=True, exist_ok=True)
+        (checkout / relative).write_text(text, encoding="utf-8")
+
+
+def snapshot_files(root: Path) -> dict[str, bytes]:
+    return {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+
+
+def create_file_link(link: Path, target: Path) -> None:
+    """Link a file the way the old installer did: a symlink on Unix, a hard link on Windows."""
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        os.link(target, link)
+    else:
+        link.symlink_to(target)
+
+
+def install_legacy_deep_review(home: Path, checkout: Path) -> None:
+    """Recreate what mmena1/deep-review's installer wrote for Codex and Devin."""
+    for harness, root in (("codex", home / ".agents" / "skills" / "deep-review"), ("devin", home / ".config" / "devin" / "skills" / "deep-review")):
+        root.mkdir(parents=True)
+        (root / ".deep-review-managed").write_text(str(checkout) + "\n", encoding="utf-8")
+        wrapper = checkout / "harnesses" / harness / "skills" / "deep-review"
+        shared = checkout / "skills" / "deep-review"
+        create_file_link(root / "SKILL.md", wrapper / "SKILL.md")
+        create_file_link(root / "protocol.md", shared / "protocol.md")
+        create_file_link(root / "GLOSSARY.md", shared / "GLOSSARY.md")
+        create_directory_link(root / "references", shared / "references")
+        create_directory_link(root / "reviewers", shared / "reviewers")
+        if harness == "codex":
+            create_directory_link(root / "agents", wrapper / "agents")
+    for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
+        create_file_link(home / ".codex" / "agents" / f"{name}.toml", checkout / "harnesses" / "codex" / "agents" / f"{name}.toml")
+    for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
+        create_directory_link(home / ".config" / "devin" / "agents" / name, checkout / "harnesses" / "devin" / "agents" / name)
+
+
+def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
+    """Installations made by the standalone deep-review installer are replaced; anything else is backed up."""
+    repository = temporary / f"{label}-legacy-repository"
+    (repository / "skills" / "experimental").mkdir(parents=True)
+    for installer in ("install.sh", "install.ps1"):
+        shutil.copy2(ROOT / installer, repository / installer)
+    shutil.copytree(SKILLS / "deep-review", repository / "skills" / "deep-review")
+    skill = repository / "skills" / "deep-review"
+    invoke = invoke_from(repository)
+
+    checkout = temporary / f"{label}-old-deep-review"
+    write_legacy_deep_review_checkout(checkout)
+    checkout_files = snapshot_files(checkout)
+    home = temporary / f"{label}-legacy-replaced"
+    install_legacy_deep_review(home, checkout)
+    invoke(home, option("all"))
+    shared_skill = home / ".agents" / "skills" / "deep-review"
+    assert_skill(shared_skill, "name: deep-review")
+    if not (shared_skill.is_symlink() or (os.name == "nt" and os.path.isjunction(shared_skill))):
+        fail(f"{label} installer did not link deep-review over the old shared skill root")
+    if os.path.lexists(home / ".config" / "devin" / "skills" / "deep-review"):
+        fail(f"{label} installer retained the old deep-review Devin skill root")
+    for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
+        assert_agent(home, "codex", name, skill)
+        assert_agent(home, "devin", name, skill)
+    for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
+        if os.path.lexists(home / ".config" / "devin" / "agents" / name):
+            fail(f"{label} installer retained the old deep-review Devin agent {name}")
+    backups = [path for path in home.rglob("*.bak-*")]
+    if backups:
+        fail(f"{label} installer backed up an old deep-review installation instead of replacing it: {backups[0]}")
+    if snapshot_files(checkout) != checkout_files:
+        fail(f"{label} installer changed the old deep-review checkout while replacing its installation")
+
+    unrelated_home = temporary / f"{label}-legacy-unrelated"
+    marked_root = unrelated_home / ".agents" / "skills" / "deep-review"
+    marked_root.mkdir(parents=True)
+    (marked_root / ".deep-review-managed").write_text(str(checkout) + "\n", encoding="utf-8")
+    (marked_root / "notes.md").write_text("keep me\n", encoding="utf-8")
+    foreign_target = temporary / f"{label}-legacy-foreign.toml"
+    foreign_target.write_text("keep me\n", encoding="utf-8")
+    foreign_link = unrelated_home / ".codex" / "agents" / "deep-review-scout.toml"
+    create_file_link(foreign_link, foreign_target)
+    plain_agent = unrelated_home / ".codex" / "agents" / "deep-review-structural.toml"
+    plain_agent.write_text("keep me\n", encoding="utf-8")
+    devin_root = unrelated_home / ".config" / "devin" / "skills" / "deep-review"
+    devin_root.mkdir(parents=True)
+    (devin_root / "notes.md").write_text("leave me\n", encoding="utf-8")
+    devin_agent = unrelated_home / ".config" / "devin" / "agents" / "code-reviewer"
+    devin_agent.mkdir(parents=True)
+    (devin_agent / "AGENT.md").write_text("leave me\n", encoding="utf-8")
+    for _ in range(2):
+        invoke(unrelated_home, option("all"))
+    for destination, relative in ((marked_root, "notes.md"), (foreign_link, None), (plain_agent, None)):
+        found = backups_of(destination)
+        preserved = (found[0] / relative if relative else found[0]) if len(found) == 1 else None
+        if preserved is None or preserved.read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer did not back up an unrecognised deep-review destination exactly once: {destination}")
+    assert_skill(marked_root, "name: deep-review")
+    assert_agent(unrelated_home, "codex", "deep-review-scout", skill)
+    assert_agent(unrelated_home, "codex", "deep-review-structural", skill)
+    for kept in (devin_root / "notes.md", devin_agent / "AGENT.md"):
+        if not kept.is_file() or kept.read_text(encoding="utf-8") != "leave me\n":
+            fail(f"{label} installer changed unrecognised content that it does not replace: {kept}")
+
+
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
 
-    def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        env = isolated_environment(home, extra_env)
-        env["HOME"] = str(home)
-        return run([bash, "./install.sh", *arguments], cwd=fixture, env=env)
+    def invoke_from(repository: Path):
+        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+            env = isolated_environment(home, extra_env)
+            env["HOME"] = str(home)
+            return run([bash, "./install.sh", *arguments], cwd=repository, env=env)
+        return invoke
+
+    invoke = invoke_from(fixture)
 
     codex_home = temporary / "shell-codex"
     invoke(codex_home, "--codex")
@@ -913,6 +1040,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
 
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
 
 
 def find_powershell() -> str:
@@ -928,12 +1056,16 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
         return
     powershell = find_powershell()
 
-    def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        return run(
-            [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(fixture / "install.ps1"), *arguments, "-HomePath", str(home)],
-            cwd=fixture,
-            env=isolated_environment(home, extra_env),
-        )
+    def invoke_from(repository: Path):
+        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+            return run(
+                [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(repository / "install.ps1"), *arguments, "-HomePath", str(home)],
+                cwd=repository,
+                env=isolated_environment(home, extra_env),
+            )
+        return invoke
+
+    invoke = invoke_from(fixture)
 
     codex_home = temporary / "powershell-codex"
     invoke(codex_home, "-Codex")
@@ -1044,6 +1176,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
 
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
 
 
 def validate_installers() -> None:

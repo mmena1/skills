@@ -130,11 +130,87 @@ function New-InstalledPath {
     }
 }
 
+# The standalone mmena1/deep-review installer composed marked skill roots from links
+# into its checkout and linked its native agents from there. Recognise exactly those
+# installations so this repository's deep-review replaces them; anything else that
+# occupies the same name is backed up.
+$LegacyDeepReviewMarker = '.deep-review-managed'
+$LegacyDeepReviewEntries = @($LegacyDeepReviewMarker, 'SKILL.md', 'protocol.md', 'GLOSSARY.md', 'references', 'reviewers', 'agents')
+$LegacyDeepReviewDevinAgents = @('code-reviewer', 'code-reviewer-structural', 'code-reviewer-validator-static', 'code-reviewer-validator-probe')
+
+# True when the link at Path (symlink, junction, or hard link) shares its content
+# with <checkout>/<Relative> in a deep-review checkout.
+function Test-LinkIntoLegacyDeepReview {
+    param([string]$Path, [string]$Relative)
+    if (-not (Test-InstalledPath $Path)) { return $false }
+    $item = Get-Item -LiteralPath $Path -Force
+    if (-not $item.LinkType -or -not $item.Target) { return $false }
+    $suffix = '\' + $Relative.Replace('/', '\')
+    foreach ($candidate in @($item.Target)) {
+        $target = [string]$candidate
+        if (-not $target) { continue }
+        if (-not [System.IO.Path]::IsPathRooted($target)) {
+            $target = Join-Path (Split-Path -Parent $item.FullName) $target
+        }
+        try { $target = ConvertTo-NormalizedPath $target } catch { continue }
+        if (-not $target.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        $checkout = $target.Substring(0, $target.Length - $suffix.Length)
+        if (Test-Path -LiteralPath (Join-Path $checkout 'skills/deep-review/protocol.md') -PathType Leaf) { return $true }
+    }
+    return $false
+}
+
+function Test-LegacyDeepReviewSkillRoot {
+    param([string]$Path)
+    if ((Split-Path -Leaf $Path) -ne 'deep-review') { return $false }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item -or -not $item.PSIsContainer -or $item.LinkType) { return $false }
+    if (-not (Test-Path -LiteralPath (Join-Path $Path $LegacyDeepReviewMarker) -PathType Leaf)) { return $false }
+    foreach ($entry in @(Get-ChildItem -LiteralPath $Path -Force)) {
+        if ($LegacyDeepReviewEntries -notcontains $entry.Name) { return $false }
+    }
+    return $true
+}
+
+function Test-LegacyDeepReviewInstallation {
+    param([string]$Path)
+    $name = Split-Path -Leaf $Path
+    if ($name -eq 'deep-review') { return Test-LegacyDeepReviewSkillRoot $Path }
+    if ($name -like 'deep-review-*.toml') { return Test-LinkIntoLegacyDeepReview $Path "harnesses/codex/agents/$name" }
+    return $false
+}
+
+# Unlink each composed entry before removing the root so no link is followed.
+function Remove-LegacyDeepReview {
+    param([string]$Path)
+    Write-Host "Replacing deep-review installation from the standalone repository: $Path"
+    $item = Get-Item -LiteralPath $Path -Force
+    if ($item.PSIsContainer -and -not $item.LinkType) {
+        foreach ($entry in @(Get-ChildItem -LiteralPath $Path -Force)) { Remove-InstalledPath $entry.FullName }
+    }
+    Remove-InstalledPath $Path
+}
+
+# Devin names the old installation used that this repository does not install.
+function Remove-LegacyDeepReviewDevin {
+    param([string[]]$AgentRoots)
+    $skillRoot = Join-Path $HomePath '.config/devin/skills/deep-review'
+    if (Test-LegacyDeepReviewSkillRoot $skillRoot) { Remove-LegacyDeepReview $skillRoot }
+    foreach ($agentRoot in $AgentRoots) {
+        foreach ($name in $LegacyDeepReviewDevinAgents) {
+            $path = Join-Path $agentRoot $name
+            if (Test-LinkIntoLegacyDeepReview $path "harnesses/devin/agents/$name") { Remove-LegacyDeepReview $path }
+        }
+    }
+}
+
 function Install-ManagedPath {
     param([string]$Source, [string]$Destination)
     if (Test-InstalledPath $Destination) {
         if ((Test-LinkIntoRepo $Destination) -or (Test-ManagedCopy $Destination)) {
             Remove-InstalledPath $Destination
+        } elseif (Test-LegacyDeepReviewInstallation $Destination) {
+            Remove-LegacyDeepReview $Destination
         } else {
             Backup-InstalledPath $Destination
         }
@@ -241,7 +317,10 @@ if ($installDevin) {
 if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
 $devinAgents = if ($env:APPDATA) { Join-Path $env:APPDATA 'devin/agents' } else { Join-Path $HomePath '.config/devin/agents' }
 if ($installCodex) { Install-Agents 'codex' (Join-Path $HomePath '.codex/agents') }
-if ($installDevin) { Install-Agents 'devin' $devinAgents }
+if ($installDevin) {
+    Install-Agents 'devin' $devinAgents
+    Remove-LegacyDeepReviewDevin @((Join-Path $HomePath '.config/devin/agents'), $devinAgents)
+}
 if ($installClaude) { Install-Agents 'claude' (Join-Path $HomePath '.claude/agents') }
 
 Write-Host 'Install complete.'

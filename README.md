@@ -45,6 +45,8 @@ A skill declares its agents in `harnesses/roles.toml`. `python scripts/generate_
 
 When Devin is selected, the installer also removes repository-managed skills from the former `~/.config/devin/skills` destination after updating `~/.agents/skills`. Unrelated files and folders in the old location are left in place. The installer recognizes its symlinks, junctions, and marked copy fallbacks; it does not guess that an unmarked directory belongs to this repository.
 
+`deep-review` previously shipped from the standalone `mmena1/deep-review` repository, and the installer replaces what that repository's installer wrote: its `deep-review` skill roots marked with `.deep-review-managed` in `~/.agents/skills` and `~/.config/devin/skills`, its `code-reviewer*` Devin agents, and `deep-review-*.toml` Codex agents that link into a deep-review checkout. The old checkout itself is never modified. A same-named destination that is not recognizable as one of these installations is backed up before `deep-review` is installed, and unrecognized content under the old Devin names is left in place.
+
 ## Updating
 
 Linked and junctioned skills and agents reflect repository edits immediately. After pulling changes, rerun the installer to add, remove, or refresh installed skills and agents safely:
@@ -61,7 +63,7 @@ git pull
 
 ## Verify harness discovery
 
-The canonical check runs both installers in isolated home directories and verifies that Codex and Devin selections resolve to the shared destination, Claude resolves to its personal destination, `--all`/`-All` creates the shared collection once, and legacy cleanup preserves unrelated content. It also installs the native agents of the test skill in `tests/fixtures/agent-skill` and checks their linking, reconciliation, backup, and copy fallback for each harness. To confirm discovery in the actual applications, run the installer with `--all` or `-All`, then check that a representative skill such as `evaluate-model` appears in Codex's skill picker, Devin CLI's available skills, and Claude Code's `/` menu. The automated distribution check verifies the files and links at each documented location; it does not launch those applications.
+The canonical check runs both installers in isolated home directories and verifies that Codex and Devin selections resolve to the shared destination, Claude resolves to its personal destination, `--all`/`-All` creates the shared collection once, and legacy cleanup preserves unrelated content. It also installs the native agents of the test skill in `tests/fixtures/agent-skill` and checks their linking, reconciliation, backup, and copy fallback for each harness, and it replaces fixture installations made by the old deep-review installer. To confirm discovery in the actual applications, run the installer with `--all` or `-All`, then check that a representative skill such as `evaluate-model` appears in Codex's skill picker, Devin CLI's available skills, and Claude Code's `/` menu. The automated distribution check verifies the files and links at each documented location; it does not launch those applications.
 
 ## Stable and experimental skills
 
