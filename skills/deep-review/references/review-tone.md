@@ -1,6 +1,6 @@
 # Review Tone Guide
 
-This captures the established voice for inline PR review comments, drawn from this reviewer's actual comments on past PRs (e.g. `now-ai-services` #167, #172, #173). Use it directly; re-sampling recent PR comments alongside generated ones dilutes the voice over time.
+This captures the established voice for inline PR review comments, drawn from this reviewer's actual comments on past PRs. Use it directly; re-sampling recent PR comments alongside generated ones dilutes the voice over time.
 
 ## Voice
 

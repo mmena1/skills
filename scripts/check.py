@@ -452,6 +452,20 @@ def validate_deep_review() -> None:
         match = HARNESS_SPECIFIC_TEXT.search(path.read_text(encoding="utf-8"))
         if match:
             fail(f"{path.relative_to(ROOT).as_posix()}: harness-specific text {match.group(0)!r} in shared deep-review content")
+    scenario_lists = {
+        "protocol.md": r"(?m)^- ([^:\n]+): whether ",
+        "references/output-template.md": r"(?m)^\| ([^|\n]+?) \| PASS / FAIL / NOT EXERCISED \|",
+        "runtime-acceptance.md": r"(?m)^\| ([^|\n]+?) \| [^\n]* \| Same \|$",
+    }
+    scenarios = {
+        relative: [name.strip().lower() for name in re.findall(pattern, (skill / relative).read_text(encoding="utf-8"))]
+        for relative, pattern in scenario_lists.items()
+    }
+    expected_scenarios = scenarios["references/output-template.md"]
+    for relative, found in scenarios.items():
+        if not found or found != expected_scenarios:
+            fail(f"skills/deep-review/{relative}: runtime acceptance scenarios differ from references/output-template.md")
+
     contents = {path.read_text(encoding="utf-8"): path for path in shared}
     generated = skill / "harnesses"
     for path in iter_repository_text():

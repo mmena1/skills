@@ -6,13 +6,13 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 | --- | --- | --- |
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same |
 | Surviving hypotheses | Independent static validator launches for every canonical hypothesis | Same |
+| Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same |
 | Multiple selected scouts | Every selected scout starts in one simultaneous wave | Same |
 | Insufficient scout capacity | Review stops before launching any scout and reports required versus available capacity | Same |
-| Validator uses probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same |
-| One scout fails | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same |
-| Validator fails partway | Completed outcomes remain; queued hypotheses continue in canonical order until each is attempted once; run is incomplete and the writable phase is blocked | Same |
-| Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same |
-| PR head changes | Reviewed and current SHAs are reported; result is stale and publication is blocked | Same |
+| Validator probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same |
+| Scout failure | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same |
+| Validator partial failure | Completed outcomes remain; queued hypotheses continue in canonical order until each is attempted once; run is incomplete and the writable phase is blocked | Same |
+| PR head change | Reviewed and current SHAs are reported; result is stale and publication is blocked | Same |
 | Cleanup | Only the current run's worktree, context snapshot, and run directory are removed | Same |
 
 Normal reviews exercise only paths they encounter. Keep rare failures and transitions `NOT EXERCISED` until natural execution or a targeted smoke run observes them; never perturb a real review solely to fill the matrix. After changes to `SKILL.md` orchestration, `harnesses/roles.toml`, or reviewer bodies, targeted Devin and Codex smoke runs remain required for important gaps not covered by passive receipts.
