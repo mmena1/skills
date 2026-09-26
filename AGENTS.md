@@ -39,6 +39,8 @@ python scripts/check.py
 
 The same command runs in CI on Ubuntu, macOS, and Windows. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, and installer safety and selection behavior.
 
+A skill that ships native agents declares them in `harnesses/roles.toml` (see ADR-0001). After changing that manifest or a reviewer body it embeds, run `python scripts/generate_agents.py` and commit the regenerated files under `harnesses/<harness>/`. Never edit generated agent files by hand.
+
 Also run `git diff --check` before committing.
 
 ## Installation and updates

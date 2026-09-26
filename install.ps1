@@ -55,12 +55,22 @@ function Test-LinkIntoRepo {
     return $false
 }
 
+function Get-ManagedMarkerPath {
+    param([string]$Path)
+    if (Test-Path -LiteralPath $Path -PathType Container) { return Join-Path $Path $ManagedMarker }
+    return "$Path$ManagedMarker"
+}
+
 function Test-ManagedCopy {
     param([string]$Path)
-    $marker = Join-Path $Path $ManagedMarker
-    if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { return $false }
+    return Test-MarkerIntoRepo (Get-ManagedMarkerPath $Path)
+}
+
+function Test-MarkerIntoRepo {
+    param([string]$Marker)
+    if (-not (Test-Path -LiteralPath $Marker -PathType Leaf)) { return $false }
     try {
-        $recorded = (Get-Content -LiteralPath $marker -Raw).Trim()
+        $recorded = (Get-Content -LiteralPath $Marker -Raw).Trim()
         return Test-PathWithinRepo $recorded
     } catch {
         return $false
@@ -79,6 +89,10 @@ function Remove-InstalledPath {
     } else {
         Remove-Item -LiteralPath $Path -Force
     }
+    $siblingMarker = "$Path$ManagedMarker"
+    if (Test-Path -LiteralPath $siblingMarker -PathType Leaf) {
+        Remove-Item -LiteralPath $siblingMarker -Force
+    }
 }
 
 function Backup-InstalledPath {
@@ -96,11 +110,18 @@ function Backup-InstalledPath {
 function New-InstalledSkill {
     param([string]$Source, [string]$Destination)
     $action = 'Linked'
+    $isDirectory = Test-Path -LiteralPath $Source -PathType Container
     try {
-        New-Item -ItemType Junction -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+        if ($env:SKILLS_INSTALLER_FORCE_COPY -eq '1') { throw 'Link creation disabled.' }
+        if ($isDirectory) {
+            New-Item -ItemType Junction -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+        } else {
+            New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+        }
     } catch {
         Copy-Item -LiteralPath $Source -Destination $Destination -Recurse
-        Set-Content -LiteralPath (Join-Path $Destination $ManagedMarker) -Value $Source
+        $marker = if ($isDirectory) { Join-Path $Destination $ManagedMarker } else { "$Destination$ManagedMarker" }
+        Set-Content -LiteralPath $marker -Value $Source
         $action = 'Copied'
     }
     Write-Host "$action $Destination -> $Source"
@@ -128,20 +149,25 @@ function Test-ManagedPath {
 }
 
 function Sync-InstalledCollection {
-    param([string]$DestinationRoot, [System.IO.DirectoryInfo[]]$Sources)
+    param([string]$DestinationRoot, [string[]]$DesiredNames, [string]$Kind = 'skill')
     $desired = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($source in $Sources) { [void]$desired.Add($source.Name) }
+    foreach ($name in $DesiredNames) { [void]$desired.Add($name) }
     foreach ($installed in @(Get-ChildItem -LiteralPath $DestinationRoot -Force -ErrorAction SilentlyContinue)) {
+        if (-not $installed.PSIsContainer -and $installed.Name.EndsWith($ManagedMarker, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $markedPath = $installed.FullName.Substring(0, $installed.FullName.Length - $ManagedMarker.Length)
+            if (-not (Test-InstalledPath $markedPath) -and (Test-MarkerIntoRepo $installed.FullName)) {
+                Remove-Item -LiteralPath $installed.FullName -Force
+            }
+            continue
+        }
         if (-not $desired.Contains($installed.Name) -and (Test-ManagedPath $installed.FullName)) {
-            Write-Host "Removing repository-managed skill absent from desired set: $($installed.FullName)"
+            Write-Host "Removing repository-managed $Kind absent from desired set: $($installed.FullName)"
             Remove-InstalledPath $installed.FullName
         }
     }
 }
 
-function Install-Collection {
-    param([string]$DestinationRoot)
-    New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
+function Get-SelectedSkills {
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'skills') -Directory |
         Where-Object { $_.Name -ne 'experimental' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf) } |
         Sort-Object Name)
@@ -150,8 +176,44 @@ function Install-Collection {
             Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf } |
             Sort-Object Name)
     }
-    Sync-InstalledCollection $DestinationRoot $sources
+    return $sources
+}
+
+function Install-Collection {
+    param([string]$DestinationRoot)
+    New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
+    $sources = @(Get-SelectedSkills)
+    Sync-InstalledCollection $DestinationRoot @($sources | ForEach-Object { $_.Name })
     foreach ($source in $sources) { Install-Skill $source.FullName (Join-Path $DestinationRoot $source.Name) }
+}
+
+# Generated native agents that selected skills ship for one harness:
+# Codex <name>.toml files, Devin <name>/AGENT.md directories, and Claude <name>.md files.
+function Get-SelectedAgents {
+    param([string]$Harness)
+    foreach ($skill in @(Get-SelectedSkills)) {
+        $root = Join-Path $skill.FullName "harnesses/$Harness"
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+        foreach ($entry in @(Get-ChildItem -LiteralPath $root | Sort-Object Name)) {
+            $isAgent = switch ($Harness) {
+                'codex' { -not $entry.PSIsContainer -and $entry.Extension -eq '.toml' }
+                'claude' { -not $entry.PSIsContainer -and $entry.Extension -eq '.md' }
+                'devin' { $entry.PSIsContainer -and (Test-Path -LiteralPath (Join-Path $entry.FullName 'AGENT.md') -PathType Leaf) }
+            }
+            if ($isAgent) { $entry }
+        }
+    }
+}
+
+function Install-Agents {
+    param([string]$Harness, [string]$DestinationRoot)
+    $agents = @(Get-SelectedAgents $Harness)
+    if (Test-Path -LiteralPath $DestinationRoot -PathType Container) {
+        Sync-InstalledCollection $DestinationRoot @($agents | ForEach-Object { $_.Name }) 'agent'
+    }
+    if ($agents.Count -eq 0) { return }
+    New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
+    foreach ($agent in $agents) { Install-Skill $agent.FullName (Join-Path $DestinationRoot $agent.Name) }
 }
 
 $installCodex = $Codex -or $All
@@ -177,5 +239,9 @@ if ($installDevin) {
     Sync-InstalledCollection (Join-Path $HomePath '.config/devin/skills') @()
 }
 if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
+$devinAgents = if ($env:APPDATA) { Join-Path $env:APPDATA 'devin/agents' } else { Join-Path $HomePath '.config/devin/agents' }
+if ($installCodex) { Install-Agents 'codex' (Join-Path $HomePath '.codex/agents') }
+if ($installDevin) { Install-Agents 'devin' $devinAgents }
+if ($installClaude) { Install-Agents 'claude' (Join-Path $HomePath '.claude/agents') }
 
 Write-Host 'Install complete.'
