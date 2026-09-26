@@ -1,0 +1,55 @@
+# Native reviewer agent roles. Each role generates one agent per declared
+# harness, named "deep-review-<role>" everywhere. Regenerate with
+# `python scripts/generate_agents.py` after editing this file or a body.
+
+[roles.scout]
+description = "Read-only deep-review scout using one selected review lens."
+body = ["reviewers/SCOUT.md"]
+
+[roles.scout.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.scout.devin]
+model = "gpt-5-6-luna-medium"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.structural]
+description = "Read-only deep-review structural maintainability scout."
+body = ["reviewers/SCOUT.md", "reviewers/lenses/structural.md"]
+
+[roles.structural.codex]
+model = "gpt-6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.structural.devin]
+model = "gpt-5-6-sol-medium"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.validator-static]
+description = "Read-only independent adjudicator for one deep-review hypothesis."
+body = ["reviewers/validator.md"]
+
+[roles.validator-static.codex]
+model = "gpt-6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.validator-static.devin]
+model = "gpt-5-6-sol-high"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.validator-probe]
+description = "Independent adjudicator for one bounded writable deep-review probe."
+body = ["reviewers/validator.md"]
+
+[roles.validator-probe.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+
+[roles.validator-probe.devin]
+model = "gpt-5-6-luna-high"
+allowed-tools = ["read", "grep", "glob", "exec", "write", "edit"]

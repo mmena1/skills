@@ -193,6 +193,133 @@ materialize_path() {
   fi
 }
 
+# The standalone mmena1/deep-review installer composed marked skill roots from links
+# into its checkout and linked its native agents from there. Recognise exactly those
+# installations so this repository's deep-review replaces them; anything else that
+# occupies the same name is backed up.
+LEGACY_DEEP_REVIEW_MARKER=".deep-review-managed"
+LEGACY_DEEP_REVIEW_ENTRIES="|$LEGACY_DEEP_REVIEW_MARKER|SKILL.md|protocol.md|GLOSSARY.md|references|reviewers|agents|"
+LEGACY_DEEP_REVIEW_DEVIN_AGENTS="code-reviewer code-reviewer-structural code-reviewer-validator-static code-reviewer-validator-probe"
+
+# Print the paths a link shares its content with: the target of a symlink or
+# junction, or the other names of a Windows hard link.
+link_targets() {
+  local destination="$1" target
+  if [ -L "$destination" ]; then
+    target="$(readlink "$destination")" || return 1
+    case "$target" in
+      /*) printf '%s\n' "$target" ;;
+      *) printf '%s\n' "$(dirname "$destination")/$target" ;;
+    esac
+  elif is_windows_shell && [ -f "$destination" ]; then
+    SKILLS_LINK_PATH="$(cygpath -w "$destination")" powershell.exe -NoProfile -Command '
+      $item = Get-Item -LiteralPath $env:SKILLS_LINK_PATH -Force -ErrorAction Stop
+      if ($item.LinkType -ne "HardLink") { exit 1 }
+      foreach ($target in @($item.Target)) { if ($target) { [string]$target } }
+    ' 2>/dev/null | tr -d '\r' | while IFS= read -r target; do cygpath -u "$target"; done
+  else
+    return 1
+  fi
+}
+
+# A standalone deep-review checkout: the shared protocol plus a harness wrapper.
+is_deep_review_checkout() {
+  [ -f "$1/skills/deep-review/protocol.md" ] || return 1
+  [ -f "$1/harnesses/codex/skills/deep-review/SKILL.md" ] || [ -f "$1/harnesses/devin/skills/deep-review/SKILL.md" ]
+}
+
+# True when destination links to <checkout>/<relative> in a deep-review checkout.
+links_into_legacy_deep_review() {
+  local destination="$1" relative="$2" targets target checkout
+  [ -e "$destination" ] || [ -L "$destination" ] || return 1
+  targets="$(link_targets "$destination")" || return 1
+  while IFS= read -r target; do
+    [ -n "$target" ] || continue
+    target="$(canonicalize_path "$target")" || continue
+    case "$target" in
+      */"$relative") checkout="${target%/"$relative"}" ;;
+      *) continue ;;
+    esac
+    is_deep_review_checkout "$checkout" && return 0
+  done <<< "$targets"
+  return 1
+}
+
+# The old installer recorded its checkout in the marker, as a Unix or Windows path.
+is_legacy_deep_review_skill_root() {
+  local destination="$1" entry recorded
+  [ "${destination##*/}" = "deep-review" ] && [ -d "$destination" ] && [ ! -L "$destination" ] || return 1
+  [ -f "$destination/$LEGACY_DEEP_REVIEW_MARKER" ] || return 1
+  recorded="$(tr -d '\r' < "$destination/$LEGACY_DEEP_REVIEW_MARKER")"
+  [ -n "$recorded" ] || return 1
+  if is_windows_shell; then recorded="$(cygpath -u "$recorded" 2>/dev/null || printf '%s' "$recorded")"; fi
+  is_deep_review_checkout "$recorded" || return 1
+  for entry in "$destination"/* "$destination"/.*; do
+    case "${entry##*/}" in .|..) continue ;; esac
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    case "$LEGACY_DEEP_REVIEW_ENTRIES" in
+      *"|${entry##*/}|"*) ;;
+      *) return 1 ;;
+    esac
+  done
+}
+
+is_legacy_deep_review_installation() {
+  local destination="$1" name="${1##*/}"
+  case "$name" in
+    deep-review) is_legacy_deep_review_skill_root "$destination" ;;
+    deep-review-*.toml) links_into_legacy_deep_review "$destination" "harnesses/codex/agents/$name" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Unlink each composed entry before removing the root so no link is followed.
+remove_legacy_deep_review() {
+  local destination="$1" entry
+  echo "Replacing deep-review installation from the standalone repository: $destination"
+  if [ ! -d "$destination" ] || [ -L "$destination" ]; then
+    rm -f "$destination"
+    return
+  fi
+  for entry in "$destination"/* "$destination"/.*; do
+    case "${entry##*/}" in .|..) continue ;; esac
+    if [ -L "$entry" ] || [ ! -d "$entry" ]; then
+      rm -f "$entry"
+    else
+      rm -rf "$entry"
+    fi
+  done
+  rmdir "$destination"
+}
+
+# A Devin agent the old installer linked from a checkout, or copied from one when
+# the link failed: a directory holding only an AGENT.md from its generator.
+is_legacy_deep_review_devin_agent() {
+  local destination="$1" name="${1##*/}" entry
+  links_into_legacy_deep_review "$destination" "harnesses/devin/agents/$name" && return 0
+  [ -d "$destination" ] && [ ! -L "$destination" ] && [ -f "$destination/AGENT.md" ] || return 1
+  for entry in "$destination"/* "$destination"/.*; do
+    case "${entry##*/}" in .|..|AGENT.md) continue ;; esac
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    return 1
+  done
+  tr -d '\r' < "$destination/AGENT.md" | grep -qx "name: $name" &&
+    tr -d '\r' < "$destination/AGENT.md" | grep -qx '<!-- BEGIN GENERATED: shared reviewer body -->'
+}
+
+# Devin names the old installation used that this repository does not install.
+remove_legacy_deep_review_devin() {
+  local root name destination
+  destination="${HOME}/.config/devin/skills/deep-review"
+  if is_legacy_deep_review_skill_root "$destination"; then remove_legacy_deep_review "$destination"; fi
+  for root in "${HOME}/.config/devin/agents" "$(devin_agents_root)"; do
+    for name in $LEGACY_DEEP_REVIEW_DEVIN_AGENTS; do
+      destination="$root/$name"
+      if is_legacy_deep_review_devin_agent "$destination"; then remove_legacy_deep_review "$destination"; fi
+    done
+  done
+}
+
 install_managed_path() {
   local source="$1" destination="$2"
   if [ -L "$destination" ] && symlink_points_into_repo "$destination"; then
@@ -201,6 +328,8 @@ install_managed_path() {
     remove_managed_path "$destination"
   elif managed_copy_points_into_repo "$destination"; then
     remove_managed_path "$destination"
+  elif is_legacy_deep_review_installation "$destination"; then
+    remove_legacy_deep_review "$destination"
   elif path_exists "$destination"; then
     backup_path "$destination"
   fi
@@ -331,7 +460,10 @@ if [ "$INSTALL_DEVIN" -eq 1 ]; then
 fi
 if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_collection "${HOME}/.claude/skills"; fi
 if [ "$INSTALL_CODEX" -eq 1 ]; then install_agents codex "${HOME}/.codex/agents"; fi
-if [ "$INSTALL_DEVIN" -eq 1 ]; then install_agents devin "$(devin_agents_root)"; fi
+if [ "$INSTALL_DEVIN" -eq 1 ]; then
+  install_agents devin "$(devin_agents_root)"
+  remove_legacy_deep_review_devin
+fi
 if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_agents claude "${HOME}/.claude/agents"; fi
 
 echo "Install complete."
