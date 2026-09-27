@@ -31,13 +31,23 @@ The `agents/openai.yaml` file is permitted minimal Codex metadata. Keep its disp
 
 ## Validation
 
-Run the canonical repository check after changing skills, metadata, installers, or repository structure:
+Run the canonical repository check routinely, and always after changing skills, metadata, installers, or repository structure:
 
 ```text
 python scripts/check.py
 ```
 
-The same command runs in CI on Ubuntu, macOS, and Windows. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, and installer safety and selection behavior.
+It is the fast check and finishes in seconds. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, the implementation authority contract, native agent freshness and generation, and deep-review invariants. It does not run the installers.
+
+Run the installer integration suite after changing `install.sh`, `install.ps1`, the installer tests, or native agent installation:
+
+```text
+python scripts/test_installers.py
+```
+
+It is slower, taking minutes on Windows. It runs `install.sh` through Bash on every platform and `install.ps1` through PowerShell on Windows, in isolated home directories, and checks harness selection, stable and experimental selection, links, junctions, copy fallback, reconciliation, unrelated-destination backup, native agent installation, and legacy deep-review migration.
+
+CI runs both commands as separate jobs on Ubuntu, macOS, and Windows.
 
 A skill that ships native reviewer agents declares them in `harnesses/roles.toml` (see ADR-0001). After changing that manifest or a reviewer body it embeds, run `python scripts/generate_agents.py` and commit the regenerated files under `harnesses/<harness>/`. Never edit generated agent files by hand.
 
