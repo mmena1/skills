@@ -60,24 +60,31 @@ MODEL_INVOKED_SKILLS = {
     "prototype", "research", "resolving-merge-conflicts", "tdd", "wizard",
     "writing-for-agents",
 }
-# Models and limits the standalone deep-review adapters pinned before the import.
+# Models and limits the standalone deep-review adapters pinned before the import,
+# plus the Claude Code adapter. Claude Code does not confine an agent's Bash to
+# the patterns in its tool list, so its read-only roles keep plain Bash.
 DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
+DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 DEEP_REVIEW_ROLES = {
     "scout": {
         "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-luna-medium", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "sonnet", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "structural": {
         "codex": {"model": "gpt-6-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-sol-medium", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "opus", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-static": {
         "codex": {"model": "gpt-6-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "opus", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-probe": {
         "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "workspace-write"},
         "devin": {"model": "gpt-5-6-luna-high", "allowed-tools": [*DEEP_REVIEW_READ_ONLY_TOOLS, "write", "edit"]},
+        "claude": {"model": "sonnet", "tools": [*DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "Edit", "Write"], "effort": "high"},
     },
 }
 HARNESS_SPECIFIC_TEXT = re.compile(
@@ -443,7 +450,7 @@ def validate_deep_review() -> None:
         fail(f"deep-review roles must be exactly {', '.join(sorted(DEEP_REVIEW_ROLES))}")
     for name, expected in DEEP_REVIEW_ROLES.items():
         if roles[name].harnesses != expected:
-            fail(f"deep-review role {name!r} drifted from its pinned Codex and Devin models and limits")
+            fail(f"deep-review role {name!r} drifted from its pinned harness models and limits")
     if "# Structural Lens" not in roles["structural"].body or "# Structural Lens" in roles["scout"].body:
         fail("only the deep-review structural scout embeds the structural lens")
 
@@ -866,13 +873,34 @@ def install_legacy_deep_review(home: Path, checkout: Path, *, copies: bool = Fal
         link_directory(home / ".config" / "devin" / "agents" / name, checkout / "harnesses" / "devin" / "agents" / name)
 
 
-def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
-    """Installations made by the standalone deep-review installer are replaced; anything else is backed up."""
-    repository = temporary / f"{label}-legacy-repository"
+def deep_review_repository(repository: Path) -> Path:
+    """A repository holding both installers and the real deep-review skill as its only skill."""
     (repository / "skills" / "experimental").mkdir(parents=True)
     for installer in ("install.sh", "install.ps1"):
         shutil.copy2(ROOT / installer, repository / installer)
     shutil.copytree(SKILLS / "deep-review", repository / "skills" / "deep-review")
+    return repository
+
+
+def test_deep_review_claude(label: str, temporary: Path, invoke_from, option) -> None:
+    """Selecting Claude Code installs deep-review and links every one of its native reviewer agents."""
+    repository = deep_review_repository(temporary / f"{label}-deep-review-claude-repository")
+    skill = repository / "skills" / "deep-review"
+    home = temporary / f"{label}-deep-review-claude"
+    invoke_from(repository)(home, option("claude"))
+    assert_skill(home / ".claude" / "skills" / "deep-review", "name: deep-review")
+    for role in DEEP_REVIEW_ROLES:
+        name = f"deep-review-{role}"
+        assert_agent(home, "claude", name, skill)
+        assert_agent_linked(home, "claude", name, f"{label} Claude deep-review install")
+    for harness in ("codex", "devin"):
+        if os.path.lexists(agent_destinations(home)[harness]):
+            fail(f"{label} Claude deep-review install wrote agents for unselected harness {harness}")
+
+
+def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
+    """Installations made by the standalone deep-review installer are replaced; anything else is backed up."""
+    repository = deep_review_repository(temporary / f"{label}-legacy-repository")
     skill = repository / "skills" / "deep-review"
     invoke = invoke_from(repository)
 
@@ -1089,6 +1117,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
     test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
+    test_deep_review_claude("shell", temporary, invoke_from, shell_options.__getitem__)
 
 
 def find_powershell() -> str:
@@ -1225,6 +1254,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
+    test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)
 
 
 def validate_installers() -> None:

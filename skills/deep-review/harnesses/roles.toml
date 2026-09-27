@@ -15,6 +15,11 @@ sandbox_mode = "read-only"
 model = "gpt-5-6-luna-medium"
 allowed-tools = ["read", "grep", "glob", "exec"]
 
+[roles.scout.claude]
+model = "sonnet"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+
 [roles.structural]
 description = "Read-only deep-review structural maintainability scout."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/structural.md"]
@@ -27,6 +32,11 @@ sandbox_mode = "read-only"
 [roles.structural.devin]
 model = "gpt-5-6-sol-medium"
 allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.structural.claude]
+model = "opus"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
 
 [roles.validator-static]
 description = "Read-only independent adjudicator for one deep-review hypothesis."
@@ -41,6 +51,11 @@ sandbox_mode = "read-only"
 model = "gpt-5-6-sol-high"
 allowed-tools = ["read", "grep", "glob", "exec"]
 
+[roles.validator-static.claude]
+model = "opus"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+
 [roles.validator-probe]
 description = "Independent adjudicator for one bounded writable deep-review probe."
 body = ["reviewers/validator.md"]
@@ -53,3 +68,8 @@ sandbox_mode = "workspace-write"
 [roles.validator-probe.devin]
 model = "gpt-5-6-luna-high"
 allowed-tools = ["read", "grep", "glob", "exec", "write", "edit"]
+
+[roles.validator-probe.claude]
+model = "sonnet"
+tools = ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
+effort = "high"
