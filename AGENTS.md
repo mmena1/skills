@@ -31,7 +31,7 @@ The `agents/openai.yaml` file is permitted minimal Codex metadata. Keep its disp
 
 ## Validation
 
-Run the canonical repository check routinely, and always after changing skills, metadata, or repository structure:
+Run the canonical repository check routinely, and always after changing skills, metadata, installers, or repository structure:
 
 ```text
 python scripts/check.py
