@@ -59,7 +59,7 @@ When the run is incomplete, preserve completed outcomes but list every unattempt
    Severity: blocker | high | medium | low
    Evidence: [validator evidence]
    Why it matters: [impact]
-   Suggested fix: [concrete remediation]
+   Suggested remediation: [required outcome, relevant constraints, and a concrete implementation shape when confidently established]
 
 #### Discuss
 
@@ -71,7 +71,7 @@ When the run is incomplete, preserve completed outcomes but list every unattempt
    Severity: blocker | high | medium | low
    Evidence: [validator evidence]
    Why it matters: [impact]
-   Discussion prompt: [question or tradeoff]
+   Discussion prompt: [decision-complete question: the concern or tradeoff, specific enough that the author knows which decision to resolve]
 
 #### Follow-up
 
@@ -80,7 +80,7 @@ When the run is incomplete, preserve completed outcomes but list every unattempt
    Severity: blocker | high | medium | low
    Evidence: [validator evidence]
    Why it matters: [impact]
-   Follow-up scope: [next ticket or PR scope]
+   Follow-up scope: [required outcome and scope of the next ticket or PR; an implementation shape only when confidently established]
 
 ### Unresolved
 
@@ -90,7 +90,7 @@ Unresolved outcomes are always Action: discuss and are not Findings.
    File: path/to/file:line
    Evidence: [source evidence]
    Validation attempted: [probe/check and result]
-   Remaining question: [what could not be established]
+   Remaining question: [what could not be established and the decision it leaves for the author]
    Decision: post to PR | keep private / investigate | discard
 
 ### Recommended Actions

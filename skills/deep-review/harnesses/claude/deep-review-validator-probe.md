@@ -37,7 +37,9 @@ You are the independent deep-review validator. The coordinator invokes you in on
 - **Severity:** blocker | high | medium | low
 - **Evidence:** decisive static or bounded-check evidence establishing reachability and impact
 - **Impact:** what fails and under which input or state
-- **Recommendation:** smallest clear remediation
+- **Recommendation:** smallest clear remediation, stated as the required outcome after the fix, any material constraint that rules out a plausible but incorrect repair, and a concrete implementation shape only when confidently established from inspected surrounding code
+
+The required outcome is authoritative; an implementation shape is guidance unless the repository or the finding requires that exact shape. When an obvious shortcut would fix the immediate symptom but leave the established concern unresolved, such as making an internal type public to make an extension hook accessible, name the constraint that rules it out. Do not invent an architectural prescription the evidence does not support.
 
 ### Disproved
 - **Hypothesis:** H<number> and original scout ID(s)
@@ -49,7 +51,7 @@ You are the independent deep-review validator. The coordinator invokes you in on
 - **File/line:** repository-relative path and line
 - **Evidence:** source evidence and attempted static or bounded validation
 - **Remaining question:** what could not be established
-- **Needs confirmation:** what the author or user must establish
+- **Needs confirmation:** what the author or user must establish, specific enough that they know which decision or tradeoff to resolve
 
 ### Needs probe
 - **Hypothesis:** H<number> and original scout ID(s)

@@ -14,9 +14,10 @@ This captures the established voice for inline PR review comments, drawn from th
 - **Invite discussion with "WDYT?"**: use it on judgment calls where there's a real tradeoff, not on every comment. Skip it on unambiguous fixes (naming, missing doc updates, style nits), and do not add it just to make a comment sound like the examples.
 - **Name concrete identifiers with backticks.** Reference the exact constant, method, class, or file being discussed (`RedisConstants.java`, `EXACT_FALLBACK_MESSAGES`, `acquireDedupLock()`) so the author doesn't have to guess what's being pointed at.
 - **Call out doc/comment vs. behavior drift explicitly.** Pattern: "The Javadoc says X, but actual behavior now does Y", then say what the doc should say instead, often as a fenced snippet.
-- **Give a code suggestion only when it's short and unambiguous.** Use a ` ```suggestion ` block for single/few-line diff edits, or a small fenced snippet (```java, ```md) when showing the shape of a bigger fix. For a broader refactor (e.g. "extract these into shared setup"), it's fine to give the full replacement code directly and state it as a recommendation rather than a question. That's still a judgment call on approach, but the fix itself is concrete enough to just show. Keep the fix explanation short when the code makes it self-evident.
+- **Code suggestions are optional.** Give one only when prose would otherwise leave meaningful ambiguity and the shape is supported by the surrounding code you inspected. Use a ` ```suggestion ` block for single/few-line diff edits, or a small fenced snippet (```java, ```md) when showing the shape of a bigger fix. For a broader refactor (e.g. "extract these into shared setup"), it's fine to give the full replacement code directly and state it as a recommendation rather than a question. That's still a judgment call on approach, but the fix itself is concrete enough to just show. Keep the fix explanation short when the code makes it self-evident.
 - **Point to the shared/canonical place things belong.** "Shouldn't this be in `RedisConstants.java`?" / "I think these prefixes should also be documented on `redis-key-conventions.md`". This favors consolidating into existing conventions over introducing new ones.
-- **Keep it short.** Most comments are 1-3 sentences. Even the longer ones with a code suggestion stay to a single point.
+- **State the required outcome, not only the symptom.** When several repairs are plausible, say what must be true after the fix and name any constraint that rules out a plausible but wrong shortcut. If the obvious shortcut fixes the symptom but breaks the intended design, rule it out explicitly instead of trusting the author to infer it.
+- **Keep it short without losing clarity.** Cut filler, restated diffs, and speculative detail, never the required outcome or a constraint that separates an acceptable fix from a superficially valid one. Even the longer comments with a code suggestion stay to a single point.
 
 ## Keep comments human
 
@@ -30,6 +31,7 @@ The rules above define the reviewer's judgment and certainty. After drafting, do
 - Do not mechanically reuse signature phrases. "I think", "Should we...?", "Do we care about...?", and "WDYT?" are available when they fit, not required markers of a judgment call.
 - Fragments and contractions are fine when they sound natural. Do not polish a two-line PR comment into formal prose.
 - If a sentence could be pasted unchanged onto dozens of unrelated PRs, rewrite it with the actual code and consequence.
+- Do not shorten a comment by dropping the constraint that rules out a wrong fix.
 - Before presenting the comment, ask: "Would this obviously read as generated text?" If so, simplify it.
 
 ## Examples (paraphrased from real comments)
@@ -83,6 +85,21 @@ Fix with a short suggestion block:
 > }
 > ```
 
+Required outcome and constraint (generic weak-vs-better contrast):
+
+> **Weak:** `formatRow()` is private, so extensions can't customize row output. Make it accessible.
+
+The weak comment can be satisfied by making `formatRow()` and its `RowNode` parameter public, which fixes the symptom but leaks the internal intermediate representation.
+
+> **Better:** Extensions need a hook for row output, but `RowNode` is the internal intermediate representation and shouldn't become public API. Make the hook accessible without exposing `RowNode`, for example through a small public view:
+> ```java
+> public interface RowFormatter {
+>     String format(RowView row);
+> }
+> ```
+
+The difference is constraint clarity, not length. The snippet is optional; include one only when the surrounding code supports that shape.
+
 When the user explicitly requests a top-level approval summary:
 
 > Nice fixes! Looks good now
@@ -91,9 +108,9 @@ When the user explicitly requests a top-level approval summary:
 
 Each finding's `Action` determines the comment voice:
 
-- **Action: fix-now** → Use the **clear-cut** voice. State the fix directly as an instruction. Include a ` ```suggestion ` block when the change is a few lines or fewer. Do not hedge or ask permission.
-- **Action: discuss** → Use the **judgment-call** voice. Frame the finding as a genuine question and preserve uncertainty. Do not mechanically add "I think", "Should we...?", or "WDYT?"; use the phrasing that sounds natural for the specific concern.
-- **Action: follow-up** → Explain why the issue is out of scope for this PR and describe the follow-up scope in one sentence. The tone is informative, not blocking.
+- **Action: fix-now** → Use the **clear-cut** voice. State the required outcome directly as an instruction, with any constraint that rules out a plausible but wrong repair. Include a ` ```suggestion ` block when the change is a few lines or fewer and the surrounding code supports it. Do not hedge or ask permission.
+- **Action: discuss** → Use the **judgment-call** voice. Frame the finding as a genuine, decision-complete question: name the concern or tradeoff specifically enough that the author knows which decision to resolve, without requiring a complete remediation. Preserve uncertainty. Do not mechanically add "I think", "Should we...?", or "WDYT?"; use the phrasing that sounds natural for the specific concern.
+- **Action: follow-up** → Explain why the issue is out of scope for this PR and state the follow-up's required outcome and scope. Suggest an implementation only when it is confidently established; do not turn the comment into a design document. The tone is informative, not blocking.
 
 ## Applying this to generated review comments
 
@@ -102,6 +119,6 @@ When drafting inline comments from consolidated findings:
 1. Omit the internal report's severity, evidence, and validation fields from an inline comment.
 2. Classify the outcome as Finding or a user-selected Unresolved question. Use the matching pattern above.
 3. State Findings directly. Preserve the uncertainty of an Unresolved question rather than presenting it as established fact.
-4. Include a code block only when the fix is short and unambiguous; otherwise describe the change in one sentence.
+4. Keep the required outcome and material constraints from the Finding's recommendation. Include a code block only when prose would leave meaningful ambiguity and the shape is supported by the surrounding code; otherwise describe the change in prose.
 5. If the same nit applies to multiple locations, state it fully once and shorten later comments.
-6. Run the final comment through **Keep comments human** without changing the finding's certainty or meaning.
+6. Run the final comment through **Keep comments human** without changing the finding's certainty or meaning, then run the publication ambiguity check in `pr-review-comments.md`.
