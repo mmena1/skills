@@ -31,7 +31,6 @@ The rules above define the reviewer's judgment and certainty. After drafting, do
 - Do not mechanically reuse signature phrases. "I think", "Should we...?", "Do we care about...?", and "WDYT?" are available when they fit, not required markers of a judgment call.
 - Fragments and contractions are fine when they sound natural. Do not polish a two-line PR comment into formal prose.
 - If a sentence could be pasted unchanged onto dozens of unrelated PRs, rewrite it with the actual code and consequence.
-- Do not shorten a comment by dropping the constraint that rules out a wrong fix.
 - Before presenting the comment, ask: "Would this obviously read as generated text?" If so, simplify it.
 
 ## Examples (paraphrased from real comments)
@@ -108,7 +107,7 @@ When the user explicitly requests a top-level approval summary:
 
 Each finding's `Action` determines the comment voice:
 
-- **Action: fix-now** → Use the **clear-cut** voice. State the required outcome directly as an instruction, with any constraint that rules out a plausible but wrong repair. Include a ` ```suggestion ` block when the change is a few lines or fewer and the surrounding code supports it. Do not hedge or ask permission.
+- **Action: fix-now** → Use the **clear-cut** voice. State the required outcome directly as an instruction, with any constraint that rules out a plausible but wrong repair. Include a ` ```suggestion ` block only when prose would leave meaningful ambiguity, the change is a few lines or fewer, and the surrounding code supports it. Do not hedge or ask permission.
 - **Action: discuss** → Use the **judgment-call** voice. Frame the finding as a genuine, decision-complete question: name the concern or tradeoff specifically enough that the author knows which decision to resolve, without requiring a complete remediation. Preserve uncertainty. Do not mechanically add "I think", "Should we...?", or "WDYT?"; use the phrasing that sounds natural for the specific concern.
 - **Action: follow-up** → Explain why the issue is out of scope for this PR and state the follow-up's required outcome and scope. Suggest an implementation only when it is confidently established; do not turn the comment into a design document. The tone is informative, not blocking.
 
@@ -121,4 +120,4 @@ When drafting inline comments from consolidated findings:
 3. State Findings directly. Preserve the uncertainty of an Unresolved question rather than presenting it as established fact.
 4. Keep the required outcome and material constraints from the Finding's recommendation. Include a code block only when prose would leave meaningful ambiguity and the shape is supported by the surrounding code; otherwise describe the change in prose.
 5. If the same nit applies to multiple locations, state it fully once and shorten later comments.
-6. Run the final comment through **Keep comments human** without changing the finding's certainty or meaning, then run the publication ambiguity check in `pr-review-comments.md`.
+6. Run the final comment through **Keep comments human** without changing the finding's certainty or meaning, then run the ambiguity check in `pr-review-comments.md`.
