@@ -1,5 +1,5 @@
 ---
-name: code-review
+name: implementation-review
 description: Review a diff since a fixed point against repository standards and its originating issue or spec.
 disable-model-invocation: true
 triggers:

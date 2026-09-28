@@ -20,7 +20,7 @@ A canonical state-machine label applied to an **Issue** during triage, such as `
 
 **Deep review**:
 The strict PR-gate review workflow owned by the `deep-review` skill: parallel read-only scouts propose hypotheses and independent validators adjudicate them. Its own vocabulary (Hypothesis, Finding, Unresolved, review run, publication boundary, and so on) lives in that skill's glossary, not here.
-_Avoid_: code review (that is the lighter `code-review` skill)
+_Avoid_: implementation review (that is the lighter `implementation-review` skill)
 
 **Native reviewer agent**:
 A harness-specific agent definition that a skill ships so the harness can launch a named role with its own model, tools, and sandbox. Only skills whose protocol requires distinct roles ship them.

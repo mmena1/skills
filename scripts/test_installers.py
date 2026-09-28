@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 import generate_agents
-from check import DEEP_REVIEW_ROLES, ROOT, SKILLS, CheckFailure, fail
+from check import DEEP_REVIEW_ROLES, RENAMED_SKILLS, ROOT, SKILLS, CheckFailure, fail
 
 
 def find_bash() -> str:
@@ -366,6 +366,45 @@ def test_deep_review_claude(label: str, temporary: Path, invoke_from, option) ->
             fail(f"{label} Claude deep-review install wrote agents for unselected harness {harness}")
 
 
+def test_renamed_skills(label: str, temporary: Path, invoke_from, option) -> None:
+    """Reinstalling after a skill rename removes repository-managed installations of the former name."""
+    for former, current in RENAMED_SKILLS.items():
+        repository = temporary / f"{label}-renamed-{former}-repository"
+        (repository / "skills" / "experimental").mkdir(parents=True)
+        for installer in ("install.sh", "install.ps1"):
+            shutil.copy2(ROOT / installer, repository / installer)
+        shutil.copytree(SKILLS / current, repository / "skills" / current)
+        former_source = repository / "skills" / former
+        roots = (Path(".agents") / "skills", Path(".claude") / "skills")
+
+        for case in ("link", "copy"):
+            home = temporary / f"{label}-renamed-{former}-{case}"
+            for root in roots:
+                stale = home / root / former
+                if case == "link":
+                    create_broken_directory_link(stale, former_source)
+                else:
+                    stale.mkdir(parents=True)
+                    (stale / "SKILL.md").write_text(f"---\nname: {former}\n---\n", encoding="utf-8")
+                    (stale / MANAGED_MARKER).write_text(str(former_source) + "\n", encoding="utf-8")
+            invoke_from(repository)(home, option("all"))
+            for root in roots:
+                if os.path.lexists(home / root / former):
+                    fail(f"{label} reconciliation retained a repository-managed {case} of renamed skill {former} in {root}")
+                if list((home / root).glob(f"{former}.bak-*")):
+                    fail(f"{label} installer backed up a repository-managed {case} of renamed skill {former} in {root}")
+                assert_skill(home / root / current, f"name: {current}")
+
+        foreign_home = temporary / f"{label}-renamed-{former}-foreign"
+        foreign = foreign_home / ".claude" / "skills" / former
+        foreign.mkdir(parents=True)
+        (foreign / "local.txt").write_text("keep me\n", encoding="utf-8")
+        invoke_from(repository)(foreign_home, option("claude"))
+        if not foreign.is_dir() or (foreign / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer changed an unrelated skill named {former}")
+        assert_skill(foreign_home / ".claude" / "skills" / current, f"name: {current}")
+
+
 def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
     """Installations made by the standalone deep-review installer are replaced; anything else is backed up."""
     repository = deep_review_repository(temporary / f"{label}-legacy-repository")
@@ -586,6 +625,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
     test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
     test_deep_review_claude("shell", temporary, invoke_from, shell_options.__getitem__)
+    test_renamed_skills("shell", temporary, invoke_from, shell_options.__getitem__)
 
 
 def find_powershell() -> str:
@@ -723,6 +763,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)
+    test_renamed_skills("powershell", temporary, invoke_from, powershell_options.__getitem__)
 
 
 def validate_installers() -> None:

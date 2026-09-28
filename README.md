@@ -75,7 +75,6 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 
 ### User-invoked
 
-- [`code-review`](./skills/code-review/SKILL.md): Review a diff against repository standards and its originating issue or spec.
 - [`deep-review`](./skills/deep-review/SKILL.md): Run a strict PR-gate review with parallel read-only scouts and independent hypothesis validation.
 - [`design-review`](./skills/design-review/SKILL.md): Check a spec's proposed modules for shallow seams before ticket breakdown.
 - [`evaluate-model`](./skills/evaluate-model/SKILL.md): Recommend a model, reasoning effort, and session boundary for an upcoming task, then stop.
@@ -83,6 +82,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 - [`grill-with-docs`](./skills/grill-with-docs/SKILL.md): Grill a design while building its domain documentation.
 - [`handoff-doc`](./skills/handoff-doc/SKILL.md): Compact a conversation into a portable handoff document.
 - [`implement`](./skills/implement/SKILL.md): Implement one approved issue through verification, review, commit, and closeout.
+- [`implementation-review`](./skills/implementation-review/SKILL.md): Review a diff against repository standards and its originating issue or spec.
 - [`improve-codebase-architecture`](./skills/improve-codebase-architecture/SKILL.md): Find and explore opportunities to deepen codebase modules.
 - [`reconcile`](./skills/reconcile/SKILL.md): Recompute an implementation frontier after a ticket resolves.
 - [`setup-skills`](./skills/setup-skills/SKILL.md): Configure a target repository for the issue, triage, and domain-document workflows used by these skills.
