@@ -145,9 +145,11 @@ Rare failure and transition paths remain `NOT EXERCISED` until they occur natura
 
 Use `references/output-template.md`. Report hypotheses discovered, hypotheses after dedupe, and outcome counts. Apply the deterministic action policy: every Finding with a small, unambiguous fix of about 20 changed lines or fewer is `fix-now`; every Finding with a larger or cross-module fix is `follow-up`; every Unresolved outcome is separate and always `discuss`. Keep scout provenance in run state rather than normal Finding prose.
 
+Carry each Finding's remediation from the validator's Recommendation without compressing away its required outcome or the material constraints that distinguish an acceptable repair from a superficially valid one. The required outcome is authoritative; a proposed implementation is guidance unless the repository or finding requires that exact shape. The coordinator may simplify or clarify that wording and may re-inspect the relevant code to establish safer wording, but it must not invent a confident architectural prescription the finding or surrounding code does not support.
+
 Before presenting a result as current/actionable or publishing, re-check target freshness. If the PR head changed, report reviewed and current SHAs, mark the result stale, and require a rerun.
 
-Use `references/pr-review-comments.md` for publication. Findings may be drafted as established defects. User-selected Unresolved items require explicit per-item approval and must be questions describing evidence and remaining uncertainty. Preserve semantic anchors, changed-line validation, exact payload validation, privacy boundaries, freshness, comment-count verification, and per-comment approval.
+Use `references/pr-review-comments.md` for publication. Findings may be drafted as established defects. User-selected Unresolved items require explicit per-item approval and must be questions describing evidence and remaining uncertainty. Run the ambiguity check from that reference before presenting each comment for approval. Preserve semantic anchors, changed-line validation, exact payload validation, privacy boundaries, freshness, comment-count verification, and per-comment approval.
 
 ## Cleanup
 

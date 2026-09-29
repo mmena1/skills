@@ -40,4 +40,6 @@ Return `No hypotheses` when no concern meets the admission threshold. Otherwise 
 - **Suggested validation:** cheapest decision-relevant check, never remediation
 - **Context references:** relevant manifest entries, or none
 
+When the concern is a violated boundary, contract, or invariant, name it in the source evidence or expected impact so validation and any later remediation can preserve it. Naming the constraint is not a remedy.
+
 Do not emit discarded or internal hypotheses, assign final severity, suggest remediation, or use validator outcome terminology. The coordinator assigns canonical IDs and deduplicates after every scout finishes.
