@@ -37,7 +37,7 @@ Run the canonical repository check routinely, and always after changing skills, 
 python scripts/check.py
 ```
 
-It is the fast check and finishes in seconds. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, the implementation authority contract, native agent freshness and generation, and deep-review invariants. It does not run the installers.
+It is the fast check and finishes in seconds. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, the implementation authority contract, the tracker capability contract, native agent freshness and generation, and deep-review invariants. It does not run the installers.
 
 Run the installer integration suite after changing `install.sh`, `install.ps1`, the installer tests, or native agent installation:
 
