@@ -2,6 +2,12 @@
 
 An agent brief is a structured comment posted on a GitHub issue or PR when it moves to `ready-for-agent`. It is the authoritative specification that an AFK agent will work from. The original body and discussion are context: the agent brief is the contract.
 
+A brief usually lives in a comment written during triage. For a parentless issue that `/to-tickets` publishes after the user approves the breakdown, the brief lives in the issue body instead. Either way, a complete brief written by a trusted maintainer is what gives a parentless issue its standalone implementation authority, as the repository's issue-tracker configuration defines.
+
+## Completeness
+
+A complete Agent Brief has the `## Agent Brief` heading and the Category, Summary, Current behavior, Desired behavior, non-empty Acceptance criteria, and Out of scope fields; `Key interfaces` is optional and its absence never makes a brief incomplete. Acceptance criteria are non-empty when they list at least one criterion with text. Include `Key interfaces` whenever it says something meaningful; leave it out rather than padding it. Existing briefs without it stay valid and need no re-triage.
+
 The brief states **what the agent should do**, which stretches to both surfaces: for an issue, that's building the change from nothing; for a PR, it's what's left to do *to the existing diff*: finish it, close gaps, address review points. Same principles either way; the PR example below shows the difference.
 
 ## Principles
@@ -52,7 +58,7 @@ For enhancements, this is the status quo the feature builds on.
 Describe what should happen after the agent's work is complete.
 Be specific about edge cases and error conditions.
 
-**Key interfaces:**
+**Key interfaces:** (optional)
 - `TypeName`: what needs to change and why
 - `functionName()` return type: what it currently returns vs what it should return
 - Config shape: any new configuration options needed
