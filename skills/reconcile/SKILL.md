@@ -21,9 +21,10 @@ This is a tracker-state operation. Read the repository instructions and `docs/ag
 5. Re-query every implementation child of the parent, or every parentless issue with a complete trusted Agent Brief when the trigger has no parent. Include enough state to remove stale ready markers from non-executable issues. Use native dependency relationships when the tracker provides them; use the configured fallback only when native dependency data is unavailable.
 6. Classify each issue from current state:
    - ready when it is open, unblocked by every blocker, and unclaimed or unassigned;
-   - non-ready when it is blocked, claimed or assigned, closed, or otherwise non-executable.
+   - non-ready when it is blocked, claimed or assigned, closed, or otherwise non-executable;
+   - for the standalone set only, held non-ready when it carries an explicit non-agent triage state: a label mapped from the `needs-triage`, `needs-info`, `ready-for-human`, or `wontfix` role in `docs/agents/triage-labels.md`. Reconciliation preserves that triage decision: it never promotes a held issue to ready and never changes its triage label. An unlabelled planned issue, such as a blocked `/to-tickets` ticket, carries no triage state and is promoted once its blockers close.
 7. Apply only the ready-state mutations needed to make every issue match its classification. An issue already in the correct state is a no-op. Reconciliation mutates readiness only and never creates or edits Agent Brief authority. Never modify the parent resolution state, invent a dependency, claim a ticket, or resolve a ticket as part of reconciliation.
-8. Preserve the parent's child ordering for parent-backed work. Report a standalone frontier in ascending issue-number order. The frontier is every open, unblocked, unclaimed issue in the selected set.
+8. Preserve the parent's child ordering for parent-backed work. Report a standalone frontier in ascending issue-number order. The frontier is every open, unblocked, unclaimed issue in the selected set that is not held.
 
 Report the triggering ticket, parent/spec or standalone scope, issues promoted to ready, issues removed from ready, issues already correct, unresolved blockers, and the resulting frontier. State explicitly when no mutations were needed. Re-running with unchanged tracker state must produce the same report and no additional writes.
 
