@@ -18,6 +18,21 @@ Scaffold the per-repository configuration that the engineering skills assume:
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
+## Required implementation-workflow capabilities
+
+This is the one canonical list of capabilities a complete `docs/agents/issue-tracker.md` defines. It is the union of what `/to-tickets`, `/implement`, and `/reconcile` require from the tracker. The exploration check and the post-write validation both use this list, so check every entry each time; never stop at the first gap.
+
+- **Implementation-ready state**: the label or status that marks an open, unblocked, unclaimed implementation ticket as executable.
+- **Planned/non-ready state**: the explicit state, or the explicit absence of the ready state, that every blocked or otherwise non-executable ticket has.
+- **Direct parent or spec lookup**: how to follow a ticket to its governing parent or spec and read its approval.
+- **Canonical blocker checks**: which blocker references are canonical (native dependencies or exact `Blocked by` references, and the fallback when native data is unavailable) and the rule that every blocker must be resolved.
+- **Claim and assignment semantics**: how a ticket is claimed or assigned so it leaves the frontier.
+- **Resolution and resolved-state verification**: how a ticket is resolved, and how a later step verifies the resolved state before acting on it.
+- **Deterministic child/sibling enumeration and ordering**: how to enumerate every implementation child or sibling of a parent, and the order to use.
+- **Idempotent ready-state mutation**: how readiness is set or removed, changing only states that differ, so a rerun with unchanged tracker state makes no writes.
+- **Frontier promotion**: when unblocked, unclaimed tickets are promoted to ready and blocked or claimed tickets are demoted.
+- **`/reconcile` contract**: how `/reconcile <ticket-ref>` uses a resolved ticket to recompute its frontier.
+
 ## Process
 
 ### 1. Explore
@@ -33,7 +48,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
-When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, post-resolution trigger verification, concrete child enumeration and deterministic ordering, and frontier promotion. Finally, check which standalone authority contract it defines: the retired record contract, recognizable by a required `## Standalone implementation authority` comment and its upstream approval values, or the current complete Agent Brief rule.
+When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Then check it against every entry in the required implementation-workflow capabilities above, not only the first gap you notice, and record the complete set of missing capabilities. Finally, check which standalone authority contract it defines: the retired record contract, recognizable by a required `## Standalone implementation authority` comment and its upstream approval values, or the current complete Agent Brief rule.
 
 ### 2. Present findings and ask
 
@@ -53,7 +68,7 @@ Default posture: these skills were designed for GitHub. If a `git remote` points
 
 Record the choice in `docs/agents/issue-tracker.md`. The GitHub template carries a "PRs as a request surface" flag, defaulted **off**. Leave it off and don't raise it: a user who wants external PRs in the triage queue can flip the flag in the file later.
 
-If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show only the missing implementation-workflow additions and any standalone authority replacement, and do not ask the user to choose the tracker again.
+If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show additions for every missing capability and any standalone authority replacement, and do not ask the user to choose the tracker again.
 
 **Section B: Triage label vocabulary.** Skip this section entirely if the `triage` skill isn't installed (exploration told you), since an uninstalled skill needs no labels.
 
@@ -76,7 +91,7 @@ Show the user a draft of:
 
 Let them edit before writing.
 
-For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. Do not re-propose configuration that already exists. When nothing is missing and the file already states the Agent Brief rule, report that it is already up to date and make no edits.
+For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. One diff adds every missing capability from the exploration check. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. Do not re-propose configuration that already exists. When nothing is missing and the file already states the Agent Brief rule, report that it is already up to date and make no edits.
 
 ### 4. Write
 
@@ -89,7 +104,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow contract plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
+In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -121,10 +136,18 @@ Then write the docs files using the seed templates in this skill folder as a sta
 - [domain.md](./domain.md): domain doc consumer rules + layout
 
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
-Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim and assignment state, resolution and resolved-state verification, child enumeration with deterministic ordering, idempotent ready-state mutation semantics, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
+Define every entry in the required implementation-workflow capabilities above. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
-For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
+For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
-### 5. Done
+### 5. Validate
 
-Tell the user the setup or migration is complete and which engineering skills will now read from these files. Mention they can edit `docs/agents/*.md` directly later; re-run this skill when a downstream skill reports that an older configuration is missing a required contract, or when they want to switch issue trackers or restart from scratch.
+After writing `docs/agents/issue-tracker.md`, re-read the file from disk and validate it against every entry in the required implementation-workflow capabilities. Judge each capability by what the file defines in its own vocabulary, not by matching the seed template's wording.
+
+If any capability is still missing, report the setup or migration as incomplete and name each remaining missing capability. Never report it as complete while a gap remains.
+
+When the file was already up to date and no edit was made, the exploration check is this validation.
+
+### 6. Done
+
+Only after validation passes, tell the user the setup or migration is complete and which engineering skills will now read from these files. Mention they can edit `docs/agents/*.md` directly later; re-run this skill when a downstream skill reports that an older configuration is missing a required contract, or when they want to switch issue trackers or restart from scratch.
