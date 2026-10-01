@@ -457,16 +457,12 @@ def missing_tracker_capabilities(tracker: str) -> list[str]:
     ]
 
 
-def gated_tracker_capabilities(skill: str) -> set[str] | None:
-    """The canonical capabilities one downstream skill's tracker gate requires.
+def gate_phrase_capabilities(listed: str) -> set[str]:
+    """Map one gate sentence's listed requirements to canonical capabilities.
 
-    Returns None when the gate is missing. Fails when the gate names anything
-    that no known phrase maps to a canonical capability.
+    Fails when the list names anything that no known phrase maps.
     """
-    match = TRACKER_GATE.search(skill)
-    if match is None:
-        return None
-    remaining = match.group(1)
+    remaining = listed
     required: set[str] = set()
     for phrase in sorted(TRACKER_GATE_PHRASES, key=len, reverse=True):
         pattern = rf"(?<![\w/-]){re.escape(phrase)}(?![\w/-])"
@@ -476,6 +472,31 @@ def gated_tracker_capabilities(skill: str) -> set[str] | None:
     leftover = re.sub(r"\b(?:and|the)\b|[,;:]", " ", remaining).strip()
     if leftover:
         fail(f"tracker gate requires {leftover!r}, which the canonical capability list does not name")
+    return required
+
+
+def gated_tracker_capabilities(skill: str) -> set[str] | None:
+    """The canonical capabilities one downstream skill's tracker gate requires.
+
+    The gate is the paragraph holding the first `Require ... to define ...`
+    sentence. Every sentence in that paragraph that states a requirement must be
+    such a gate sentence, so a requirement added in any form, such as a trailing
+    "Also require ..." sentence, is either enumerated or fails the check. Gate
+    sentences elsewhere in the skill are enumerated too. Returns None when the
+    skill has no gate.
+    """
+    first = TRACKER_GATE.search(skill)
+    if first is None:
+        return None
+    paragraph_start = skill.rfind("\n\n", 0, first.start()) + 1
+    paragraph_end = skill.find("\n\n", first.start())
+    paragraph = skill[paragraph_start:paragraph_end if paragraph_end != -1 else len(skill)]
+    for sentence in re.split(r"(?<=\.)\s+", paragraph.strip()):
+        if re.search(r"\brequir", sentence, re.IGNORECASE) and not TRACKER_GATE.search(sentence):
+            fail(f"tracker gate paragraph states a requirement outside a gate sentence: {sentence!r}")
+    required: set[str] = set()
+    for match in TRACKER_GATE.finditer(skill):
+        required |= gate_phrase_capabilities(match.group(1))
     return required
 
 
@@ -516,13 +537,20 @@ def validate_tracker_capability_contract() -> None:
         omitted = sorted(required - set(canonical))
         if omitted:
             fail(f"{relative}: gates on capabilities the canonical list omits: {omitted}")
-    probe = "Require `docs/agents/issue-tracker.md` to define the ready state and sprint velocity. Then go."
-    try:
-        gated_tracker_capabilities(probe)
-    except CheckFailure:
-        pass
-    else:
-        fail("a downstream gate requiring an unlisted capability was not detected")
+    gate = "Require `docs/agents/issue-tracker.md` to define the ready state and frontier promotion."
+    unlisted_gates = {
+        "an unlisted capability in the gate sentence": gate.replace("and frontier", "sprint velocity, and frontier"),
+        "an unlisted capability in a following sentence": gate + " Also require dependency provenance. Then go.",
+        "an unlisted capability in a second gate sentence": (
+            gate + "\n\nLater.\n\nRequire that configuration to define dependency provenance. Then go."
+        ),
+    }
+    for label, probe in unlisted_gates.items():
+        try:
+            gated_tracker_capabilities(probe)
+        except CheckFailure:
+            continue
+        fail(f"a downstream gate with {label} was not detected")
 
     # Regression: an older Local Markdown tracker that has some of the contract. The
     # check must name every gap at once, and a pass that adds only the first obvious
