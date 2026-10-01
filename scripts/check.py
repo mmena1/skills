@@ -529,8 +529,9 @@ def validate_tracker_capability_contract() -> None:
     # gap must still be reported incomplete.
     partial = read("tests/fixtures/tracker-contract/local-partial.md")
     expected_gaps = ["Planned/non-ready state", "Canonical blocker checks", "Idempotent ready-state mutation"]
-    if missing_tracker_capabilities(partial) != expected_gaps:
-        fail(f"partial Local tracker fixture: expected gaps {expected_gaps}, found {missing_tracker_capabilities(partial)}")
+    found_gaps = missing_tracker_capabilities(partial)
+    if found_gaps != expected_gaps:
+        fail(f"partial Local tracker fixture: expected gaps {expected_gaps}, found {found_gaps}")
     planned = "- **Planned state**: `Status: planned`. Every blocked implementation ticket has this explicit non-ready state.\n"
     first_gap_only = partial.replace("- **Parent/spec**", planned + "- **Parent/spec**")
     if missing_tracker_capabilities(first_gap_only) != expected_gaps[1:]:

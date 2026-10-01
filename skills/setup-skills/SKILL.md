@@ -104,7 +104,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow contract plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
+In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -138,7 +138,7 @@ Then write the docs files using the seed templates in this skill folder as a sta
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
 Define every entry in the required implementation-workflow capabilities above. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
-For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
+For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
 ### 5. Validate
 
