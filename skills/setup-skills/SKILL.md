@@ -33,7 +33,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
-When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, post-resolution trigger verification, concrete child enumeration and deterministic ordering, and frontier promotion.
+When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Also check whether it defines the complete implementation workflow: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, post-resolution trigger verification, concrete child enumeration and deterministic ordering, and frontier promotion. Finally, check which standalone authority contract it defines: the retired record contract, recognizable by a required `## Standalone implementation authority` comment and its upstream approval values, or the current complete Agent Brief rule.
 
 ### 2. Present findings and ask
 
@@ -53,7 +53,7 @@ Default posture: these skills were designed for GitHub. If a `git remote` points
 
 Record the choice in `docs/agents/issue-tracker.md`. The GitHub template carries a "PRs as a request surface" flag, defaulted **off**. Leave it off and don't raise it: a user who wants external PRs in the triage queue can flip the flag in the file later.
 
-If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show only the missing implementation-workflow additions, and do not ask the user to choose the tracker again.
+If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show only the missing implementation-workflow additions and any standalone authority replacement, and do not ask the user to choose the tracker again.
 
 **Section B: Triage label vocabulary.** Skip this section entirely if the `triage` skill isn't installed (exploration told you), since an uninstalled skill needs no labels.
 
@@ -76,7 +76,7 @@ Show the user a draft of:
 
 Let them edit before writing.
 
-For a migration, show only the proposed additions to `docs/agents/issue-tracker.md` as a diff. Do not re-propose configuration that already exists.
+For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. Do not re-propose configuration that already exists. When nothing is missing and the file already states the Agent Brief rule, report that it is already up to date and make no edits.
 
 ### 4. Write
 
@@ -89,7 +89,7 @@ For a migration, show only the proposed additions to `docs/agents/issue-tracker.
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In migration mode, edit only `docs/agents/issue-tracker.md` and only the missing implementation-workflow contract. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
+In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow contract plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -123,7 +123,7 @@ Then write the docs files using the seed templates in this skill folder as a sta
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
 Include explicit implementation-ready and planned states, direct parent or spec lookup, canonical blocker checks, claim and assignment state, resolution and resolved-state verification, child enumeration with deterministic ordering, idempotent ready-state mutation semantics, and frontier promotion. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
-For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations, adapting them to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
+For a migration, edit the existing tracker file in place. Add only missing implementation-workflow operations and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
 ### 5. Done
 

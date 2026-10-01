@@ -66,7 +66,7 @@ Publish the approved tickets. **How** depends on the tracker `/setup-skills` con
 - **Local files**: write one file per ticket under `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Each file's "Blocked by" lists the numbers or titles it depends on. Use the per-ticket file template below: one ticket per file, never a single combined file.
 - **A real issue tracker (GitHub, Linear, etc.)**: publish one issue per ticket in dependency order so blocking edges can reference real identifiers. Use native blocking relationships as the canonical gate where the tracker supports them; use body text only as the configured fallback.
 
-For each approved issue published without a parent/spec, record standalone implementation authority using the exact tracker convention in `docs/agents/issue-tracker.md`. On GitHub, add its standalone authority comment only after the user has approved the proposed breakdown and the issue has been published without a parent. Verify the comment author is a human with effective repository permission `write` (including `maintain`) or `admin`; `author_association` is supplemental context only. If permission is missing or cannot be verified, do not claim standalone authority was established. Do not add this record to parent-backed issues or infer approval from a ready label.
+On a real tracker, publish every ticket without a parent/spec only after the user has approved the proposed breakdown, using the parentless issue template below: a complete Agent Brief as `docs/agents/issue-tracker.md` defines it, followed by the blocking references. That issue-body brief is the ticket's standalone implementation authority, so write no separate authority comment. On GitHub, the brief is trusted only when the publishing account is a human with effective repository permission `write` (including `maintain`) or `admin`; verify this with the tracker's permission check. `author_association` is supplemental context only. If permission is missing or cannot be verified, still publish the approved tickets, but report that standalone authority was not established for those issues. Tickets with a parent/spec keep the issue template and their parent's approval; never infer authority from a ready label.
 
 After every ticket and blocking edge exists, compute the initial **frontier**: every open, unblocked, unclaimed ticket. Put only frontier tickets in the implementation-ready state configured by `docs/agents/issue-tracker.md`. Put blocked tickets in that tracker's configured planned or non-ready state. For a purely linear chain, only the first ticket begins ready.
 
@@ -89,6 +89,8 @@ Do NOT close or modify any parent issue.
 
 </local-ticket-template>
 
+Use this issue template for a ticket with a parent/spec:
+
 <issue-template>
 
 ## Parent
@@ -109,5 +111,36 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
 - A reference to each blocking ticket, or "None (can start immediately)".
 
 </issue-template>
+
+Use this parentless issue template for a ticket without a parent/spec:
+
+<parentless-issue-template>
+
+## Agent Brief
+
+**Category:** bug / enhancement
+**Summary:** one-line description of the end-to-end behaviour this ticket makes work
+
+**Current behavior:**
+What happens now, the status quo this ticket builds on.
+
+**Desired behavior:**
+What should happen once the ticket is done, from the user's perspective, including edge cases and error conditions.
+
+**Key interfaces:** (optional)
+- A type, signature, or config shape that changes, and why
+
+**Acceptance criteria:**
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+**Out of scope:**
+- Adjacent work this ticket must not take on, including work owned by other tickets in the breakdown
+
+## Blocked by
+
+- A reference to each blocking ticket, or "None (can start immediately)".
+
+</parentless-issue-template>
 
 In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
