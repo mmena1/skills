@@ -103,7 +103,6 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 - [`grilling`](./skills/grilling/SKILL.md): The reusable decision-tree interview discipline.
 - [`prototype`](./skills/prototype/SKILL.md): Build throwaway code that answers a design question.
 - [`research`](./skills/research/SKILL.md): Investigate a question against primary sources and capture cited findings.
-- [`resolving-merge-conflicts`](./skills/resolving-merge-conflicts/SKILL.md): Resolve an in-progress merge or rebase by preserving intent.
 - [`tdd`](./skills/tdd/SKILL.md): Test-driven development through a red-green-refactor loop.
 - [`wizard`](./skills/wizard/SKILL.md): Generate an interactive shell wizard for steps only a human can perform.
 - [`writing-for-agents`](./skills/writing-for-agents/SKILL.md): Write predictable skills and instruction documents for agents.
