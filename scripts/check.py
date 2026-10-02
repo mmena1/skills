@@ -112,7 +112,7 @@ USER_INVOKED_SKILLS = {
 }
 MODEL_INVOKED_SKILLS = {
     "codebase-design", "diagnosing-bugs", "domain-modeling", "grilling",
-    "prototype", "research", "resolving-merge-conflicts", "tdd", "wizard",
+    "prototype", "research", "tdd", "wizard",
     "writing-for-agents",
 }
 # Models and limits the standalone deep-review adapters pinned before the import,
