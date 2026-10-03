@@ -76,7 +76,7 @@ Flag structural maintainability issues when there is concrete diff evidence of:
 - Keep every hypothesis anchored to how the diff introduces, exposes, or worsens the issue.
 - Only flag pre-existing complexity when the diff makes it meaningfully worse or reveals a clear local simplification.
 - Report only structural hypotheses; style preferences belong in the conventions review.
-- Never flag a loop, nested loop, conditional, or length on its own.
+- Never flag a loop, nested loop, conditional, or long function on its own.
 - Apply the structural evidence standard from the scout contract. Passing tests or correct behavior do not weaken a structural hypothesis.
 - Keep structural concerns separate from correctness concerns about the same code. Do not argue a structural hypothesis from a runtime defect or fold a defect into it.
 - If no concrete simplification is visible, report no hypothesis.
