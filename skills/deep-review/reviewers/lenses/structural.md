@@ -29,6 +29,32 @@ Inspect the surrounding function, class, module, package, or flow when the diff 
 
 Inspect surrounding pre-existing code when the diff exposes or worsens a larger local design problem. Broad legacy cleanup unrelated to the diff is out of scope.
 
+## Responsibility Scan
+
+Run a responsibility scan on each substantial changed function or flow that shows any of these triggers:
+
+- control flow meaningfully combined with parsing or validation
+- optionality or casts
+- repeated policy conditions
+- material function growth
+
+The scan looks for **responsibility mixing**: at least two independently nameable responsibilities with separate reasons to change, such as traversal combined with a policy, transformation, parsing, validation, or result construction. A loop, nested loop, conditional, or long function is never responsibility mixing on its own.
+
+A structural hypothesis from the scan must:
+
+- name the responsibilities involved;
+- anchor each one to changed code;
+- state the reasoning or locality cost the mixing imposes on a reader or on the next change;
+- describe a concrete behavior-preserving simplification that passes the deletion, locality, and deep-module tests. Apply `codebase-design` for those tests rather than redefining them here.
+
+A helper or stage that only renames or relocates existing branches does not qualify. Report one cohesive hypothesis per underlying design problem in a function, and gather every supporting example into its evidence instead of splitting them into separate hypotheses.
+
+## Declarative Simplification
+
+A declarative simplification, such as a stream or collection pipeline, qualifies only when it states intent more clearly, removes incidental control flow, preserves locality, and stays easy to read.
+
+Do not propose one that needs mutable state, lookahead, index manipulation, or opaque collectors, or that hides domain policy. Keep explicit traversal or a dedicated internal helper when it makes the policy clearer than a declarative expression would. Never require a particular syntax: a rewrite that is only shorter is a style preference, not a simplification.
+
 ## What to Flag Aggressively
 
 Flag structural maintainability issues when there is concrete diff evidence of:
@@ -50,5 +76,7 @@ Flag structural maintainability issues when there is concrete diff evidence of:
 - Keep every hypothesis anchored to how the diff introduces, exposes, or worsens the issue.
 - Only flag pre-existing complexity when the diff makes it meaningfully worse or reveals a clear local simplification.
 - Report only structural hypotheses; style preferences belong in the conventions review.
+- Apply the structural evidence standard from the scout contract. Passing tests or correct behavior do not weaken a structural hypothesis.
+- Keep structural concerns separate from correctness concerns about the same code. Do not argue a structural hypothesis from a runtime defect or fold a defect into it.
 - If no concrete simplification is visible, report no hypothesis.
 - Report an admission-qualified Hypothesis when source evidence establishes a credible concern and state a falsifiable validation condition; the validator assigns the final outcome.

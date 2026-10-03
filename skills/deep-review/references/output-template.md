@@ -33,12 +33,13 @@ Runtime: [harness identity/version] | Skill: [reviewed commit/version]
 
 ### Action policy
 
-For complete, current runs, classify each Finding deterministically by final severity and fix size:
+For complete, current runs, classify each Finding deterministically by its remedy and fix size:
 
-| Final severity | Fix size | Action |
-|---|---|---|
-| blocker, high, medium, or low | small and unambiguous (about 20 changed lines or fewer) | fix-now |
-| blocker, high, medium, or low | larger than about 20 lines or cross-module | follow-up |
+| Final severity | Remedy | Fix size | Action |
+|---|---|---|---|
+| blocker, high, medium, or low | one clearly correct remedy | small and unambiguous (about 20 changed lines or fewer) | fix-now |
+| blocker, high, medium, or low | one clearly correct remedy | larger than about 20 lines or cross-module | follow-up |
+| blocker, high, medium, or low | needs the author's design or tradeoff judgment, including a structural Finding with several acceptable remedies | any | discuss |
 
 Unresolved items always map to `discuss`. Incomplete or stale runs have no actionable PASS result and cannot publish.
 
