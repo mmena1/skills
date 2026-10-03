@@ -24,7 +24,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 - If the user named a direction (a module, a subsystem, a pain point), take it, and skip the inference below.
 - Otherwise, walk back a good stretch of the commit history (`git log --oneline`) to find the codebase's hot spots, the files and areas that keep coming up, and let those paths pull your attention first. If the changes are scattered with no clear hot spot, widen the net.
 
-Read the project's domain glossary (`GLOSSARY.md`) and any ADRs in the area you're touching first.
+Read the project's domain glossary (`GLOSSARY.md`, or the legacy `CONTEXT.md` when it is absent) and any ADRs in the area you're touching first.
 
 Delegate an exploration pass using the current harness's available delegation or subagent mechanism. If no delegation mechanism is available, perform the exploration in this session as a separate pass. Don't follow rigid heuristics; explore organically and note where you experience friction:
 

@@ -16,7 +16,7 @@ Apply the `codebase-design` skill now for the glossary and shared seam-review ch
 
 ### 1. Resolve and gather the design
 
-Resolve the supplied issue number, issue URL, or local spec path and update that exact artifact; do not select a spec from conversation memory. Read its "Implementation Decisions" section, including the modules to be built or modified, their interfaces, and any architectural decisions. Read `GLOSSARY.md` and the ADRs under `docs/adr/` for the area the spec touches, so a proposed module is not re-litigating a settled decision without saying so. This step is complete when the exact artifact, every proposed module, and every relevant decision have been listed. If no exact reference was supplied, ask for one and stop.
+Resolve the supplied issue number, issue URL, or local spec path and update that exact artifact; do not select a spec from conversation memory. Read its "Implementation Decisions" section, including the modules to be built or modified, their interfaces, and any architectural decisions. Read `GLOSSARY.md` (or the legacy `CONTEXT.md` when it is absent) and the ADRs under `docs/adr/` for the area the spec touches, so a proposed module is not re-litigating a settled decision without saying so. This step is complete when the exact artifact, every proposed module, and every relevant decision have been listed. If no exact reference was supplied, ask for one and stop.
 
 ### 2. Read the seam it lands on
 
