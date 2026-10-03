@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -785,27 +788,59 @@ def validate_implementation_authority_contract() -> None:
 
 
 def validate_native_agents() -> None:
-    """Generated native reviewer agents must match their role manifests exactly."""
+    """Every role manifest renders each harness agent in memory, with one owner per agent name."""
     owners: dict[str, str] = {}
     for skill in generate_agents.agent_skill_directories(ROOT):
         harnesses = sorted(path.name for path in (skill / "harnesses").iterdir() if path.is_dir())
         unsupported = sorted(set(harnesses) - set(generate_agents.HARNESSES))
         if unsupported:
             fail(f"{skill.relative_to(ROOT).as_posix()}/harnesses: unsupported harness directories {', '.join(unsupported)}")
-        problems = generate_agents.stale_agents(skill)
-        if problems:
-            fail("; ".join(problems) + "; run python scripts/generate_agents.py")
-        for role in generate_agents.load_roles(skill):
+        try:
+            rendered = generate_agents.render_agents(skill)
+            roles = generate_agents.load_roles(skill)
+        except generate_agents.AgentManifestError as error:
+            fail(f"malformed role manifest: {error}")
+        for role in roles:
             if role.agent_name in owners:
                 fail(f"agent name {role.agent_name!r} is shipped by both {owners[role.agent_name]} and {skill.name}")
             owners[role.agent_name] = skill.name
-            codex_file = skill / "harnesses" / "codex" / f"{role.agent_name}.toml"
-            if codex_file.is_file():
-                parsed = tomllib.loads(codex_file.read_text(encoding="utf-8"))
+            codex = rendered.get(f"harnesses/codex/{role.agent_name}.toml")
+            if codex is not None:
+                parsed = tomllib.loads(codex)
                 if parsed.get("name") != role.agent_name or parsed.get("developer_instructions") != role.body:
-                    fail(f"{codex_file.relative_to(ROOT).as_posix()}: generated Codex agent does not round-trip its name and body")
+                    fail(f"{skill.name}: generated Codex agent {role.agent_name} does not round-trip its name and body")
     if "agent-skill" not in owners.values():
         fail("tests/fixtures/agent-skill must ship native reviewer agents")
+
+
+def git_paths(command: str, *arguments: str, stdin: str | None = None) -> list[str]:
+    """Run one read-only Git query in the repository and return its NUL-separated paths."""
+    try:
+        result = subprocess.run(
+            ["git", command, "-z", *arguments], cwd=ROOT, input=stdin, text=True, capture_output=True, encoding="utf-8",
+        )
+    except OSError as error:
+        fail(f"git is required to check generated agent ownership: {error}")
+    if result.returncode not in (0, 1) or (result.returncode == 1 and result.stderr.strip()):
+        fail(f"git {command} failed: {result.stderr.strip()}")
+    return [path for path in result.stdout.split("\0") if path]
+
+
+def validate_generated_agents_untracked() -> None:
+    """Generated harness agents are ignored install artifacts; only manifests and bodies are source."""
+    for skill in generate_agents.agent_skill_directories(ROOT):
+        harnesses = (skill / "harnesses").relative_to(ROOT).as_posix()
+        manifest = f"{harnesses}/roles.toml"
+        tracked = [path for path in git_paths("ls-files", "--", harnesses) if path != manifest]
+        if tracked:
+            fail(f"generated agent files are tracked by Git: {', '.join(tracked)}; run git rm --cached on them")
+        if manifest in git_paths("check-ignore", "--no-index", "--stdin", stdin=f"{manifest}\0"):
+            fail(f"{manifest} is ignored by Git but is native-agent source")
+        expected = sorted(f"{skill.relative_to(ROOT).as_posix()}/{relative}" for relative in generate_agents.render_agents(skill))
+        ignored = set(git_paths("check-ignore", "--no-index", "--stdin", stdin="".join(f"{path}\0" for path in expected)))
+        unignored = [path for path in expected if path not in ignored]
+        if unignored:
+            fail(f"generated agent files are not ignored by .gitignore: {', '.join(unignored)}")
 
 
 def deep_review_shared_sources(skill: Path) -> list[Path]:
@@ -859,21 +894,49 @@ def validate_deep_review() -> None:
             fail(f"{path.relative_to(ROOT).as_posix()}: duplicate copy of {original.relative_to(ROOT).as_posix()}")
 
 
+def remove_generated_agents(skill: Path) -> None:
+    """Return a skill to its fresh-clone shape: the manifest and bodies without generated output."""
+    for harness in generate_agents.HARNESSES:
+        shutil.rmtree(skill / "harnesses" / harness, ignore_errors=True)
+
+
+def snapshot_tree(root: Path) -> dict[str, bytes]:
+    return {path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+
 def validate_agent_generation_contract() -> None:
-    """Prove the freshness check rejects stale, missing, and hand-edited files."""
+    """Prove generation is deterministic, repairs local output, and rejects malformed sources."""
     source = ROOT / "tests" / "fixtures" / "agent-skill"
     with tempfile.TemporaryDirectory(prefix="skills-agents-") as temp_value:
-        skill = Path(temp_value) / "agent-skill"
-        shutil.copytree(source, skill)
+        temporary = Path(temp_value)
+        skill = temporary / "agent-skill"
+
+        def fresh_copy() -> None:
+            shutil.rmtree(skill, ignore_errors=True)
+            shutil.copytree(source, skill)
+            remove_generated_agents(skill)
+
+        fresh_copy()
+        rendered = generate_agents.render_agents(skill)
         expected_files = {
             "harnesses/codex/agent-skill-scout.toml",
             "harnesses/devin/agent-skill-scout/AGENT.md",
             "harnesses/claude/agent-skill-scout.md",
         }
-        if not expected_files <= set(generate_agents.render_agents(skill)):
+        if not expected_files <= set(rendered):
             fail("agent generation does not produce one shared agent name per role for every harness")
+        elsewhere = temporary / "elsewhere" / "agent-skill"
+        shutil.copytree(skill, elsewhere)
+        if generate_agents.render_agents(skill) != rendered or generate_agents.render_agents(elsewhere) != rendered:
+            fail("agent generation is not deterministic")
+        if not generate_agents.stale_agents(skill):
+            fail("agent freshness check accepted a skill with no generated agent files")
+        generate_agents.write_agents(skill)
         if generate_agents.stale_agents(skill):
-            fail("committed fixture agents are not fresh")
+            fail("generation into a fresh clone did not produce every agent file")
+        generated = snapshot_tree(skill / "harnesses")
+        if generate_agents.write_agents(skill) or snapshot_tree(skill / "harnesses") != generated:
+            fail("regenerating unchanged sources rewrote generated agent files")
 
         codex_scout = skill / "harnesses" / "codex" / "agent-skill-scout.toml"
         cases = {
@@ -881,19 +944,45 @@ def validate_agent_generation_contract() -> None:
             "missing": lambda: (skill / "harnesses" / "claude" / "agent-skill-probe.md").unlink(),
             "hand-edited": lambda: codex_scout.write_text(codex_scout.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8"),
             "unexpected": lambda: (skill / "harnesses" / "claude" / "agent-skill-extra.md").write_text("extra\n", encoding="utf-8"),
-            "malformed": lambda: (skill / "harnesses" / "roles.toml").write_text("[roles.scout]\nbody = 3\n", encoding="utf-8"),
         }
         for label, mutate in cases.items():
-            shutil.rmtree(skill)
-            shutil.copytree(source, skill)
+            fresh_copy()
+            generate_agents.write_agents(skill)
             mutate()
             if not generate_agents.stale_agents(skill):
                 fail(f"agent freshness check accepted a {label} generated agent file")
-            if label != "malformed":
-                generate_agents.write_agents(skill)
-                if generate_agents.stale_agents(skill):
-                    fail(f"regeneration did not repair a {label} generated agent file")
+            generate_agents.write_agents(skill)
+            if generate_agents.stale_agents(skill):
+                fail(f"regeneration did not repair a {label} generated agent file")
 
+        malformed = {
+            "malformed": lambda: (skill / "harnesses" / "roles.toml").write_text("[roles.scout]\nbody = 3\n", encoding="utf-8"),
+            "missing reviewer body": lambda: (skill / "reviewers" / "probe.md").unlink(),
+        }
+        healthy = temporary / "healthy-skill"
+        shutil.copytree(source, healthy)
+        remove_generated_agents(healthy)
+        for label, mutate in malformed.items():
+            fresh_copy()
+            generate_agents.write_agents(skill)
+            mutate()
+            if not generate_agents.stale_agents(skill):
+                fail(f"agent freshness check accepted a {label} role manifest")
+            try:
+                generate_agents.render_agents(skill)
+            except generate_agents.AgentManifestError:
+                pass
+            else:
+                fail(f"agent generation accepted a {label} role manifest")
+            before = snapshot_tree(temporary)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                status = generate_agents.main([str(healthy), str(skill)])
+            if status == 0:
+                fail(f"the agent generator succeeded with a {label} role manifest")
+            if snapshot_tree(temporary) != before:
+                fail(f"the agent generator wrote files before rejecting a {label} role manifest")
+
+        fresh_copy()
         manifest = (source / "harnesses" / "roles.toml").read_text(encoding="utf-8")
         for harness, fields in generate_agents.HARNESS_FIELDS.items():
             for field in fields:
@@ -930,6 +1019,7 @@ def main() -> int:
         validate_implementation_authority_contract()
         validate_tracker_capability_contract()
         validate_native_agents()
+        validate_generated_agents_untracked()
         validate_deep_review()
         validate_agent_generation_contract()
     except CheckFailure as error:

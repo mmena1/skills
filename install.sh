@@ -16,7 +16,9 @@ Usage: ./install.sh [--codex] [--devin] [--claude] [--all] [--experimental]
 
 With no harness option, install stable skills into every detected supported
 harness. Codex and Devin share ~/.agents/skills. Native reviewer agents that a
-selected skill ships are linked into each selected harness's agent directory.
+selected skill ships are generated from its harnesses/roles.toml, which needs
+Python 3.11 or newer, and linked into each selected harness's agent directory.
+Set SKILLS_INSTALLER_PYTHON to choose the Python interpreter.
 --experimental additionally installs skills/experimental entries.
 EOF
 }
@@ -399,13 +401,68 @@ install_collection() {
   done
 }
 
+has_role_manifest() {
+  [ -f "$1/harnesses/roles.toml" ]
+}
+
+python_is_usable() {
+  "$@" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1
+}
+
+# Set PYTHON_COMMAND to a Python 3.11+ command: SKILLS_INSTALLER_PYTHON when set,
+# otherwise the first usable python3, python, or Windows py launcher.
+find_python() {
+  PYTHON_COMMAND=()
+  if [ -n "${SKILLS_INSTALLER_PYTHON:-}" ]; then
+    if python_is_usable "$SKILLS_INSTALLER_PYTHON"; then PYTHON_COMMAND=("$SKILLS_INSTALLER_PYTHON"); fi
+  elif python_is_usable python3; then
+    PYTHON_COMMAND=(python3)
+  elif python_is_usable python; then
+    PYTHON_COMMAND=(python)
+  elif python_is_usable py -3; then
+    PYTHON_COMMAND=(py -3)
+  fi
+  return 0
+}
+
+native_path() {
+  if is_windows_shell; then cygpath -w "$1"; else printf '%s\n' "$1"; fi
+}
+
+# Generated agents are ignored install artifacts. Regenerate them for every selected
+# skill that declares roles before any destination changes, so a missing Python or a
+# malformed manifest stops the run without a stale or partial agent install.
+generate_selected_agents() {
+  local skill names="" generator
+  local -a agent_skills=()
+  for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
+    has_role_manifest "$skill" || continue
+    agent_skills+=("$(native_path "$skill")")
+    names="${names:+$names, }${skill##*/}"
+  done
+  [ "${#agent_skills[@]}" -gt 0 ] || return 0
+  find_python
+  if [ "${#PYTHON_COMMAND[@]}" -eq 0 ]; then
+    echo "Error: Python 3.11 or newer is required to generate the native reviewer agents of: $names." >&2
+    echo "Install Python 3.11 or newer, or set SKILLS_INSTALLER_PYTHON to its path, then rerun the installer. No destination was changed." >&2
+    exit 1
+  fi
+  generator="$(native_path "$REPO_ROOT/scripts/generate_agents.py")"
+  if ! "${PYTHON_COMMAND[@]}" "$generator" "${agent_skills[@]}"; then
+    echo "Error: generating the native reviewer agents of: $names failed. No destination was changed." >&2
+    exit 1
+  fi
+}
+
 # Collect into SELECTED_AGENTS the generated native reviewer agents that selected skills
 # ship for one harness: Codex <name>.toml files, Devin <name>/AGENT.md directories, and
-# Claude <name>.md files.
+# Claude <name>.md files. Only skills that declare roles ship agents, so ignored output
+# left behind by a skill that dropped its manifest is never installed.
 collect_selected_agents() {
   local harness="$1" skill source
   SELECTED_AGENTS=()
   for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
+    has_role_manifest "$skill" || continue
     for source in "$skill/harnesses/$harness"/*; do
       case "$harness:$source" in
         codex:*.toml|claude:*.md) [ -f "$source" ] || continue ;;
@@ -452,6 +509,7 @@ if [ "$SELECTED_HARNESS" -eq 0 ]; then
 fi
 
 collect_selected_skills
+generate_selected_agents
 if [ "$INSTALL_CODEX" -eq 1 ] || [ "$INSTALL_DEVIN" -eq 1 ]; then
   install_collection "${HOME}/.agents/skills"
 fi

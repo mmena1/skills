@@ -40,7 +40,7 @@ def find_bash() -> str:
 
 
 def write_agent_skill(skill: Path, body: str) -> None:
-    """Give a fixture skill one generated native reviewer agent role on every harness."""
+    """Give a fixture skill one native reviewer agent role on every harness; the installer generates it."""
     (skill / "reviewers").mkdir(parents=True, exist_ok=True)
     (skill / "harnesses").mkdir(exist_ok=True)
     (skill / "reviewers" / "probe.md").write_text(body + "\n", encoding="utf-8")
@@ -53,27 +53,41 @@ def write_agent_skill(skill: Path, body: str) -> None:
         '[roles.probe.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n',
         encoding="utf-8",
     )
-    generate_agents.write_agents(skill)
+
+
+IGNORE_GENERATED_AGENTS = shutil.ignore_patterns(*generate_agents.HARNESSES)
+
+
+def copy_skill_source(source: Path, destination: Path) -> None:
+    """Copy a skill as a fresh clone holds it: manifest and bodies, no generated agents."""
+    shutil.copytree(source, destination, ignore=IGNORE_GENERATED_AGENTS)
+
+
+def copy_installers(repository: Path) -> None:
+    """The committed files an installer run needs besides the skills themselves."""
+    for installer in ("install.sh", "install.ps1"):
+        shutil.copy2(ROOT / installer, repository / installer)
+    (repository / "scripts").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "scripts" / "generate_agents.py", repository / "scripts" / "generate_agents.py")
 
 
 def write_fixture(root: Path) -> None:
-    shutil.copy2(ROOT / "install.sh", root / "install.sh")
-    shutil.copy2(ROOT / "install.ps1", root / "install.ps1")
+    copy_installers(root)
     stable = root / "skills" / "stable-skill"
     experimental = root / "skills" / "experimental" / "lab-skill"
     stable.mkdir(parents=True)
     experimental.mkdir(parents=True)
     (stable / "SKILL.md").write_text("---\nname: stable-skill\ndescription: Stable fixture.\n---\n", encoding="utf-8")
     (experimental / "SKILL.md").write_text("---\nname: lab-skill\ndescription: Experimental fixture.\n---\n", encoding="utf-8")
-    shutil.copytree(ROOT / "tests" / "fixtures" / "agent-skill", root / "skills" / "agent-skill")
+    copy_skill_source(ROOT / "tests" / "fixtures" / "agent-skill", root / "skills" / "agent-skill")
     write_agent_skill(experimental, "Experimental reviewer.")
     if os.name != "nt":
         (root / "install.sh").chmod(0o755)
 
 
-def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True)
-    if result.returncode != 0:
+    if check and result.returncode != 0:
         fail(f"command failed ({' '.join(command)}):\n{result.stdout}{result.stderr}")
     return result
 
@@ -136,9 +150,12 @@ def installed_agent_entry(home: Path, harness: str, name: str) -> Path:
 
 
 def assert_agent(home: Path, harness: str, name: str, skill: Path) -> None:
+    """The installed agent is exactly what the generator renders from the skill's committed sources."""
     installed = installed_agent(home, harness, name)
-    source = skill / "harnesses" / harness / AGENT_FILES[harness].format(name=name)
-    if not installed.is_file() or installed.read_bytes() != source.read_bytes():
+    expected = generate_agents.render_agents(skill).get(f"harnesses/{harness}/" + AGENT_FILES[harness].format(name=name))
+    if expected is None:
+        fail(f"{skill.name} does not declare the {harness} agent {name}")
+    if not installed.is_file() or installed.read_bytes() != expected.encode("utf-8"):
         fail(f"missing or stale installed agent: {installed}")
 
 
@@ -271,6 +288,87 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
             fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
 
 
+def is_link(path: Path) -> bool:
+    return path.is_symlink() or (os.name == "nt" and os.path.isjunction(path))
+
+
+def snapshot_home(home: Path) -> list[tuple[str, str]]:
+    """Every entry under a home, with each link's target and each file's bytes."""
+    entries = []
+    for directory, names, files in os.walk(home):
+        for name in sorted([*names, *files]):
+            path = Path(directory) / name
+            relative = path.relative_to(home).as_posix()
+            if is_link(path):
+                entries.append((relative, "link:" + os.readlink(path)))
+            elif path.is_file():
+                entries.append((relative, "file:" + path.read_bytes().hex()))
+            else:
+                entries.append((relative, "directory"))
+        names[:] = [name for name in names if not is_link(Path(directory) / name)]
+    return sorted(entries)
+
+
+def expect_install_failure(label: str, context: str, home: Path, invoke, *arguments: str, extra_env: dict[str, str], mentions: str) -> None:
+    """The install fails, says why, and leaves every destination in the home untouched."""
+    before = snapshot_home(home)
+    result = invoke(home, *arguments, extra_env=extra_env, check=False)
+    output = result.stdout + result.stderr
+    if result.returncode == 0:
+        fail(f"{label} install succeeded {context}")
+    if mentions not in output or "No destination was changed" not in output:
+        fail(f"{label} install {context} did not fail clearly naming {mentions!r}:\n{output}")
+    if snapshot_home(home) != before:
+        fail(f"{label} install {context} changed a destination before failing")
+
+
+def test_agent_prerequisites(label: str, fixture: Path, temporary: Path, invoke_from, option, extra_env_without_python: dict[str, str] | None = None) -> None:
+    """Native agents are generated before any destination changes; missing Python or bad sources stop the run."""
+    invoke = invoke_from(fixture)
+    missing_python = {"SKILLS_INSTALLER_PYTHON": str(temporary / "no-such-python")}
+    fresh_home = temporary / f"{label}-prerequisites-fresh"
+    fresh_home.mkdir()
+    expect_install_failure(label, "without a usable Python", fresh_home, invoke, option("all"), extra_env=missing_python, mentions="Python")
+
+    installed_home = temporary / f"{label}-prerequisites-installed"
+    invoke(installed_home, option("all"), option("experimental"))
+    expect_install_failure(label, "without a usable Python over an existing install", installed_home, invoke, option("all"), extra_env=missing_python, mentions="Python")
+    if extra_env_without_python is not None:
+        expect_install_failure(label, "with no Python on PATH", installed_home, invoke, option("all"), extra_env=extra_env_without_python, mentions="Python")
+
+    broken = fixture / "skills" / f"{label}-broken-agents"
+    broken.mkdir()
+    (broken / "SKILL.md").write_text(f"---\nname: {broken.name}\ndescription: Broken fixture.\n---\n", encoding="utf-8")
+    (broken / "harnesses").mkdir()
+    (broken / "harnesses" / "roles.toml").write_text('[roles.probe]\ndescription = "Broken."\nbody = ["reviewers/missing.md"]\n[roles.probe.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n', encoding="utf-8")
+    try:
+        expect_install_failure(label, "with a malformed role manifest", installed_home, invoke, option("all"), extra_env={}, mentions="native reviewer agents")
+    finally:
+        shutil.rmtree(broken)
+    for harness in AGENT_HARNESSES:
+        assert_agent(installed_home, harness, "lab-skill-probe", fixture / "skills" / "experimental" / "lab-skill")
+
+    plain = temporary / f"{label}-prerequisites-plain-repository"
+    (plain / "skills" / "plain-skill").mkdir(parents=True)
+    copy_installers(plain)
+    (plain / "skills" / "plain-skill" / "SKILL.md").write_text("---\nname: plain-skill\ndescription: Stable fixture.\n---\n", encoding="utf-8")
+    plain_home = temporary / f"{label}-prerequisites-plain"
+    invoke_from(plain)(plain_home, option("all"), extra_env=missing_python)
+    assert_skill(plain_home / ".claude" / "skills" / "plain-skill")
+
+
+def path_without_python(temporary: Path) -> dict[str, str]:
+    """A PATH holding only the tools install.sh uses, so Python discovery finds nothing."""
+    tools = temporary / "tools-without-python"
+    tools.mkdir()
+    for name in ("basename", "cat", "cp", "date", "dirname", "grep", "ln", "mkdir", "mv", "readlink", "rm", "rmdir", "tr", "uname"):
+        executable = shutil.which(name)
+        if executable is None:
+            fail(f"{name} is required for the installer prerequisite test")
+        (tools / name).symlink_to(executable)
+    return {"PATH": str(tools)}
+
+
 LEGACY_DEEP_REVIEW_CODEX_AGENTS = tuple(f"deep-review-{role}" for role in DEEP_REVIEW_ROLES)
 LEGACY_DEEP_REVIEW_DEVIN_AGENTS = (
     "code-reviewer", "code-reviewer-structural", "code-reviewer-validator-static", "code-reviewer-validator-probe",
@@ -344,9 +442,8 @@ def install_legacy_deep_review(home: Path, checkout: Path, *, copies: bool = Fal
 def deep_review_repository(repository: Path) -> Path:
     """A repository holding both installers and the real deep-review skill as its only skill."""
     (repository / "skills" / "experimental").mkdir(parents=True)
-    for installer in ("install.sh", "install.ps1"):
-        shutil.copy2(ROOT / installer, repository / installer)
-    shutil.copytree(SKILLS / "deep-review", repository / "skills" / "deep-review")
+    copy_installers(repository)
+    copy_skill_source(SKILLS / "deep-review", repository / "skills" / "deep-review")
     return repository
 
 
@@ -371,9 +468,8 @@ def test_renamed_skills(label: str, temporary: Path, invoke_from, option) -> Non
     for former, current in RENAMED_SKILLS.items():
         repository = temporary / f"{label}-renamed-{former}-repository"
         (repository / "skills" / "experimental").mkdir(parents=True)
-        for installer in ("install.sh", "install.ps1"):
-            shutil.copy2(ROOT / installer, repository / installer)
-        shutil.copytree(SKILLS / current, repository / "skills" / current)
+        copy_installers(repository)
+        copy_skill_source(SKILLS / current, repository / "skills" / current)
         former_source = repository / "skills" / former
         roots = (Path(".agents") / "skills", Path(".claude") / "skills")
 
@@ -492,10 +588,10 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
 
     def invoke_from(repository: Path):
-        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
             env = isolated_environment(home, extra_env)
             env["HOME"] = str(home)
-            return run([bash, "./install.sh", *arguments], cwd=repository, env=env)
+            return run([bash, "./install.sh", *arguments], cwd=repository, env=env, check=check)
         return invoke
 
     invoke = invoke_from(fixture)
@@ -623,6 +719,8 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
 
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    without_python = None if os.name == "nt" else path_without_python(temporary)
+    test_agent_prerequisites("shell", fixture, temporary, invoke_from, shell_options.__getitem__, without_python)
     test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
     test_deep_review_claude("shell", temporary, invoke_from, shell_options.__getitem__)
     test_renamed_skills("shell", temporary, invoke_from, shell_options.__getitem__)
@@ -642,11 +740,12 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     powershell = find_powershell()
 
     def invoke_from(repository: Path):
-        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        def invoke(home: Path, *arguments: str, extra_env: dict[str, str] | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
             return run(
                 [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(repository / "install.ps1"), *arguments, "-HomePath", str(home)],
                 cwd=repository,
                 env=isolated_environment(home, extra_env),
+                check=check,
             )
         return invoke
 
@@ -761,6 +860,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
 
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_agent_prerequisites("powershell", fixture, temporary, invoke_from, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_renamed_skills("powershell", temporary, invoke_from, powershell_options.__getitem__)
