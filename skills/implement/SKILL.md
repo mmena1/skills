@@ -14,7 +14,7 @@ This is a self-contained worker. Finish the ticket through commits, review, and 
 
 ## 1. Resolve the work and its authority
 
-Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `CONTEXT.md`, and ADRs governing the area.
+Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `GLOSSARY.md` (or the legacy `CONTEXT.md` when it is absent), and ADRs governing the area.
 
 For a ticket-driven run, require `docs/agents/issue-tracker.md` to define all six implementation operations: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, and frontier promotion. If the file is missing or predates this contract, stop and tell the user to re-run `/setup-skills` to migrate it. Also stop with that instruction when the file still defines the retired standalone authority comment record (a `## Standalone implementation authority` comment) instead of the Agent Brief rule; do not guess which rule applies. Do not infer missing tracker behavior.
 
@@ -44,7 +44,7 @@ Before any write to the tracker or worktree:
 
 Resolve ordinary deferred implementation choices from existing code patterns and the simplest design that satisfies the ticket. Examples include local naming, private helper shape, or choosing between equivalent established utilities.
 
-Stop when implementation would require changing an approved public seam, contradicting the ticket, parent spec, repository instructions, `CONTEXT.md`, or an ADR, inventing a product or architecture decision, passing an unresolved external gate, or satisfying acceptance criteria that are impossible as written. Leave the ticket open and record a precise report on it through the configured tracker workflow when supported.
+Stop when implementation would require changing an approved public seam, contradicting the ticket, parent spec, repository instructions, the domain glossary, or an ADR, inventing a product or architecture decision, passing an unresolved external gate, or satisfying acceptance criteria that are impossible as written. Leave the ticket open and record a precise report on it through the configured tracker workflow when supported.
 
 ## 4. Implement one vertical slice at a time
 

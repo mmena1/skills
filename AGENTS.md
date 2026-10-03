@@ -76,4 +76,4 @@ Use the canonical triage roles with matching GitHub labels: `needs-triage`, `nee
 
 ### Domain docs
 
-Use the single-context layout with root `CONTEXT.md` and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Use the single-context layout with root `GLOSSARY.md` and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
