@@ -24,7 +24,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 - If the user named a direction (a module, a subsystem, a pain point), take it, and skip the inference below.
 - Otherwise, walk back a good stretch of the commit history (`git log --oneline`) to find the codebase's hot spots, the files and areas that keep coming up, and let those paths pull your attention first. If the changes are scattered with no clear hot spot, widen the net.
 
-Read the project's domain glossary (`GLOSSARY.md`, or the legacy `CONTEXT.md` when it is absent) and any ADRs in the area you're touching first. Also read any active governing design or issue artifacts that project instructions identify or that the user supplies as an exact repository-relative path. Treat them as settled context alongside ADRs, and note their paths for the review handoff.
+Read the project's domain glossary (`GLOSSARY.md`, or the legacy `CONTEXT.md` when it is absent) and any ADRs in the area you're touching first. Also read any active governing design or issue artifacts that project instructions identify or that the user supplies as an exact repository-relative path. Treat them as supplemental decision context alongside ADRs, and note their paths for the review handoff.
 
 Delegate an exploration pass using the current harness's available delegation or subagent mechanism. If no delegation mechanism is available, perform the exploration in this session as a separate pass. Don't follow rigid heuristics; explore organically and note where you experience friction:
 
@@ -71,8 +71,8 @@ Side effects happen inline as decisions crystallize; apply `domain-modeling` to 
 - **Sharpening a fuzzy term during the conversation?** Update the existing glossary right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it right now") and self-evident ones.
 - **User accepts a candidate with a load-bearing commitment?** Persist the accepted decision and the rejected tradeoffs that shaped it:
-  - If a governing decision artifact exists (an ADR or an artifact from the Explore inputs), record them there.
-  - Otherwise offer an ADR, framed as: _"Want me to record this as an ADR so later implementation reviews can tell the approved design from drift?"_ Apply the same bar as for rejections: only offer when a future reader would need it.
+  - If an artifact that already holds supplemental decision context exists (an ADR or an artifact from the Explore inputs), record them there.
+  - Otherwise offer an ADR, framed as: _"Want me to record this as an ADR so later implementation reviews can tell the approved design from drift?"_ Offer only when a future reader would need it, the same bar as for rejections.
   - If the user declines, or the decision does not meet that bar, say explicitly that no supplemental decision context was persisted and that the conversation will not be available later.
 - **Want to explore alternative interfaces for the deepened module?** Apply `codebase-design` and use its design-it-twice delegation pattern.
 
@@ -81,13 +81,13 @@ Side effects happen inline as decisions crystallize; apply `domain-modeling` to 
 The grilling is complete when every **load-bearing architectural commitment** is settled and every **implementation choice intentionally left open** is named as open.
 
 - **Load-bearing commitments** are the external module interface, ownership, invariants, and any internal seam that is itself part of the decision. Settle these.
-- **Open implementation choices** are everything else. Leave them to the implementer, and do not force a complete internal decomposition merely to make the design reviewable.
+- **Open implementation choices** are everything else. Leave them to the implementer, so the design stays reviewable without a complete internal decomposition.
 
-Depth is a property of the interface, not the implementation. One deep external module does not imply one implementation class, file, or function. Private and package-private internal seams and internal test surfaces are valid, and need no design here unless they are themselves load-bearing. A concrete internal class or seam does not require a project-owned pluggable interface; avoid speculative interfaces.
+Apply `codebase-design`'s rule that depth belongs to the interface: one deep external module does not imply one implementation class, file, or function. Internal seams and internal test surfaces stay valid and stay open unless they are themselves load-bearing. Add a project-owned pluggable interface only where something varies across it.
 
 ### 4. Review handoff
 
-End the final output with a **Review handoff** section for a later implementation review. List the exact repository-relative paths that hold governing decision context:
+End the final output with a **Review handoff** section for a later implementation review. List the exact repository-relative paths that hold supplemental decision context:
 
 - ADRs written or relied on
 - glossary changes (`GLOSSARY.md`, or the legacy `CONTEXT.md`)
