@@ -32,6 +32,8 @@ Use the coordinator's final report and proposed publication payload as the obser
 | Same location, different failure or mechanism; uncertain equivalence | Items remain distinct and use normal publication rules. |
 | Prior claim that the defect was fixed | Independent outcome is unchanged; a resolved thread does not suppress a persisting Finding. |
 | Equivalent review summary or conversation concern | Concrete concern is included and linked as already reported; empty reviews and administrative chatter are ignored. |
+| Review summary repeats a resolved inline concern from the same review | Retained GraphQL parent review IDs join to the summary's REST IDs; the matching resolved thread controls the summary concern's status, so the persisting Finding stays actionable and any new comment links the prior discussion. |
+| One review contains a resolved matching concern and an unrelated open thread | Shared review membership does not collapse different concerns or give the whole summary one resolution status; the unrelated open thread does not suppress the persisting Finding. |
 | More than one thread/comment page; resolved or outdated anchors | All connections, including nested replies, are exhausted and usable concerns are retained. |
 | Discussion retrieval fails or is partial | Gap is reported; completed validation evidence survives and publication is blocked. |
 | New equivalent open concern after approval, unchanged head | Final re-fetch suppresses it and refreshes report/counts; an empty payload causes no review submission. |
