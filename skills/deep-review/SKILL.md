@@ -24,7 +24,7 @@ The protocol uses four roles. Every role runs as the native agent named `deep-re
 | validator-static | `deep-review-validator-static` | One static adjudication per canonical hypothesis. |
 | validator-probe | `deep-review-validator-probe` | One sequential writable probe per `Needs probe` outcome. |
 
-`harnesses/roles.toml` pins each role's model, tools, and sandbox, and the installer links the agents generated from it. Agents are generated for Codex, Devin, and Claude Code. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role. If the active harness has no installed `deep-review-*` agent for a required role, stop and report the missing role.
+`harnesses/roles.toml` pins each role's model, tools, and sandbox, and the installer generates the agents from it and links them. Agents are generated for Codex, Devin, and Claude Code. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role. If the active harness has no installed `deep-review-*` agent for a required role, stop and report the missing role.
 
 ## Orchestration
 

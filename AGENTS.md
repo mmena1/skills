@@ -37,7 +37,7 @@ Run the canonical repository check routinely, and always after changing skills, 
 python scripts/check.py
 ```
 
-It is the fast check and finishes in seconds. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, the implementation authority contract, the tracker capability contract, native agent freshness and generation, and deep-review invariants. It does not run the installers.
+It is the fast check and finishes in seconds. It validates skill frontmatter and invocation metadata, stale internal references, the flat layout, the implementation authority contract, the tracker capability contract, native agent rendering and the rule that generated agents stay untracked, and deep-review invariants. It does not run the installers.
 
 Run the installer integration suite after changing `install.sh`, `install.ps1`, the installer tests, or native agent installation:
 
@@ -49,7 +49,7 @@ It is slower, taking minutes on Windows. It runs `install.sh` through Bash on ev
 
 CI runs both commands as separate jobs on Ubuntu, macOS, and Windows.
 
-A skill that ships native reviewer agents declares them in `harnesses/roles.toml` (see ADR-0001). After changing that manifest or a reviewer body it embeds, run `python scripts/generate_agents.py` and commit the regenerated files under `harnesses/<harness>/`. Never edit generated agent files by hand.
+A skill that ships native reviewer agents declares them in `harnesses/roles.toml` (see ADR-0001). That manifest and the reviewer bodies it embeds are the only committed source. The agent files under `harnesses/<harness>/` are generated, gitignored install artifacts: never commit or hand-edit them. The installers regenerate them, and `python scripts/generate_agents.py` regenerates them locally after you change a manifest or body.
 
 Also run `git diff --check` before committing.
 
@@ -62,7 +62,7 @@ Also run `git diff --check` before committing.
 - Installers may replace only destinations they can recognize as managed by this repository. Back up unrelated existing destinations before installing. The one exception is migration from the former standalone `mmena1/deep-review` repository: installers also replace exactly the installations its installer wrote, recognized as the README describes.
 - Prefer symbolic links on Unix, macOS, and WSL. Use directory junctions for directories on Windows, including Git Bash. Junctions cannot target files, so a single-file native reviewer agent uses a Windows symbolic link when the account may create one. A copy fallback must warn that the installer needs to be rerun after repository updates.
 
-After pulling repository changes, rerun the appropriate installer so new, removed, renamed, or copied skills are reconciled.
+After pulling repository changes, rerun the appropriate installer so new, removed, renamed, or copied skills are reconciled and native agents are regenerated. The installers need Python 3.11 or newer when a selected skill ships native agents, and fail before changing any destination when it is unavailable.
 
 ## Agent skills
 

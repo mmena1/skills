@@ -295,11 +295,75 @@ function Install-Collection {
     foreach ($source in $sources) { Install-ManagedPath $source.FullName (Join-Path $DestinationRoot $source.Name) }
 }
 
+function Test-RoleManifest {
+    param([string]$Skill)
+    return Test-Path -LiteralPath (Join-Path $Skill 'harnesses/roles.toml') -PathType Leaf
+}
+
+function Test-UsablePython {
+    param([string[]]$Command)
+    $executable = $Command[0]
+    $arguments = @($Command | Select-Object -Skip 1)
+    try {
+        & $executable @arguments -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' *> $null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+# A Python 3.11+ command: SKILLS_INSTALLER_PYTHON when set, otherwise the first
+# usable python, py launcher, or python3.
+function Find-Python {
+    if ($env:SKILLS_INSTALLER_PYTHON) {
+        $candidates = @(, @($env:SKILLS_INSTALLER_PYTHON))
+    } else {
+        $candidates = @(@('python'), @('py', '-3'), @('python3'))
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-UsablePython $candidate) { return , $candidate }
+    }
+    return $null
+}
+
+# Report a failed precondition on stderr and stop before any destination changes.
+function Stop-Install {
+    param([string]$Message)
+    [Console]::Error.WriteLine("Error: $Message")
+    exit 1
+}
+
+# Generated agents are ignored install artifacts. Regenerate them for every selected
+# skill that declares roles before any destination changes, so a missing Python or a
+# malformed manifest stops the run without a stale or partial agent install.
+function Invoke-AgentGeneration {
+    $skills = @(Get-SelectedSkills | Where-Object { Test-RoleManifest $_.FullName })
+    if ($skills.Count -eq 0) { return }
+    $names = ($skills | ForEach-Object { $_.Name }) -join ', '
+    $python = Find-Python
+    if ($null -eq $python) {
+        Stop-Install "Python 3.11 or newer is required to generate the native reviewer agents of: $names. Install Python 3.11 or newer, or set SKILLS_INSTALLER_PYTHON to its path, then rerun the installer. No destination was changed."
+    }
+    $executable = $python[0]
+    $arguments = @($python | Select-Object -Skip 1)
+    $generator = Join-Path $RepoRoot 'scripts/generate_agents.py'
+    # The generator reports a malformed manifest on stderr; keep it from becoming a terminating error.
+    $ErrorActionPreference = 'Continue'
+    & $executable @arguments $generator @($skills | ForEach-Object { $_.FullName }) | ForEach-Object { Write-Host $_ }
+    $status = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($status -ne 0) {
+        Stop-Install "Generating the native reviewer agents of: $names failed. No destination was changed."
+    }
+}
+
 # Generated native agents that selected skills ship for one harness:
 # Codex <name>.toml files, Devin <name>/AGENT.md directories, and Claude <name>.md files.
+# Only skills that declare roles ship agents, so ignored output left behind by a
+# skill that dropped its manifest is never installed.
 function Get-SelectedAgents {
     param([string]$Harness)
-    foreach ($skill in @(Get-SelectedSkills)) {
+    foreach ($skill in @(Get-SelectedSkills | Where-Object { Test-RoleManifest $_.FullName })) {
         $root = Join-Path $skill.FullName "harnesses/$Harness"
         if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
         foreach ($entry in @(Get-ChildItem -LiteralPath $root | Sort-Object Name)) {
@@ -340,6 +404,7 @@ if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
     }
 }
 
+Invoke-AgentGeneration
 if ($installCodex -or $installDevin) {
     Install-Collection (Join-Path $HomePath '.agents/skills')
 }

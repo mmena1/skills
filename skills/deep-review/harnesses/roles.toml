@@ -1,5 +1,6 @@
 # Native reviewer agent roles. Each role generates one agent per declared
-# harness, named "deep-review-<role>" everywhere. Regenerate with
+# harness, named "deep-review-<role>" everywhere. The installer
+# generates them; they are gitignored. Regenerate locally with
 # `python scripts/generate_agents.py` after editing this file or a body.
 
 [roles.scout]

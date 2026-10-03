@@ -1,3 +1,9 @@
 .DS_Store
 Thumbs.db
 __pycache__/
+
+# Native reviewer agents are generated at install time from each skill's
+# harnesses/roles.toml; only the manifest and reviewer bodies are source.
+skills/*/harnesses/*/
+skills/experimental/*/harnesses/*/
+tests/fixtures/*/harnesses/*/

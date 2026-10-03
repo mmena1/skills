@@ -3,8 +3,13 @@
 
 A skill that ships native reviewer agents declares them in
 `harnesses/roles.toml`. This generator writes every harness's complete agent
-file under `harnesses/<harness>/`. Generated files are committed and never
-hand-edited; `python scripts/check.py` fails when they are stale.
+file under `harnesses/<harness>/`. That output is an ignored install artifact,
+never source: the installers run this generator for the selected skills before
+linking their agents, and `python scripts/check.py` renders every agent in
+memory and fails when generated files are tracked by Git.
+
+Every named skill is rendered before any file is written, so a malformed
+manifest or missing reviewer body leaves all generated output untouched.
 
 Usage: python scripts/generate_agents.py [skill-directory ...]
 """
@@ -216,7 +221,7 @@ def _existing_generated(skill: Path) -> set[str]:
 
 
 def stale_agents(skill: Path) -> list[str]:
-    """Describe every generated file that is missing, stale, hand-edited, or unexpected."""
+    """Describe every local generated file that is missing, stale, hand-edited, or unexpected."""
     label = skill.name
     try:
         expected = render_agents(skill)
@@ -234,9 +239,10 @@ def stale_agents(skill: Path) -> list[str]:
     return problems
 
 
-def write_agents(skill: Path) -> list[str]:
+def write_agents(skill: Path, expected: dict[str, str] | None = None) -> list[str]:
     """Regenerate a skill's agent files and remove generated files no longer declared."""
-    expected = render_agents(skill)
+    if expected is None:
+        expected = render_agents(skill)
     changed = []
     for relative in sorted(_existing_generated(skill) - set(expected)):
         (skill / relative).unlink()
@@ -257,12 +263,13 @@ def write_agents(skill: Path) -> list[str]:
 def main(arguments: list[str]) -> int:
     skills = [Path(argument).resolve() for argument in arguments] or agent_skill_directories()
     try:
-        for skill in skills:
-            for change in write_agents(skill):
-                print(change)
+        rendered = [(skill, render_agents(skill)) for skill in skills]
     except AgentManifestError as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
+    for skill, expected in rendered:
+        for change in write_agents(skill, expected):
+            print(change)
     return 0
 
 
