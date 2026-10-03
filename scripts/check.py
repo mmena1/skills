@@ -37,6 +37,8 @@ STALE_PATTERNS = {
     "mirrored docs path": re.compile(r"docs/(?:engineering|productivity)/", re.IGNORECASE),
     "Claude plugin manifest": re.compile(r"\.claude-plugin|claude plugins? install", re.IGNORECASE),
     "old publishing URL": re.compile(r"aihero\.dev", re.IGNORECASE),
+    # Only a line that says "legacy" (a fallback or migration statement) may name the old glossary files.
+    "legacy glossary name": re.compile(r"^(?!.*\blegacy\b).*\bCONTEXT(?:-MAP)?\.md", re.MULTILINE),
 }
 # Former stable skill names mapped to their current names. A former name is a stale
 # reference; the installer tests seed installations under it to prove reconciliation.

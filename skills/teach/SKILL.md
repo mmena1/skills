@@ -9,6 +9,13 @@ argument-hint: "What would you like to learn about?"
 
 The user has asked you to teach them something. This is a stateful request - they intend to learn the topic over multiple sessions.
 
+## Workspace guard
+
+This skill writes `./GLOSSARY.md` into the current directory, a file the engineering skills use for a project's domain glossary. Before writing anything, check that the directory is safe to use:
+
+- If `MISSION.md` exists, this is already a teaching workspace. Continue.
+- Otherwise, stop and ask the user for a dedicated workspace directory when the current directory holds a domain glossary (`GLOSSARY.md`, `GLOSSARY-MAP.md`, or the legacy `CONTEXT.md` or `CONTEXT-MAP.md`) or is a repository configured for the engineering skills (it has `docs/agents/`, or an `AGENTS.md` or `CLAUDE.md` with an `## Agent skills` section). Do not write any file there.
+
 ## Teaching Workspace
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:

@@ -14,7 +14,7 @@ Scaffold the per-repository configuration that the engineering skills assume:
 
 - **Issue tracker**: where issues live and how implementation readiness, parent lookup, claiming, resolution, reconciliation, and frontier promotion work (GitHub by default; local markdown is also supported out of the box)
 - **Triage labels**: the strings used for the five canonical triage roles
-- **Domain docs**: where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
+- **Domain docs**: where `GLOSSARY.md` (or the legacy `CONTEXT.md` name) and ADRs live, and the consumer rules for reading them
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
@@ -41,7 +41,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - Supported instruction files at the repository root, especially `AGENTS.md` and `CLAUDE.md`: which already exist, and does one already contain an `## Agent skills` section?
-- `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
+- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root, and the legacy `CONTEXT.md` and `CONTEXT-MAP.md` they replace (including per-context legacy files that a map points to)
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: does this skill's prior output already exist?
 - `.scratch/`: a sign that a local-markdown issue tracker convention is already in use
@@ -78,9 +78,16 @@ If it is installed, ask exactly one question:
 
 The defaults are the five canonical roles, each label string equal to its name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. On **yes**, write them as-is. Only if the user says no, usually because their tracker already uses other names (e.g. `bug:triage` for `needs-triage`), collect the overrides so `triage` applies existing labels instead of creating duplicates.
 
-**Section C: Domain docs.** Default to **single-context** (one `CONTEXT.md` + `docs/adr/` at the repo root). This fits almost every repo; write it without asking.
+**Section C: Domain docs.** Default to **single-context** (one `GLOSSARY.md` + `docs/adr/` at the repo root). This fits almost every repo; write it without asking.
 
-Offer **multi-context** (a root `CONTEXT-MAP.md` pointing to per-context `CONTEXT.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
+Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSSARY.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
+
+**Glossary migration.** When exploration found a legacy `CONTEXT.md` or `CONTEXT-MAP.md`, offer a content-preserving rename to the matching `GLOSSARY` name, and wait for confirmation before touching anything. Do not create a parallel glossary, and do not use symlinks.
+
+- Rename each legacy file in place with `git mv` (or a plain rename outside Git), keeping its content unchanged. For a `CONTEXT-MAP.md`, rename every per-context `CONTEXT.md` file it points to as well, then update only the file links inside the map so they name the renamed files.
+- If a `GLOSSARY` file already exists beside its legacy twin, do not merge or overwrite either. Show both, report the duplicate, and let the user decide.
+- Update every reference in the files this skill wrote (the `## Agent skills` block and `docs/agents/domain.md`) to the new names, leaving the rest of those files unchanged. Report other references to the legacy names that this skill did not write, such as prose in other docs, without editing them.
+- If the user declines, change nothing. The skills still read the legacy files.
 
 ### 3. Confirm and edit
 
@@ -88,6 +95,7 @@ Show the user a draft of:
 
 - The `## Agent skills` block to add to the selected existing instruction file, or to `AGENTS.md` when none exists (see step 4 for selection rules)
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md` (the last only when `triage` is installed)
+- Any glossary migration renames and reference updates, as a list of old and new paths
 
 Let them edit before writing.
 
@@ -104,7 +112,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them.
+In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 

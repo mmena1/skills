@@ -99,7 +99,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 
 - [`codebase-design`](./skills/codebase-design/SKILL.md): Shared vocabulary and discipline for deep-module design.
 - [`diagnosing-bugs`](./skills/diagnosing-bugs/SKILL.md): A diagnosis loop for hard bugs and performance regressions.
-- [`domain-modeling`](./skills/domain-modeling/SKILL.md): Build and sharpen project terminology, context documents, and ADRs.
+- [`domain-modeling`](./skills/domain-modeling/SKILL.md): Build and sharpen project terminology, glossaries, and ADRs.
 - [`grilling`](./skills/grilling/SKILL.md): The reusable decision-tree interview discipline.
 - [`prototype`](./skills/prototype/SKILL.md): Build throwaway code that answers a design question.
 - [`research`](./skills/research/SKILL.md): Investigate a question against primary sources and capture cited findings.
