@@ -13,8 +13,8 @@ The user has asked you to teach them something. This is a stateful request - the
 
 This skill writes `./GLOSSARY.md` into the current directory, a file the engineering skills use for a project's domain glossary. Before writing anything, check that the directory is safe to use:
 
-- If `MISSION.md` exists, this is already a teaching workspace. Continue.
-- Otherwise, stop and ask the user for a dedicated workspace directory when the current directory holds a domain glossary (`GLOSSARY.md`, `GLOSSARY-MAP.md`, or the legacy `CONTEXT.md` or `CONTEXT-MAP.md`) or is a repository configured for the engineering skills (it has `docs/agents/`, or an `AGENTS.md` or `CLAUDE.md` with an `## Agent skills` section). Do not write any file there.
+- Stop and ask the user for a dedicated workspace directory when the current directory is a repository configured for the engineering skills (it has `docs/agents/`, or an `AGENTS.md` or `CLAUDE.md` with an `## Agent skills` section), or holds a legacy `CONTEXT.md` or `CONTEXT-MAP.md`, or holds a `GLOSSARY-MAP.md`. Do not write any file there.
+- A `./GLOSSARY.md` also blocks the directory, unless `MISSION.md` exists beside it: that pairing marks a teaching workspace whose glossary this skill wrote.
 
 ## Teaching Workspace
 
