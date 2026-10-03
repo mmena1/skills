@@ -118,8 +118,8 @@ MODEL_INVOKED_SKILLS = {
     "prototype", "research", "tdd", "wizard",
     "writing-for-agents",
 }
-# Models and limits the standalone deep-review adapters pinned before the import,
-# plus the Claude Code adapter. Claude Code does not confine an agent's Bash to
+# Current pinned models and limits for the deep-review adapters.
+# Claude Code does not confine an agent's Bash to
 # the patterns in its tool list, so its read-only roles keep plain Bash.
 DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
 DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
@@ -127,22 +127,22 @@ DEEP_REVIEW_ROLES = {
     "scout": {
         "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-luna-medium", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
-        "claude": {"model": "sonnet", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+        "claude": {"model": "claude-sonnet-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "structural": {
-        "codex": {"model": "gpt-6-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-sol-medium", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
-        "claude": {"model": "opus", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+        "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-static": {
-        "codex": {"model": "gpt-6-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-5-6-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
-        "claude": {"model": "opus", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+        "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-probe": {
         "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "workspace-write"},
         "devin": {"model": "gpt-5-6-luna-high", "allowed-tools": [*DEEP_REVIEW_READ_ONLY_TOOLS, "write", "edit"]},
-        "claude": {"model": "sonnet", "tools": [*DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "Edit", "Write"], "effort": "high"},
+        "claude": {"model": "claude-sonnet-5-5", "tools": [*DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "Edit", "Write"], "effort": "high"},
     },
 }
 HARNESS_SPECIFIC_TEXT = re.compile(
