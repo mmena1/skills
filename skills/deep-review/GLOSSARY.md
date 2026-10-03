@@ -20,7 +20,7 @@
 ## Outcomes
 
 - **Hypothesis**: An admission-qualified scout concern about the committed target, grounded in changed code or a changed behavior-bearing path, awaiting independent adjudication.
-- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact.
+- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification.
 - **Disproved**: A hypothesis rejected by validation; it is not user-visible.
 - **Unresolved**: Validation was attempted but could not establish or reject a hypothesis; it is not a Finding and maps to `discuss`.
 - **Static adjudication**: A capacity-bounded read-only validation phase that queues canonical hypotheses in ID order and may return a final outcome or the internal `Needs probe` transition.
@@ -29,9 +29,16 @@
 - **Not validated due to review failure**: A hypothesis the validator could not attempt because the run failed; it makes the review incomplete and is distinct from Unresolved.
 - **Stated intent**: The change goal expressed by the target PR or commits; `unknown` when neither source provides it.
 - **Action**: The recommended next step: `fix-now`, `discuss`, or `follow-up`.
-- **fix-now**: A Finding with a small, unambiguous fix based on final severity and fix size.
-- **discuss**: An Unresolved item or a Finding needing author context or a tradeoff decision.
-- **follow-up**: A Finding that is real but too large or out of scope for the current change.
+- **fix-now**: A Finding with one clearly correct remedy and a small, unambiguous fix.
+- **discuss**: An Unresolved item or a Finding whose remedy needs the author's design or tradeoff judgment.
+- **follow-up**: A Finding with one clearly correct remedy that is too large or out of scope for the current change.
+
+## Structural review
+
+- **Responsibility scan**: The structural reviewer's inspection of a substantial changed function or flow for responsibility mixing.
+- **Responsibility mixing**: At least two independently nameable responsibilities with separate reasons to change combined in one function or flow. A loop, nested loop, conditional, or long function is not responsibility mixing on its own.
+- **Structural finding**: A Finding about maintainability rather than runtime behavior, established by concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification. Correct behavior does not refute it, and it stays distinct from correctness findings about the same code.
+- **Declarative simplification**: A rewrite that states intent declaratively, such as a stream, and removes incidental control flow while preserving locality and readability. A rewrite that is only shorter, needs mutable state, lookahead, index manipulation, or opaque collectors, or hides domain policy is not one.
 
 ## Publication
 

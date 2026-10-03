@@ -19,15 +19,17 @@ Return `No hypotheses` when no concern meets the admission threshold. Otherwise 
 
 ### Hypothesis <reviewer-slug>-H<number>
 - **Origin:** this reviewer slug
-- **Title:** concise behavioral concern
+- **Title:** concise behavioral concern, or the structural problem for a structural hypothesis
 - **File/line:** repository-relative path and line
 - **Potential severity:** blocker | high | medium | low
 - **Source evidence:** concrete changed-code or behavior-path evidence
-- **Expected impact:** plausible reachable consequence
+- **Expected impact:** plausible reachable consequence, or the concrete reasoning or locality cost for a structural hypothesis
 - **Falsification condition:** evidence that would reject the concern
 - **Suggested validation:** cheapest decision-relevant check, never remediation
 - **Context references:** relevant manifest entries, or none
 
 When the concern is a violated boundary, contract, or invariant, name it in the source evidence or expected impact so validation and any later remediation can preserve it. Naming the constraint is not a remedy.
+
+A structural hypothesis concerns maintainability rather than runtime behavior and must meet the structural evidence standard: concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification. Passing tests or correct behavior do not falsify it, and a style-only preference does not meet it. Put the simplification in the source evidence as proof that the complexity is incidental, not as a remedy, and state as the falsification condition the evidence that the complexity is essential to the behavior, that the simplification would change behavior or only rename or relocate complexity, or that the concern is a style-only preference. Never combine a structural concern and a correctness concern about the same code in one hypothesis.
 
 Do not emit discarded or internal hypotheses, assign final severity, suggest remediation, or use validator outcome terminology. The coordinator assigns canonical IDs and deduplicates after every scout finishes.

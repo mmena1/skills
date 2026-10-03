@@ -35,6 +35,7 @@ Obtain a non-empty confirmed set. Before analysis, verify the invocation-specifi
 - the exact selected scout count is known;
 - enough simultaneous scout capacity exists for the complete set;
 - the common scout and selected lens contracts are available;
+- when `structural` is selected, the installed `codebase-design` skill's `SKILL.md` is available to supply as a contract file, or the run stops before analysis and reports it missing;
 - an independent validator can launch when hypotheses survive;
 - scouts can inspect the pinned worktree read-only;
 - the validator can inspect it read-only during static adjudication and receive writable access for bounded probes;
@@ -52,7 +53,7 @@ If `N` scouts are selected and fewer than `N` simultaneous slots are available, 
 
 ## Scout concurrently
 
-Launch every selected scout simultaneously. The generic scout role executes `bugs`, `conventions`, `history`, and `docs` with the corresponding file under `reviewers/lenses/`; `structural` may use its specialized native execution profile but still follows `reviewers/SCOUT.md` and `reviewers/lenses/structural.md`.
+Launch every selected scout simultaneously. The generic scout role executes `bugs`, `conventions`, `history`, and `docs` with the corresponding file under `reviewers/lenses/`; `structural` may use its specialized native execution profile but still follows `reviewers/SCOUT.md` and `reviewers/lenses/structural.md`. The coordinator supplies the `codebase-design` contract to the structural scout and to every validator invocation for a structural hypothesis, because the structural evidence standard judges the deletion test, locality, and depth by it.
 
 Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, or missing required context marks the run incomplete. An incomplete run cannot claim PASS or `No findings` and cannot publish.
 
@@ -67,11 +68,11 @@ Each hypothesis uses this Markdown shape:
 ```markdown
 ### Hypothesis <reviewer-slug>-H<number>
 - **Origin:** <reviewer slug>
-- **Title:** <concise behavioral concern>
+- **Title:** <concise behavioral concern, or the structural problem>
 - **File/line:** <repository-relative path>:<line>
 - **Potential severity:** blocker | high | medium | low
 - **Source evidence:** <concrete changed-code or behavior-path evidence>
-- **Expected impact:** <reachable consequence>
+- **Expected impact:** <reachable consequence, or the concrete reasoning or locality cost>
 - **Falsification condition:** <specific evidence that would reject the concern>
 - **Suggested validation:** <cheapest decision-relevant check; no remediation>
 - **Context references:** <relevant manifest entries, or none>
@@ -79,18 +80,20 @@ Each hypothesis uses this Markdown shape:
 
 A hypothesis must be grounded in changed code or a changed behavior-bearing path, identify a plausible consequence, and state how it could be falsified. Discarded or internal speculation is not emitted. Scout severity is only potential severity.
 
+A **structural hypothesis** concerns maintainability rather than runtime behavior. Its consequence is a concrete reasoning or locality cost, and it follows the **structural evidence standard**: concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification establishes it. Passing tests or correct behavior do not falsify it, and a style-only preference does not meet it. The scout contract, deduplication, and the validator apply this same standard.
+
 Scouts assign reviewer-local IDs such as `bugs-H1` or `structural-H1`. After deduplication, the coordinator assigns canonical run-local IDs (`H1`, `H2`, …). Canonical IDs are stable for that run; the coordinator retains every original ID and origin slug for provenance.
 
 ## Deduplication
 
-The coordinator merges hypotheses only when they describe the same behavioral failure and materially the same causal mechanism. Similar titles or the same file/line are signals, not sufficient keys. Merged hypotheses retain all materially distinct evidence and all origin slugs. When equivalence is uncertain, keep hypotheses separate and validate both.
+The coordinator merges hypotheses only when they describe the same behavioral failure and materially the same causal mechanism. Structural hypotheses merge only when they describe the same structural problem and materially the same mechanism under the structural evidence standard. A structural hypothesis and a correctness hypothesis are never merged, even when they concern the same code. Similar titles or the same file/line are signals, not sufficient keys. Merged hypotheses retain all materially distinct evidence and all origin slugs. When equivalence is uncertain, keep hypotheses separate and validate both.
 
 ## Validation outcomes
 
 The validator follows `reviewers/validator.md` and receives exactly one canonical hypothesis per invocation. Every hypothesis enters one logical concurrent static adjudication phase against the same pinned worktree under a read-only contract. The coordinator queues hypotheses in canonical ID order (`H1`, `H2`, …), fills the maximum safe validator capacity exposed by the harness, and launches the next queued hypothesis whenever an invocation finishes and frees a slot, including after failure or timeout. Capacity-constrained batching, including sequential execution with one slot, is valid and does not make the review incomplete. Completion order may be arbitrary, and static invocations remain independent: no invocation depends on or consumes another validator's outcome. A static invocation returns exactly one of:
 
-- **Finding**: decisive static evidence independently establishes the hypothesis, including final severity and evidence of actual reachability and impact.
-- **Disproved**: concrete static evidence such as an invariant, guard, contract, or test rejects the hypothesis. It is not user-visible.
+- **Finding**: decisive static evidence independently establishes the hypothesis, including final severity and evidence of actual reachability and impact, or for a structural hypothesis evidence meeting the structural evidence standard.
+- **Disproved**: concrete static evidence such as an invariant, guard, contract, or test rejects the hypothesis. Passing tests or correct behavior never disprove a structural hypothesis. It is not user-visible.
 - **Unresolved**: static adjudication cannot establish or reject the hypothesis and no meaningful writable check can settle it. It maps to `discuss`.
 - **Needs probe**: static evidence cannot settle the hypothesis, but a bounded writable check can materially answer a specific unresolved factual question. It must include the unresolved question, why static evidence is insufficient, and the cheapest decisive check. This is an internal transition only.
 
@@ -143,7 +146,7 @@ Rare failure and transition paths remain `NOT EXERCISED` until they occur natura
 
 ## Present, decide, and publish
 
-Use `references/output-template.md`. Report hypotheses discovered, hypotheses after dedupe, and outcome counts. Apply the deterministic action policy: every Finding with a small, unambiguous fix of about 20 changed lines or fewer is `fix-now`; every Finding with a larger or cross-module fix is `follow-up`; every Unresolved outcome is separate and always `discuss`. Keep scout provenance in run state rather than normal Finding prose.
+Use `references/output-template.md`. Report hypotheses discovered, hypotheses after dedupe, and outcome counts. Apply the deterministic action policy. A Finding with one clearly correct remedy is sized: a small, unambiguous fix of about 20 changed lines or fewer is `fix-now`, and a larger or cross-module fix is `follow-up`. A Finding whose remedy needs the author's design or tradeoff judgment, including a structural Finding with several acceptable remedies, is `discuss`. Take that remedy classification from the validator's Recommendation. Every Unresolved outcome is separate and always `discuss`. Keep scout provenance in run state rather than normal Finding prose.
 
 Carry each Finding's remediation from the validator's Recommendation without compressing away its required outcome or the material constraints that distinguish an acceptable repair from a superficially valid one. The required outcome is authoritative; a proposed implementation is guidance unless the repository or finding requires that exact shape. The coordinator may simplify or clarify that wording and may re-inspect the relevant code to establish safer wording, but it must not invent a confident architectural prescription the finding or surrounding code does not support.
 
