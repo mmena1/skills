@@ -401,6 +401,10 @@ install_collection() {
   done
 }
 
+has_role_manifest() {
+  [ -f "$1/harnesses/roles.toml" ]
+}
+
 python_is_usable() {
   "$@" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1
 }
@@ -432,20 +436,20 @@ generate_selected_agents() {
   local skill names="" generator
   local -a agent_skills=()
   for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
-    [ -f "$skill/harnesses/roles.toml" ] || continue
+    has_role_manifest "$skill" || continue
     agent_skills+=("$(native_path "$skill")")
-    names="$names ${skill##*/}"
+    names="${names:+$names, }${skill##*/}"
   done
   [ "${#agent_skills[@]}" -gt 0 ] || return 0
   find_python
   if [ "${#PYTHON_COMMAND[@]}" -eq 0 ]; then
-    echo "Error: Python 3.11 or newer is required to generate the native reviewer agents of:$names." >&2
+    echo "Error: Python 3.11 or newer is required to generate the native reviewer agents of: $names." >&2
     echo "Install Python 3.11 or newer, or set SKILLS_INSTALLER_PYTHON to its path, then rerun the installer. No destination was changed." >&2
     exit 1
   fi
   generator="$(native_path "$REPO_ROOT/scripts/generate_agents.py")"
   if ! "${PYTHON_COMMAND[@]}" "$generator" "${agent_skills[@]}"; then
-    echo "Error: generating the native reviewer agents of:$names failed. No destination was changed." >&2
+    echo "Error: generating the native reviewer agents of: $names failed. No destination was changed." >&2
     exit 1
   fi
 }
@@ -458,7 +462,7 @@ collect_selected_agents() {
   local harness="$1" skill source
   SELECTED_AGENTS=()
   for skill in ${SELECTED_SKILLS[@]+"${SELECTED_SKILLS[@]}"}; do
-    [ -f "$skill/harnesses/roles.toml" ] || continue
+    has_role_manifest "$skill" || continue
     for source in "$skill/harnesses/$harness"/*; do
       case "$harness:$source" in
         codex:*.toml|claude:*.md) [ -f "$source" ] || continue ;;

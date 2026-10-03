@@ -55,12 +55,12 @@ def write_agent_skill(skill: Path, body: str) -> None:
     )
 
 
-GENERATED_AGENT_DIRECTORIES = shutil.ignore_patterns(*generate_agents.HARNESSES)
+IGNORE_GENERATED_AGENTS = shutil.ignore_patterns(*generate_agents.HARNESSES)
 
 
 def copy_skill_source(source: Path, destination: Path) -> None:
     """Copy a skill as a fresh clone holds it: manifest and bodies, no generated agents."""
-    shutil.copytree(source, destination, ignore=GENERATED_AGENT_DIRECTORIES)
+    shutil.copytree(source, destination, ignore=IGNORE_GENERATED_AGENTS)
 
 
 def copy_installers(repository: Path) -> None:

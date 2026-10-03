@@ -313,12 +313,12 @@ function Test-UsablePython {
 }
 
 # A Python 3.11+ command: SKILLS_INSTALLER_PYTHON when set, otherwise the first
-# usable python, py launcher, or python3.
+# usable python3, python, or py launcher, the same order install.sh uses.
 function Find-Python {
     if ($env:SKILLS_INSTALLER_PYTHON) {
         $candidates = @(, @($env:SKILLS_INSTALLER_PYTHON))
     } else {
-        $candidates = @(@('python'), @('py', '-3'), @('python3'))
+        $candidates = @(@('python3'), @('python'), @('py', '-3'))
     }
     foreach ($candidate in $candidates) {
         if (Test-UsablePython $candidate) { return , $candidate }
