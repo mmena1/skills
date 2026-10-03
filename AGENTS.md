@@ -47,7 +47,7 @@ python scripts/test_installers.py
 
 It is slower, taking minutes on Windows. It runs `install.sh` through Bash on every platform and `install.ps1` through PowerShell on Windows, in isolated home directories, and checks harness selection, stable and experimental selection, links, junctions, copy fallback, reconciliation, unrelated-destination backup, native agent installation, and legacy deep-review migration.
 
-CI runs both commands as separate jobs on Ubuntu, macOS, and Windows.
+CI runs both commands as separate jobs on Ubuntu and macOS.
 
 A skill that ships native reviewer agents declares them in `harnesses/roles.toml` (see ADR-0001). That manifest and the reviewer bodies it embeds are the only committed source. The agent files under `harnesses/<harness>/` are generated, gitignored install artifacts: never commit or hand-edit them. The installers regenerate them, and `python scripts/generate_agents.py` regenerates them locally after you change a manifest or body.
 
