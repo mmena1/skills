@@ -3,6 +3,7 @@
 Use this only for a confirmed GitHub PR when the user asks to add comments.
 
 1. Re-check PR state and `headRefOid` with `gh pr view --json state,mergedAt,headRefOid`, then compare `headRefOid` with the recorded reviewed head SHA. Stop if closed, merged, or changed; a stale pinned result cannot be published.
+   Apply `pr-review-overlap.md` before drafting: exclude already-reported items and include prior discussion links for resolved overlaps. Publish new comments only; never reply inside, edit, or resolve an existing thread.
 2. Draft inline comments only for Findings and user-selected Unresolved items. Use committed code and team-visible evidence whenever practical; private ignored context is not named or quoted without explicit approval.
 3. Findings use assertive defect language supported by validator evidence. An Unresolved item is posted only after explicit per-item approval and must be a question describing observed evidence and what remains unsettled; it must not assert a defect.
    Write each comment in the voice described in `review-tone.md`; these publication rules take precedence where they differ.
@@ -16,7 +17,7 @@ Use this only for a confirmed GitHub PR when the user asks to add comments.
 6. Validate each payload mechanically against the current head: path, side, changed-line/range eligibility, and complete range fields. Also validate semantic representativeness. Reject mismatches rather than widening anchors.
 7. If the preferred anchor is not commentable, use only the smallest relevant changed line or compact range as an explicit fallback, preserving scope and rationale. If no relevant changed location exists, do not publish inline.
 8. Get per-comment approval with scope and anchor.
-9. Re-check PR state and head SHA immediately before posting. If the head changed, stop and rerun the review.
+9. Immediately before posting, re-fetch complete PR discussion and re-check overlap under `pr-review-overlap.md`, together with PR state and head SHA. If the head changed, stop and rerun the review. Remove newly overlapping open concerns; route any changed comment body or anchor through validation and per-comment approval again, then repeat this freshness/overlap check. Submit no review when every comment is suppressed, and report that result.
 10. Submit one review with an empty top-level body unless the user explicitly requests a summary:
    `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT` and the approved `comments` array.
-11. Validate the final payload after any coordinate change and verify the expected comment count.
+11. Validate the final payload after any coordinate change and verify the expected comment count after overlap suppression. Update the final report and run state with actual publication and overlap dispositions.
