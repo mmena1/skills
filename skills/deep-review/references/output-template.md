@@ -13,6 +13,7 @@ Runtime: [harness identity/version] | Skill: [reviewed commit/version]
 
 **Pipeline:** Hypotheses [discovered] → [after dedupe]; Validation [findings] Finding, [disproved] Disproved, [unresolved] Unresolved
 **Status:** complete | stale | **Review incomplete**: [scout/validator failure and affected hypotheses]
+**PR review overlap:** [complete / incomplete and publication blocked / skipped: no uniquely associated PR]; Already reported [item count], Prior resolved discussion [item count], Distinct [item count]; Newly published [actual count / not requested]
 
 **Headline takeaway:** [most important Finding, "No findings" when complete with zero Findings and zero Unresolved items, "<N> unresolved item(s) need discussion" when complete with no Findings but Unresolved items, or "Review incomplete"]
 
@@ -28,6 +29,7 @@ Runtime: [harness identity/version] | Skill: [reviewed commit/version]
 | Validator probes | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Scout failure | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Validator partial failure | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
+| PR-review-overlap | PASS / FAIL / NOT EXERCISED | [discussion retrieval, independent inputs, dispositions/links, and publication re-check when observed] |
 | PR head change | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Cleanup | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 
@@ -42,6 +44,8 @@ For complete, current runs, classify each Finding deterministically by its remed
 | blocker, high, medium, or low | needs the author's design or tradeoff judgment, including a structural Finding with several acceptable remedies | any | discuss |
 
 Unresolved items always map to `discuss`. Incomplete or stale runs have no actionable PASS result and cannot publish.
+
+For each affected Finding or Unresolved item below, add an **Overlap** note: `Already reported` or `Prior resolved discussion`, prior link(s), and the semantic match reason. Note independent confirmation when a Finding establishes an earlier speculative concern. Keep the item under its original outcome/action with its evidence and remediation; `Already reported` suppresses a new comment, not the finding or its counts. Counts cover Findings and Unresolved items once each. Incomplete overlap retrieval blocks publication and must not be reported as zero overlaps or a passed comparison.
 
 ### Review failure
 
@@ -96,7 +100,7 @@ Unresolved outcomes are always Action: discuss and are not Findings.
 
 ### Recommended Actions
 
-- [ ] Fix fix-now Finding #1
-- [ ] Discuss Finding #1 or Unresolved item #1
+- [ ] Fix fix-now Finding #1 [use existing discussion link when already reported]
+- [ ] Discuss Finding #1 or Unresolved item #1 [use existing discussion link when already reported]
 - [ ] Decide Unresolved item #1
 ```

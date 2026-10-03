@@ -12,12 +12,34 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 | Validator probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same | Same |
 | Scout failure | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same | Same |
 | Validator partial failure | Completed outcomes remain; queued hypotheses continue in canonical order until each is attempted once; run is incomplete and the writable phase is blocked | Same | Same |
+| PR-review-overlap | Complete inline threads with resolution status, published review summaries, and concrete conversation concerns are fetched only after independent validation; semantic matches suppress open overlaps, retain resolved defects with links, keep distinct mechanisms, and are re-checked before publication | Same | Same |
 | PR head change | Reviewed and current SHAs are reported; result is stale and publication is blocked | Same | Same |
 | Cleanup | Only the current run's worktree, context snapshot, and run directory are removed | Same | Same |
 
 Normal reviews exercise only paths they encounter. Keep rare failures and transitions `NOT EXERCISED` until natural execution or a targeted smoke run observes them; never perturb a real review solely to fill the matrix. After changes to `SKILL.md` orchestration, `harnesses/roles.toml`, or reviewer bodies, targeted Devin, Codex, and Claude Code smoke runs remain required for important gaps not covered by passive receipts.
 
 Cross-harness acceptance passes only when collected receipts and targeted smoke evidence show every harness preserves the protocol's state meanings, failure behavior, publication safeguards, and single-worktree invariant. Different hypotheses or wording across harnesses are expected and do not fail behavioral equivalence.
+
+## PR-review-overlap scenarios
+
+Use the coordinator's final report and proposed publication payload as the observation seams. Inspect scout and static/writable validator inputs to verify no existing PR discussion was supplied. Observe these cases in targeted smoke runs or natural reviews, retaining evidence per case in the shared receipt; an aggregate `PASS` describes only the cases actually observed, not the entire table.
+
+| Case | Expected observation |
+| --- | --- |
+| Equivalent open inline concern | Finding or Unresolved item stays visible as already reported with the prior link and semantic reason; no new comment is proposed or posted. |
+| Earlier speculative open concern independently confirmed | Finding retains decisive validator evidence and notes independent confirmation; publication remains suppressed. |
+| Equivalent resolved thread, defect persists | Finding stays actionable against the reviewed commit; any approved publication is a new comment linking the prior thread. No reply or thread mutation occurs. |
+| Same location, different failure or mechanism; uncertain equivalence | Items remain distinct and use normal publication rules. |
+| Prior claim that the defect was fixed | Independent outcome is unchanged; a resolved thread does not suppress a persisting Finding. |
+| Equivalent review summary or conversation concern | Concrete concern is included and linked as already reported; empty reviews and administrative chatter are ignored. |
+| More than one thread/comment page; resolved or outdated anchors | All connections, including nested replies, are exhausted and usable concerns are retained. |
+| Discussion retrieval fails or is partial | Gap is reported; completed validation evidence survives and publication is blocked. |
+| New equivalent open concern after approval, unchanged head | Final re-fetch suppresses it and refreshes report/counts; an empty payload causes no review submission. |
+| Resolution changes after approval | Overlap is recomputed; adding a prior link or otherwise changing a comment body requires fresh approval and payload validation. |
+| Head changes during publication preparation | Reviewed/current SHAs are reported and publication stops under the existing freshness gate. |
+| Branch/range without a uniquely associated PR | Discussion retrieval is skipped; local report is unchanged except for the skipped status and the receipt stays `NOT EXERCISED`. |
+
+Record `FAIL` when an observed path violates the contract and `NOT EXERCISED` when comparison never ran. Static repository checks verify receipt consistency, not semantic matching or live publication behavior.
 
 ## Smoke runs
 

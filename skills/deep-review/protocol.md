@@ -16,7 +16,8 @@ The operational validation flow is:
 2. Resolve the target: current branch when omitted, otherwise a PR, branch, or commit range. Stop for a detached omitted target or standalone commit/file target.
 3. Define caller-checkout overlap as an omitted/current-branch target, an explicitly named current branch, or a PR whose source branch is the caller's current branch. Require `git status --porcelain` to be empty only when the target overlaps. A different target excludes caller working-tree changes.
 4. For a PR, capture repository, number, base, head ref, head SHA, state, diff, and merge ref. For branches/ranges, resolve base, head SHA, diff, and any associated open PR without replacing the requested target. A branch or range without a unique open PR is local and non-posting; require an explicit PR number or URL before publication.
-5. Echo target, base/head, associated PR or lack of one, publication eligibility, and review mode. Obtain confirmation before fetching refs or creating workspaces.
+5. Keep existing PR review discussion out of review inputs: do not retrieve it until validation finishes or include it in context snapshots, manifests, scout prompts, canonical hypotheses, or static/writable validator prompts. PR metadata and stated intent remain available as before.
+6. Echo target, base/head, associated PR or lack of one, publication eligibility, and review mode. Obtain confirmation before fetching refs or creating workspaces.
 
 Review only a resolved committed target. Never modify or depend on unrelated caller working-tree state.
 
@@ -107,7 +108,7 @@ Every validator first tries to falsify, checks callers, guards, invariants, cont
 
 Context capture is deterministic protocol machinery, not a task for the model to reimplement during a run. Once an artifact has passed path, type, size, target-binding, and race checks, the coordinator copies it exactly once with the fixed direct `cp` filesystem operation (or the harness's byte-for-byte equivalent selected before the run). Every manifest references that existing snapshot entry; a manifest lookup never triggers another copy or rewrite. The operation must preserve bytes exactly and must not use model-authored writes to reconstruct contents or generate an ad-hoc executable capture script. Existing pre/post size and mtime checks, retry behavior, SHA-256 and metadata verification, provenance, privacy, size limits, and snapshot immutability remain mandatory.
 
-The coordinator persists protocol state in one coordinator-owned `run-state.json` (or an equivalent single run-state record when the harness requires another serialization) rather than one file per pipeline stage. That state records the exact pinned baseline identity and restoration status; scout completion and provenance; canonical hypotheses, original IDs, origins, deduplication evidence, and context references; every completed validator outcome and evidence; incomplete-run and unattempted-hypothesis status; runtime acceptance receipt; final report data; cleanup status; and, when publication occurs, the exact publication payload. The context snapshot remains separate because it is an immutable evidence bundle with manifests. A user-facing `final-report.md` may be preserved when useful, and a `publication-receipt.json` is created only when publication occurs and contains the exact payload together with its publication receipt. Separate intermediate files for scout output, canonical hypotheses, or individual validator outcomes are not created unless a concrete runtime constraint requires them and that constraint is recorded in the run state.
+The coordinator persists protocol state in one coordinator-owned `run-state.json` (or an equivalent single run-state record when the harness requires another serialization) rather than one file per pipeline stage. That state records the exact pinned baseline identity and restoration status; scout completion and provenance; canonical hypotheses, original IDs, origins, deduplication evidence, and context references; every completed validator outcome and evidence; PR discussion retrieval completeness, timestamps, and per-item overlap dispositions with reasons and links; incomplete-run and unattempted-hypothesis status; runtime acceptance receipt; final report data; cleanup status; and, when publication occurs, the exact publication payload. The context snapshot remains separate because it is an immutable evidence bundle with manifests. A user-facing `final-report.md` may be preserved when useful, and a `publication-receipt.json` is created only when publication occurs and contains the exact payload together with its publication receipt. Separate intermediate files for scout output, canonical hypotheses, or individual validator outcomes are not created unless a concrete runtime constraint requires them and that constraint is recorded in the run state.
 
 ## Runtime acceptance receipt
 
@@ -123,6 +124,7 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe;
 - scout failure: whether running scouts finished, the run became incomplete, and publication/PASS were blocked;
 - validator partial failure: whether completed outcomes survived, queued static hypotheses were still attempted, and writable probing was blocked;
+- PR-review-overlap: whether the coordinator retrieved complete discussion after independent validation, recorded semantic dispositions and links, and re-checked overlap before publication when that path was observed;
 - PR head change: whether stale reviewed/current SHAs were reported and publication was blocked;
 - cleanup: whether removal was confined to the current run and exact leftovers were reported.
 
@@ -143,6 +145,12 @@ Rare failure and transition paths remain `NOT EXERCISED` until they occur natura
 - Any scout, static validator, writable validator, or restoration failure makes the run incomplete, prevents PASS/`No findings`, and prevents publication. Unattempted hypotheses remain explicitly not validated due to review failure.
 - A changed PR head makes the pinned result stale. Report reviewed and current SHAs, and rerun before current-gate use or publication.
 - A Finding may be presented assertively. An Unresolved item may be published only with explicit approval and only as a question describing evidence and remaining uncertainty.
+
+## Compare existing PR review discussion
+
+After all validation finishes and before presentation, apply `references/pr-review-overlap.md` when a confirmed PR is associated. The coordinator retrieves discussion and compares every completed Finding and Unresolved item, including preserved outcomes from incomplete runs. Runs without a uniquely associated PR skip this step and remain local and non-posting.
+
+Overlap changes presentation and publication eligibility only. Preserve independent outcomes, severity, evidence, and action classification. Keep already-reported items visible with their prior links and overlap counts; a resolved thread cannot hide a defect still present in the pinned commit. Discussion retrieval failure leaves comparison incomplete and blocks publication, while retaining completed validation evidence.
 
 ## Present, decide, and publish
 
