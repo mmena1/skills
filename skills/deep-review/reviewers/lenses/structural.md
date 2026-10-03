@@ -43,9 +43,9 @@ The scan looks for **responsibility mixing**: at least two independently nameabl
 A structural hypothesis from the scan must:
 
 - name the responsibilities involved;
-- anchor each one to changed code;
+- anchor the responsibility mixing to changed code: the diff must introduce or worsen it, and pre-existing responsibilities in the surrounding function or flow may serve as contextual evidence;
 - state the reasoning or locality cost the mixing imposes on a reader or on the next change;
-- describe a concrete behavior-preserving simplification that passes the deletion test and improves locality and depth. Apply `codebase-design` for the deletion test, locality, and deep modules rather than redefining them here.
+- describe a concrete behavior-preserving simplification that passes the deletion test and improves locality and depth. Judge the deletion test, locality, and depth by the `codebase-design` contract the coordinator supplies rather than redefining them here.
 
 A helper or stage that only renames or relocates existing branches does not qualify. Report one cohesive hypothesis per underlying design problem in a function, and gather every supporting example into its evidence instead of splitting them into separate hypotheses.
 

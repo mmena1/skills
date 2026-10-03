@@ -35,6 +35,7 @@ Obtain a non-empty confirmed set. Before analysis, verify the invocation-specifi
 - the exact selected scout count is known;
 - enough simultaneous scout capacity exists for the complete set;
 - the common scout and selected lens contracts are available;
+- when `structural` is selected, the installed `codebase-design` skill's `SKILL.md` is available to supply as a contract file, or the run stops before analysis and reports it missing;
 - an independent validator can launch when hypotheses survive;
 - scouts can inspect the pinned worktree read-only;
 - the validator can inspect it read-only during static adjudication and receive writable access for bounded probes;
@@ -52,7 +53,7 @@ If `N` scouts are selected and fewer than `N` simultaneous slots are available, 
 
 ## Scout concurrently
 
-Launch every selected scout simultaneously. The generic scout role executes `bugs`, `conventions`, `history`, and `docs` with the corresponding file under `reviewers/lenses/`; `structural` may use its specialized native execution profile but still follows `reviewers/SCOUT.md` and `reviewers/lenses/structural.md`.
+Launch every selected scout simultaneously. The generic scout role executes `bugs`, `conventions`, `history`, and `docs` with the corresponding file under `reviewers/lenses/`; `structural` may use its specialized native execution profile but still follows `reviewers/SCOUT.md` and `reviewers/lenses/structural.md`. The coordinator supplies the `codebase-design` contract to the structural scout and to every validator invocation for a structural hypothesis, because the structural evidence standard judges the deletion test, locality, and depth by it.
 
 Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, or missing required context marks the run incomplete. An incomplete run cannot claim PASS or `No findings` and cannot publish.
 
