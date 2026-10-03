@@ -45,7 +45,7 @@ A structural hypothesis from the scan must:
 - name the responsibilities involved;
 - anchor each one to changed code;
 - state the reasoning or locality cost the mixing imposes on a reader or on the next change;
-- describe a concrete behavior-preserving simplification that passes the deletion, locality, and deep-module tests. Apply `codebase-design` for those tests rather than redefining them here.
+- describe a concrete behavior-preserving simplification that passes the deletion test and improves locality and depth. Apply `codebase-design` for the deletion test, locality, and deep modules rather than redefining them here.
 
 A helper or stage that only renames or relocates existing branches does not qualify. Report one cohesive hypothesis per underlying design problem in a function, and gather every supporting example into its evidence instead of splitting them into separate hypotheses.
 
@@ -67,7 +67,7 @@ Flag structural maintainability issues when there is concrete diff evidence of:
 - magical or overly generic handling that hides simple data-shape assumptions
 - unnecessary casts, optionality, nullable modes, or fallback branches that obscure the real invariant
 - duplicated concepts or bespoke helpers where a canonical utility or existing abstraction should own the behavior
-- file, function, or component growth past a healthy size boundary
+- file, function, or component growth past a healthy size boundary that brings responsibility mixing or another concrete complexity listed here
 - refactors that move complexity around without reducing the number of concepts a reader must hold
 - orchestration that serializes independent work or leaves related updates less atomic when a cleaner structure is visible
 
@@ -76,6 +76,7 @@ Flag structural maintainability issues when there is concrete diff evidence of:
 - Keep every hypothesis anchored to how the diff introduces, exposes, or worsens the issue.
 - Only flag pre-existing complexity when the diff makes it meaningfully worse or reveals a clear local simplification.
 - Report only structural hypotheses; style preferences belong in the conventions review.
+- Never flag a loop, nested loop, conditional, or length on its own.
 - Apply the structural evidence standard from the scout contract. Passing tests or correct behavior do not weaken a structural hypothesis.
 - Keep structural concerns separate from correctness concerns about the same code. Do not argue a structural hypothesis from a runtime defect or fold a defect into it.
 - If no concrete simplification is visible, report no hypothesis.

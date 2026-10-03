@@ -20,7 +20,7 @@
 ## Outcomes
 
 - **Hypothesis**: An admission-qualified scout concern about the committed target, grounded in changed code or a changed behavior-bearing path, awaiting independent adjudication.
-- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding evidence of a concrete maintainability cost plus a demonstrated behavior-preserving simplification.
+- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification.
 - **Disproved**: A hypothesis rejected by validation; it is not user-visible.
 - **Unresolved**: Validation was attempted but could not establish or reject a hypothesis; it is not a Finding and maps to `discuss`.
 - **Static adjudication**: A capacity-bounded read-only validation phase that queues canonical hypotheses in ID order and may return a final outcome or the internal `Needs probe` transition.
@@ -36,9 +36,9 @@
 ## Structural review
 
 - **Responsibility scan**: The structural reviewer's inspection of a substantial changed function or flow for responsibility mixing.
-- **Responsibility mixing**: At least two independently nameable responsibilities with separate reasons to change combined in one function or flow. A loop, conditional, or long function is not responsibility mixing on its own.
+- **Responsibility mixing**: At least two independently nameable responsibilities with separate reasons to change combined in one function or flow. A loop, nested loop, conditional, or long function is not responsibility mixing on its own.
 - **Structural finding**: A Finding about maintainability rather than runtime behavior, established by concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification. Correct behavior does not refute it, and it stays distinct from correctness findings about the same code.
-- **Declarative simplification**: A rewrite that states intent declaratively, such as a stream, and removes incidental control flow while preserving locality and readability. A rewrite that is only shorter, needs mutable state, or hides domain policy is not one.
+- **Declarative simplification**: A rewrite that states intent declaratively, such as a stream, and removes incidental control flow while preserving locality and readability. A rewrite that is only shorter, needs mutable state, lookahead, index manipulation, or opaque collectors, or hides domain policy is not one.
 
 ## Publication
 
