@@ -4,7 +4,7 @@ Use this rubric only for the structural maintainability reviewer.
 
 ## Mission
 
-Find places where the diff introduces, exposes, or worsens a demonstrated structural cost: a reasoning or maintenance cost that an identifiable task bears in the reviewed code. Weigh concrete reasoning and change costs, especially the work an implementation or review agent must do, rather than a preferred design or an aesthetic.
+Find places where the diff introduces, exposes, or worsens a demonstrated structural cost: a reasoning or maintenance cost that an identifiable task bears in the reviewed code. Weigh concrete reasoning and maintenance costs, especially the work an implementation or review agent must do, rather than a preferred design or an aesthetic.
 
 Admit a hypothesis only when it meets the structural evidence standard from the scout contract. There is no quota: when no cost is demonstrated, report no hypothesis.
 
@@ -44,7 +44,7 @@ Inspect the surrounding function, class, module, package, or flow when the diff 
 - casts, optionality, nullable branches, or shape checks that hide an invariant
 - duplicated logic or a near-duplicate helper
 
-These additions are reasons to inspect, not evidence of a cost. Inspect surrounding pre-existing code when the diff exposes or worsens a larger local cost. Broad legacy cleanup unrelated to the diff is out of scope.
+These changes are reasons to inspect, not evidence of a cost. Inspect surrounding pre-existing code when the diff exposes or worsens a larger local cost. Broad legacy cleanup unrelated to the diff is out of scope.
 
 ## Responsibility Scan
 

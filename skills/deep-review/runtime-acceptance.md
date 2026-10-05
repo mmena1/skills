@@ -54,7 +54,7 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Style-only alternative | A shorter or differently styled rewrite with no demonstrated cost produces no hypothesis, and a crafted hypothesis that argues it is Disproved as a style or design preference. |
 | Locally justified helper, adapter, or dependency injection | Added indirection that isolates knowledge, supports a needed test seam, or follows a governing local convention produces no hypothesis, and a crafted single-adapter or fewer-layers hypothesis is Disproved without appeal to any design philosophy. |
 | Alternative with an equal or greater burden | A hypothesis whose alternative adds modes, hides policy, or scatters knowledge is Disproved on that ground. |
-| Structural review without a design-guidance skill | Selecting `structural` passes preflight, and the scout and validators adjudicate without any supplied design contract. |
+| Structural review without a design-guidance skill | Selecting `structural` passes preflight, and the scout admits and the validators adjudicate without any supplied design contract. |
 
 ## Smoke runs
 
@@ -118,6 +118,6 @@ Structural evidence receipt for the 2026-10-05 controlled runs (skills `37b5a6b`
 | Style-only alternative | PASS | No hypothesis. A crafted hypothesis proposing `sum(...)` and inlining the predicate was Disproved: no task got cheaper, and inlining would relocate the eligibility policy and drop its name. |
 | Locally justified helper, adapter, or dependency injection | PASS | No hypothesis on either target. The clock seam carries test isolation and the adapter carries vendor knowledge; a crafted hypothesis calling the mail port a hypothetical single-adapter seam was Disproved because removing it breaks the tracked convention and hides the dependency, and the validator noted that counting adapters is not evidence. |
 | Alternative with an equal or greater burden | PASS | After `c948ae9`, a crafted hypothesis proposing a string-keyed `kind` dispatcher was Disproved on its own cost and alternative. Before that fix it was turned into a Finding for a different cost, recorded as FAIL above. |
-| Structural review without a design-guidance skill | NOT EXERCISED | Scouts and validators adjudicated with no design skill supplied, but no coordinator run exercised the revised preflight or selection. |
+| Structural review without a design-guidance skill | NOT EXERCISED | Scouts admitted and validators adjudicated with no design skill supplied, but no coordinator run exercised the revised preflight or selection. |
 
 Deduplication, action classification, reporting, and publication of structural Findings were not exercised because no coordinator run took place. Codex and Devin were not exercised; their generated agents embed the same reviewer bodies.
