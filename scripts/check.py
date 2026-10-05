@@ -58,7 +58,29 @@ AGENT_BRIEF_COMPLETENESS_RULE = (
     "Current behavior, Desired behavior, non-empty Acceptance criteria, and Out of scope fields; "
     "`Key interfaces` is optional and its absence never makes a brief incomplete."
 )
+# The Agent Brief semantics a tracker that supports parentless standalone tickets must
+# state. A tracker that claims standalone support without all of them is stale.
+AGENT_BRIEF_TRACKER_CONTRACT = (
+    AGENT_BRIEF_COMPLETENESS_RULE,
+    "newest complete trusted brief comment",
+    "effective repository permission `write` (including `maintain`) or `admin`",
+    "does not depend on detecting `/triage`",
+    "never falls back to standalone authority",
+    "never creates or edits Agent Brief authority",
+    "author_association",
+    "is held non-ready",
+    "when the publishing account's permission cannot be verified, it stays non-ready",
+)
 RETIRED_STANDALONE_RECORD = "## Standalone implementation authority"
+# A tracker's standalone authority mode. Parent-only trackers state that standalone
+# authority is unsupported, or that every implementation ticket has a parent/spec.
+STANDALONE_UNSUPPORTED = re.compile(r"\*\*Standalone authority\*\*:\s*unsupported\b", re.IGNORECASE)
+STANDALONE_CLAIMED = re.compile(r"\*\*Standalone authority\*\*:(?!\s*unsupported\b)", re.IGNORECASE)
+EVERY_TICKET_HAS_PARENT = re.compile(
+    r"every implementation (?:issue|ticket) (?:has|requires) a\b[^.\n]*\bparent", re.IGNORECASE,
+)
+CURRENT_STANDALONE_MODES = {"parent-only", "standalone"}
+AUTHORITY_GRANTED = {"parent", "standalone"}
 # The canonical tracker capabilities `/setup-skills` names, each with the evidence a
 # tracker's `## Implementation workflow` section must contain (every pattern matches).
 TRACKER_CAPABILITY_HEADING = "## Required implementation-workflow capabilities"
@@ -419,18 +441,69 @@ def standalone_frontier_numbers(issues: list[dict]) -> list[int]:
     return sorted(ready)
 
 
-def resolve_issue_authority(*, parent: str | None, issue: dict, ready_for_agent: bool) -> str | None:
-    """Model /implement authority; readiness alone never establishes authority."""
+def tracker_defines_retired_record(tracker: str) -> bool:
+    """A tracker contract that still defines the old record must be migrated by /setup-skills."""
+    return RETIRED_STANDALONE_RECORD.lower() in tracker.lower()
+
+
+def tracker_standalone_authority(tracker: str) -> str:
+    """Classify a tracker's standalone authority mode as `/setup-skills` does.
+
+    "parent-only" and "standalone" are current. "retired", "incomplete" (claims
+    standalone support without the complete Agent Brief rule), "undeclared", and
+    "ambiguous" (states both modes) are stale and fail closed for parentless work.
+    """
+    if tracker_defines_retired_record(tracker):
+        return "retired"
+    claims_standalone = bool(STANDALONE_CLAIMED.search(tracker)) or any(
+        text in tracker for text in AGENT_BRIEF_TRACKER_CONTRACT
+    )
+    parent_only = bool(STANDALONE_UNSUPPORTED.search(tracker) or EVERY_TICKET_HAS_PARENT.search(tracker))
+    if parent_only:
+        return "ambiguous" if claims_standalone else "parent-only"
+    if not claims_standalone:
+        return "undeclared"
+    return "standalone" if all(text in tracker for text in AGENT_BRIEF_TRACKER_CONTRACT) else "incomplete"
+
+
+def tracker_is_current(tracker: str) -> bool:
+    """Model the `/setup-skills` up-to-date verdict: every capability and a current mode."""
+    return not missing_tracker_capabilities(tracker) and tracker_standalone_authority(tracker) in CURRENT_STANDALONE_MODES
+
+
+def resolve_issue_authority(*, tracker: str, parent: str | None, issue: dict, ready_for_agent: bool) -> str | None:
+    """Model /implement authority; readiness alone never establishes authority.
+
+    Returns "parent" or "standalone" when authority is established, "requires-parent"
+    when a parent-only tracker meets a parentless ticket, "stale-tracker" when
+    `/setup-skills` must migrate the tracker, and None when the ticket has no authority.
+    A parent-backed ticket never depends on the tracker's standalone authority mode,
+    even a stale one: the retired record only stops parentless work.
+    """
     if parent is not None:
         return "parent" if parent == "approved" else None
+    mode = tracker_standalone_authority(tracker)
+    if mode == "parent-only":
+        return "requires-parent"
+    if mode != "standalone":
+        return "stale-tracker"
     if ready_for_agent and resolve_agent_brief(issue) is not None:
         return "standalone"
     return None
 
 
-def tracker_defines_retired_record(tracker: str) -> bool:
-    """A tracker contract that still defines the old record must be migrated by /setup-skills."""
-    return RETIRED_STANDALONE_RECORD.lower() in tracker.lower()
+def implementation_start_gate(*, tracker: str, required: set[str], ticket: dict) -> str:
+    """Model /implement's authority and ticket-state start gates: "start" or the stop reason."""
+    if set(missing_tracker_capabilities(tracker)) & required:
+        return "stale-tracker"
+    authority = resolve_issue_authority(
+        tracker=tracker, parent=ticket["parent"], issue=ticket, ready_for_agent=ticket["ready"],
+    )
+    if authority not in AUTHORITY_GRANTED:
+        return authority or "no-authority"
+    if ticket["state"] != "OPEN" or ticket["open_blockers"] or not ticket["ready"]:
+        return "not-ready"
+    return "start"
 
 
 def canonical_tracker_capabilities(setup: str) -> list[str]:
@@ -586,20 +659,9 @@ def validate_implementation_authority_contract() -> None:
     to_tickets = read("skills/to-tickets/SKILL.md")
     setup = read("skills/setup-skills/SKILL.md")
 
-    tracker_contract_text = (
-        AGENT_BRIEF_COMPLETENESS_RULE,
-        "newest complete trusted brief comment",
-        "effective repository permission `write` (including `maintain`) or `admin`",
-        "does not depend on detecting `/triage`",
-        "never falls back to standalone authority",
-        "never creates or edits Agent Brief authority",
-        "author_association",
-        "is held non-ready",
-        "when the publishing account's permission cannot be verified, it stays non-ready",
-    )
     required_contract_text = (
-        *((tracker, text) for text in tracker_contract_text),
-        *((tracker_seed, text) for text in tracker_contract_text),
+        *((tracker, text) for text in AGENT_BRIEF_TRACKER_CONTRACT),
+        *((tracker_seed, text) for text in AGENT_BRIEF_TRACKER_CONTRACT),
         (guide, AGENT_BRIEF_COMPLETENESS_RULE),
         (guide, "in the issue body"),
         (implement, "never fall back to standalone authority"),
@@ -691,7 +753,9 @@ def validate_implementation_authority_contract() -> None:
         return {"body": body, "author": author, "comments": list(comments)}
 
     def standalone(subject: dict, ready: bool = True) -> bool:
-        return resolve_issue_authority(parent=None, issue=subject, ready_for_agent=ready) == "standalone"
+        return resolve_issue_authority(
+            tracker=tracker_seed, parent=None, issue=subject, ready_for_agent=ready,
+        ) == "standalone"
 
     accepted = {
         "trusted issue-body brief": issue(brief),
@@ -721,10 +785,10 @@ def validate_implementation_authority_contract() -> None:
             fail(f"/implement accepted a parentless issue with {label}")
     if standalone(issue(brief), ready=False):
         fail("/implement accepted a trusted brief without the ready state")
-    if resolve_issue_authority(parent="approved", issue=issue(), ready_for_agent=True) != "parent":
+    if resolve_issue_authority(tracker=tracker_seed, parent="approved", issue=issue(), ready_for_agent=True) != "parent":
         fail("approved parent-backed issue was not accepted")
     for parent in ("unapproved", "unresolvable", "missing"):
-        if resolve_issue_authority(parent=parent, issue=issue(brief), ready_for_agent=True) is not None:
+        if resolve_issue_authority(tracker=tracker_seed, parent=parent, issue=issue(brief), ready_for_agent=True) is not None:
             fail(f"issue with a {parent} parent fell back to standalone authority")
 
     newer = brief.replace("do the thing", "newer thing")
@@ -787,6 +851,155 @@ def validate_implementation_authority_contract() -> None:
     retired_tracker = "## Implementation workflow\n\n```markdown\n" + retired_record + "\n```\n"
     if not tracker_defines_retired_record(retired_tracker) or tracker_defines_retired_record(tracker):
         fail("retired standalone record detection disagrees with the tracker contracts")
+
+
+def validate_standalone_authority_modes() -> None:
+    """A parent-only tracker is current, and parent-backed work never needs an Agent Brief rule."""
+
+    def read(relative: str) -> str:
+        return (ROOT / relative).read_text(encoding="utf-8")
+
+    local_seed = read("skills/setup-skills/issue-tracker-local.md")
+    github_seed = read("skills/setup-skills/issue-tracker-github.md")
+    tracker = read("docs/agents/issue-tracker.md")
+    incomplete = read("tests/fixtures/tracker-contract/standalone-incomplete.md")
+    implement = read("skills/implement/SKILL.md")
+    reconcile = read("skills/reconcile/SKILL.md")
+    setup = read("skills/setup-skills/SKILL.md")
+    to_tickets = read("skills/to-tickets/SKILL.md")
+    triage = read("skills/triage/SKILL.md")
+
+    for document, required in (
+        (implement, "this tracker requires a parent/spec and the ticket has none"),
+        (implement, "a parent-backed ticket never depends on it, even when that configuration is stale"),
+        (implement, "claims standalone support without the complete Agent Brief rule"),
+        (reconcile, "this tracker requires a parent/spec and make no mutations"),
+        (reconcile, "parent-backed reconciliation never depends on it, even when that configuration is stale"),
+        (reconcile, "claims standalone support without the complete Agent Brief rule"),
+        (setup, "**Parent-only (current)**"),
+        (setup, "It needs no Agent Brief rule; never propose one for it."),
+        (setup, "**Incomplete (stale)**"),
+        (setup, "**Ambiguous (stale)**"),
+        (setup, "a retired, incomplete, undeclared, or ambiguous mode is a remaining gap"),
+        (setup, "already states a current standalone authority mode, parent-only or standalone-capable"),
+        (to_tickets, "never use the parentless template or add an Agent Brief there"),
+        (triage, "a parentless issue needs a governing parent/spec"),
+        (triage, "On a parent-only tracker, post no agent brief"),
+        (triage, "Do not write an agent brief on such a tracker, neither as authority nor as documentation"),
+        (triage, "on a parent-only tracker, do not offer one"),
+        (triage, "An approved parent/spec establishes implementation authority, not readiness."),
+        (triage, "including its blocker and claim state"),
+        (triage, "A parentless issue on a parent-only tracker stays non-ready: do not apply `ready-for-agent`"),
+    ):
+        if required not in document:
+            fail(f"standalone authority mode contract is missing {required!r}")
+    # Parent approval is authority, never readiness: a blocked parent-backed issue stays planned.
+    if re.search(r"ready-for-agent`? on its parent's approval", triage):
+        fail("skills/triage/SKILL.md: parent approval must not by itself make an issue ready-for-agent")
+    # The retired-record stop belongs only to the parentless branch, so it can never
+    # block parent-backed work.
+    for relative, document, parentless_branch in (
+        ("skills/implement/SKILL.md", implement, "- If it has no parent/spec"),
+        ("skills/reconcile/SKILL.md", reconcile, "3. If the ticket has no parent"),
+    ):
+        branch = document.find(parentless_branch)
+        if branch == -1 or document.find(RETIRED_STANDALONE_RECORD) < branch:
+            fail(f"{relative}: the retired standalone record must stop only parentless work, inside its parentless branch")
+
+    # The local seed is parent-only: it must never grow an Agent Brief rule, and its
+    # ticket template always carries a Parent line and never an Agent Brief.
+    local_template = re.search(r"<local-ticket-template>(.*?)</local-ticket-template>", to_tickets, re.S)
+    if local_template is None or "**Parent:**" not in local_template.group(1) or AGENT_BRIEF_HEADING in local_template.group(1):
+        fail("skills/to-tickets/SKILL.md: the local ticket template must carry a Parent line and no Agent Brief")
+    if AGENT_BRIEF_COMPLETENESS_RULE in local_seed:
+        fail("skills/setup-skills/issue-tracker-local.md: a parent-only tracker must not define the Agent Brief rule")
+
+    # A local tracker written from the earlier seed states parent-only only through its
+    # Conventions line; it is just as current.
+    legacy_local = "\n".join(line for line in local_seed.splitlines() if "**Standalone authority**" not in line)
+    retired_github = github_seed + "\n```markdown\n" + RETIRED_STANDALONE_RECORD + "\n```\n"
+    undeclared = "\n".join(
+        line for line in incomplete.splitlines() if "**Standalone authority**" not in line
+    )
+    ambiguous = local_seed + "\n" + github_seed
+    expected_modes = {
+        "the local seed": (local_seed, "parent-only"),
+        "a local tracker from the earlier seed": (legacy_local, "parent-only"),
+        "the partial local fixture": (read("tests/fixtures/tracker-contract/local-partial.md"), "parent-only"),
+        "the GitHub seed": (github_seed, "standalone"),
+        "this repository's tracker": (tracker, "standalone"),
+        "a tracker claiming standalone support without Agent Brief semantics": (incomplete, "incomplete"),
+        "a tracker stating no mode": (undeclared, "undeclared"),
+        "a tracker stating both modes": (ambiguous, "ambiguous"),
+        "a tracker with the retired record": (retired_github, "retired"),
+    }
+    for label, (document, expected) in expected_modes.items():
+        found = tracker_standalone_authority(document)
+        if found != expected:
+            fail(f"standalone authority mode of {label}: expected {expected!r}, found {found!r}")
+    for label in ("the local seed", "a local tracker from the earlier seed", "the GitHub seed", "this repository's tracker"):
+        if not tracker_is_current(expected_modes[label][0]):
+            fail(f"/setup-skills would report {label} as outdated")
+    for label in (
+        "a tracker claiming standalone support without Agent Brief semantics", "a tracker stating no mode",
+        "a tracker stating both modes", "a tracker with the retired record",
+    ):
+        if tracker_is_current(expected_modes[label][0]):
+            fail(f"/setup-skills would report {label} as up to date")
+
+    required = gated_tracker_capabilities(implement) or set()
+    trusted = {"user_type": "User", "permission": "admin"}
+    brief = "\n".join((
+        AGENT_BRIEF_HEADING, "**Category:** enhancement", "**Summary:** do the thing",
+        "**Current behavior:** It does not.", "**Desired behavior:** It does.",
+        "**Acceptance criteria:**", "- [ ] The thing happens", "**Out of scope:** Other things",
+    ))
+
+    def ticket(parent: str | None, body: str = "Context only.", **state) -> dict:
+        return {
+            "parent": parent, "body": body, "author": trusted, "comments": [],
+            "state": "OPEN", "ready": True, "open_blockers": [], **state,
+        }
+
+    def gate(document: str, subject: dict) -> str:
+        return implementation_start_gate(tracker=document, required=required, ticket=subject)
+
+    cases = {
+        # A. A local parent-backed ticket starts without any Agent Brief rule.
+        "A: local parent-backed ticket": (local_seed, ticket("approved"), "start"),
+        "A: parent-backed ticket on a local tracker from the earlier seed": (legacy_local, ticket("approved"), "start"),
+        "A: local parent-backed ticket with an open blocker": (local_seed, ticket("approved", open_blockers=["01"]), "not-ready"),
+        "A: local ticket with an unapproved parent": (local_seed, ticket("unapproved"), "no-authority"),
+        # B. A parentless ticket on a parent-only tracker fails because a parent is required.
+        "B: local parentless ticket": (local_seed, ticket(None), "requires-parent"),
+        "B: local parentless ticket carrying a trusted Agent Brief": (local_seed, ticket(None, brief), "requires-parent"),
+        "B: parentless ticket on a local tracker from the earlier seed": (legacy_local, ticket(None, brief), "requires-parent"),
+        # C. A standalone-capable tracker still demands the complete trusted Agent Brief.
+        "C: GitHub parentless ticket with a trusted brief": (github_seed, ticket(None, brief), "start"),
+        "C: GitHub parentless ticket without a brief": (github_seed, ticket(None), "no-authority"),
+        "C: GitHub parentless ticket with an untrusted brief": (
+            github_seed, {**ticket(None, brief), "author": {"user_type": "Bot", "permission": "admin"}}, "no-authority",
+        ),
+        "C: GitHub parentless ticket with a trusted brief but no ready state": (
+            github_seed, ticket(None, brief, ready=False), "no-authority",
+        ),
+        "C: GitHub parent-backed ticket": (github_seed, ticket("approved"), "start"),
+        # D. Claimed standalone support without the Agent Brief semantics is stale.
+        "D: parentless ticket on an incomplete standalone tracker": (incomplete, ticket(None, brief), "stale-tracker"),
+        "D: parentless ticket on a tracker stating no mode": (undeclared, ticket(None, brief), "stale-tracker"),
+        "D: parentless ticket on a tracker stating both modes": (ambiguous, ticket(None, brief), "stale-tracker"),
+        "D: parentless ticket on a retired tracker": (retired_github, ticket(None, brief), "stale-tracker"),
+        # A stale standalone configuration never blocks parent-backed work.
+        "D: parent-backed ticket on an incomplete standalone tracker": (incomplete, ticket("approved"), "start"),
+        "D: parent-backed ticket on a retired tracker": (retired_github, ticket("approved"), "start"),
+        "D: parent-backed ticket on a tracker stating no mode": (undeclared, ticket("approved"), "start"),
+        "D: parent-backed ticket on a tracker stating both modes": (ambiguous, ticket("approved"), "start"),
+        "D: unapproved parent on a retired tracker": (retired_github, ticket("unapproved"), "no-authority"),
+    }
+    for label, (document, subject, expected) in cases.items():
+        found = gate(document, subject)
+        if found != expected:
+            fail(f"/implement start gate for {label}: expected {expected!r}, found {found!r}")
 
 
 def validate_native_agents() -> None:
@@ -1023,6 +1236,7 @@ def main() -> int:
         skill_names = validate_layout_and_skills()
         validate_repository_references(skill_names)
         validate_implementation_authority_contract()
+        validate_standalone_authority_modes()
         validate_tracker_capability_contract()
         validate_native_agents()
         validate_generated_agents_untracked()

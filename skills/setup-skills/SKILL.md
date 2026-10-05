@@ -48,7 +48,14 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
-When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Then check it against every entry in the required implementation-workflow capabilities above, not only the first gap you notice, and record the complete set of missing capabilities. Finally, check which standalone authority contract it defines: the retired record contract, recognizable by a required `## Standalone implementation authority` comment and its upstream approval values, or the current complete Agent Brief rule.
+When `docs/agents/issue-tracker.md` already exists, identify its tracker choice, custom state names, commands, fallbacks, and user-authored notes. Then check it against every entry in the required implementation-workflow capabilities above, not only the first gap you notice, and record the complete set of missing capabilities. Finally, classify its standalone authority mode, judged by what the file states in its own vocabulary:
+
+- **Parent-only (current)**: the file states that standalone authority is unsupported, or that every implementation ticket has or requires a parent/spec. This is a complete, current contract. It needs no Agent Brief rule; never propose one for it.
+- **Standalone-capable (current)**: the file defines the complete Agent Brief rule: completeness, trusted sources and their verification, precedence, and fail-closed parent handling.
+- **Retired (stale)**: the file defines the retired record contract, recognizable by a required `## Standalone implementation authority` comment and its upstream approval values.
+- **Incomplete (stale)**: the file claims standalone support for parentless tickets without the complete Agent Brief rule.
+- **Undeclared (stale)**: the file states neither mode.
+- **Ambiguous (stale)**: the file states both modes.
 
 ### 2. Present findings and ask
 
@@ -99,7 +106,7 @@ Show the user a draft of:
 
 Let them edit before writing.
 
-For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. One diff adds every missing capability from the exploration check. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. Do not re-propose configuration that already exists. When nothing is missing and the file already states the Agent Brief rule, report that it is already up to date and make no edits.
+For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. One diff adds every missing capability from the exploration check. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. When its standalone authority is incomplete, the diff adds the missing Agent Brief wording from the matching seed template. When it is undeclared, the diff adds the matching seed template's standalone authority statement; for an Other tracker, ask the user whether parentless implementation tickets are supported first. When it is ambiguous, ask the user which mode applies, and the diff removes the other mode's wording. Do not re-propose configuration that already exists. When nothing is missing and the file already states a current standalone authority mode, parent-only or standalone-capable, report that it is already up to date and make no edits.
 
 ### 4. Write
 
@@ -112,7 +119,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus, when present, the retired standalone record's authority and `/reconcile` wording. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
+In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus any stale standalone authority wording: the retired standalone record's authority and `/reconcile` wording, an incomplete Agent Brief rule, an undeclared mode, or the losing side of an ambiguous one. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -144,13 +151,15 @@ Then write the docs files using the seed templates in this skill folder as a sta
 - [domain.md](./domain.md): domain doc consumer rules + layout
 
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
-Define every entry in the required implementation-workflow capabilities above. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
+Define every entry in the required implementation-workflow capabilities above. Also state its standalone authority mode: parent-only, or standalone-capable with the complete Agent Brief rule from the GitHub seed adapted to that tracker. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
-For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace only the retired standalone record wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
+For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace or add only stale standalone authority wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
 ### 5. Validate
 
 After writing `docs/agents/issue-tracker.md`, re-read the file from disk and validate it against every entry in the required implementation-workflow capabilities. Judge each capability by what the file defines in its own vocabulary, not by matching the seed template's wording.
+
+Also classify its standalone authority mode again. A parent-only or standalone-capable mode is valid; a retired, incomplete, undeclared, or ambiguous mode is a remaining gap.
 
 If any capability is still missing, report the setup or migration as incomplete and name each remaining missing capability. Never report it as complete while a gap remains.
 
