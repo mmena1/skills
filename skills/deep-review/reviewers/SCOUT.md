@@ -19,7 +19,7 @@ Return `No hypotheses` when no concern meets the admission threshold. Otherwise 
 
 ### Hypothesis <reviewer-slug>-H<number>
 - **Origin:** this reviewer slug
-- **Title:** concise behavioral concern, or the structural problem for a structural hypothesis
+- **Title:** concise behavioral concern, or the structural cost for a structural hypothesis
 - **File/line:** repository-relative path and line
 - **Potential severity:** blocker | high | medium | low
 - **Source evidence:** concrete changed-code or behavior-path evidence

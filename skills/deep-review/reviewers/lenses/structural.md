@@ -40,7 +40,7 @@ Inspect the surrounding function, class, module, package, or flow when the diff 
 - another condition, mode, flag, fallback, or special case
 - logic inside an already large or branch-heavy function
 - feature-specific behavior to a shared/general path
-- another wrapper, adapter, helper, or abstraction layer
+- another wrapper, adapter, helper, or abstraction layer, or the removal or inlining of one
 - casts, optionality, nullable branches, or shape checks that hide an invariant
 - duplicated logic or a near-duplicate helper
 

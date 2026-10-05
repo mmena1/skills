@@ -68,11 +68,11 @@ Each hypothesis uses this Markdown shape:
 ```markdown
 ### Hypothesis <reviewer-slug>-H<number>
 - **Origin:** <reviewer slug>
-- **Title:** <concise behavioral concern, or the structural problem>
+- **Title:** <concise behavioral concern, or the structural cost>
 - **File/line:** <repository-relative path>:<line>
 - **Potential severity:** blocker | high | medium | low
 - **Source evidence:** <concrete changed-code or behavior-path evidence>
-- **Expected impact:** <reachable consequence, or the concrete reasoning or locality cost>
+- **Expected impact:** <reachable consequence, or the structural cost, its causal mechanism, and the task it burdens>
 - **Falsification condition:** <specific evidence that would reject the concern>
 - **Suggested validation:** <cheapest decision-relevant check; no remediation>
 - **Context references:** <relevant manifest entries, or none>
