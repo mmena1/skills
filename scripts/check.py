@@ -887,9 +887,15 @@ def validate_standalone_authority_modes() -> None:
         (triage, "On a parent-only tracker, post no agent brief"),
         (triage, "Do not write an agent brief on such a tracker, neither as authority nor as documentation"),
         (triage, "on a parent-only tracker, do not offer one"),
+        (triage, "An approved parent/spec establishes implementation authority, not readiness."),
+        (triage, "including its blocker and claim state"),
+        (triage, "A parentless issue on a parent-only tracker stays non-ready: do not apply `ready-for-agent`"),
     ):
         if required not in document:
             fail(f"standalone authority mode contract is missing {required!r}")
+    # Parent approval is authority, never readiness: a blocked parent-backed issue stays planned.
+    if re.search(r"ready-for-agent`? on its parent's approval", triage):
+        fail("skills/triage/SKILL.md: parent approval must not by itself make an issue ready-for-agent")
     # The retired-record stop belongs only to the parentless branch, so it can never
     # block parent-backed work.
     for relative, document, parentless_branch in (
