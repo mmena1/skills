@@ -45,6 +45,8 @@ For complete, current runs, classify each Finding deterministically by its remed
 
 Unresolved items always map to `discuss`. Incomplete or stale runs have no actionable PASS result and cannot publish.
 
+For a structural Finding, Evidence states the demonstrated cost, its causal mechanism, and how the behavior-preserving alternative reduces that cost without an equal or greater burden; Why it matters names the reasoning or maintenance task the cost burdens. Never present a design technique, paradigm, or abstraction count as the reason for a structural Finding or its remediation.
+
 For each affected Finding or Unresolved item below, add an **Overlap** note: `Already reported` or `Prior resolved discussion`, prior link(s), and the semantic match reason. Note independent confirmation when a Finding establishes an earlier speculative concern. Keep the item under its original outcome/action with its evidence and remediation; `Already reported` suppresses a new comment, not the finding or its counts. Counts cover Findings and Unresolved items once each. Incomplete overlap retrieval blocks publication and must not be reported as zero overlaps or a passed comparison.
 
 ### Review failure

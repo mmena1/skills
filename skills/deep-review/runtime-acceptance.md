@@ -43,6 +43,19 @@ Use the coordinator's final report and proposed publication payload as the obser
 
 Record `FAIL` when an observed path violates the contract and `NOT EXERCISED` when comparison never ran. Static repository checks verify receipt consistency, not semantic matching or live publication behavior.
 
+## Structural evidence scenarios
+
+Use bounded controlled targets: a small committed base and head with no context artifacts, reviewed by the generated structural scout and static validator agents with no design-guidance skill supplied. A crafted canonical hypothesis is a valid validator input, because the validator receives exactly one hypothesis per invocation. Observe the scout's hypotheses or `No hypotheses` and each validator's outcome and evidence. Static repository checks cannot show these outcomes, so record each case as observed or not exercised.
+
+| Case | Expected observation |
+| --- | --- |
+| Demonstrated cost with a qualifying alternative | The scout emits one hypothesis naming the burdened task, the causal mechanism, and a behavior-preserving alternative that reduces the cost; the validator returns a Finding whose Recommendation states the reduced cost as the required outcome. |
+| Equivalent cost under different techniques | The same cost expressed in imperative code and in a declarative pipeline receives the same admission, potential severity, and outcome; neither style counts as evidence. |
+| Style-only alternative | A shorter or differently styled rewrite with no demonstrated cost produces no hypothesis, and a crafted hypothesis that argues it is Disproved as a style or design preference. |
+| Locally justified helper, adapter, or dependency injection | Added indirection that isolates knowledge, supports a needed test seam, or follows a governing local convention produces no hypothesis, and a crafted single-adapter or fewer-layers hypothesis is Disproved without appeal to any design philosophy. |
+| Alternative with an equal or greater burden | A hypothesis whose alternative adds modes, hides policy, or scatters knowledge is Disproved on that ground. |
+| Structural review without a design-guidance skill | Selecting `structural` passes preflight, and the scout and validators adjudicate without any supplied design contract. |
+
 ## Smoke runs
 
 Targeted smoke runs record agent discovery and launch evidence that passive receipts cannot provide.

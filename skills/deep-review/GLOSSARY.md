@@ -20,7 +20,7 @@
 ## Outcomes
 
 - **Hypothesis**: An admission-qualified scout concern about the committed target, grounded in changed code or a changed behavior-bearing path, awaiting independent adjudication.
-- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification.
+- **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding evidence meeting the structural evidence standard.
 - **Disproved**: A hypothesis rejected by validation; it is not user-visible.
 - **Unresolved**: Validation was attempted but could not establish or reject a hypothesis; it is not a Finding and maps to `discuss`.
 - **Static adjudication**: A capacity-bounded read-only validation phase that queues canonical hypotheses in ID order and may return a final outcome or the internal `Needs probe` transition.
@@ -37,8 +37,10 @@
 
 - **Responsibility scan**: The structural reviewer's inspection of a substantial changed function or flow for responsibility mixing.
 - **Responsibility mixing**: At least two independently nameable responsibilities with separate reasons to change combined in one function or flow. A loop, nested loop, conditional, or long function is not responsibility mixing on its own.
-- **Structural finding**: A Finding about maintainability rather than runtime behavior, established by concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification. Correct behavior does not refute it, and it stays distinct from correctness findings about the same code.
-- **Declarative simplification**: A rewrite that states intent declaratively, such as a stream, and removes incidental control flow while preserving locality and readability. A rewrite that is only shorter, needs mutable state, lookahead, index manipulation, or opaque collectors, or hides domain policy is not one.
+- **Structural cost**: A reasoning or maintenance cost that an identifiable task bears in the reviewed code: understanding a behavior or invariant, locating relevant knowledge, determining affected callers or states, or making a coherent change without scattered edits or hidden consequences. A count of lines, helpers, layers, or abstractions is not a structural cost.
+- **Behavior-preserving alternative**: A concrete structural alternative that keeps behavior, contracts, invariants, and constraints and demonstrably reduces a structural cost without introducing an equal or greater reasoning or maintenance burden. It is proof that the cost is incidental, not a remedy. One that only renames or relocates the cost, hides relevant policy, obscures an invariant, or scatters knowledge is not one. It may add or remove abstractions, indirection, helpers, adapters, explicit state types, seams, boundaries, or code; neither direction is inherently better.
+- **Structural evidence standard**: The one threshold for admitting, validating, and reporting a structural concern: a demonstrated structural cost plus a behavior-preserving alternative. A preference for another design, technique, fewer lines, fewer helpers, or fewer layers does not meet it. No architectural or programming paradigm, technique, or abstraction count is evidence for admission, validation, rejection, severity, or remedy, and conformity to or departure from any design philosophy neither establishes nor disproves a structural concern.
+- **Structural finding**: A Finding about maintainability rather than runtime behavior, established under the structural evidence standard. Correct behavior does not refute it, and it stays distinct from correctness findings about the same code.
 
 ## Publication
 

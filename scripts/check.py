@@ -872,6 +872,10 @@ def validate_deep_review() -> None:
         match = HARNESS_SPECIFIC_TEXT.search(path.read_text(encoding="utf-8"))
         if match:
             fail(f"{path.relative_to(ROOT).as_posix()}: harness-specific text {match.group(0)!r} in shared deep-review content")
+    # Structural review is architecture-neutral: no design-guidance skill is a prerequisite or adjudication contract.
+    for path in [skill / "SKILL.md", *shared]:
+        if "codebase-design" in path.read_text(encoding="utf-8"):
+            fail(f"{path.relative_to(ROOT).as_posix()}: deep-review must not depend on or defer adjudication to codebase-design")
     scenario_lists = {
         "protocol.md": r"(?m)^- ([^:\n]+): whether ",
         "references/output-template.md": r"(?m)^\| ([^|\n]+?) \| PASS / FAIL / NOT EXERCISED \|",
