@@ -16,7 +16,7 @@ Record retrieval time, completeness, source identifiers/links, native review-to-
 
 ## Compare surviving items
 
-Compare each Finding and Unresolved item semantically against concrete concerns in the complete discussion. Match the failure or structural problem, triggering conditions, and materially equivalent causal mechanism. File/line, title, and outdated anchors are supporting signals only. A different failure or mechanism at the same location is distinct; uncertain equivalence stays distinct. A structural concern and a correctness concern remain distinct.
+Compare each Finding and Unresolved item semantically against concrete concerns in the complete discussion. Match the failure or structural cost, triggering conditions, and materially equivalent causal mechanism. File/line, title, and outdated anchors are supporting signals only. A different failure or mechanism at the same location is distinct; uncertain equivalence stays distinct. A structural concern and a correctness concern remain distinct.
 
 Record one disposition per item, with the equivalence reason and all relevant prior links:
 

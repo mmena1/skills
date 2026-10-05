@@ -19,17 +19,17 @@ Return `No hypotheses` when no concern meets the admission threshold. Otherwise 
 
 ### Hypothesis <reviewer-slug>-H<number>
 - **Origin:** this reviewer slug
-- **Title:** concise behavioral concern, or the structural problem for a structural hypothesis
+- **Title:** concise behavioral concern, or the structural cost for a structural hypothesis
 - **File/line:** repository-relative path and line
 - **Potential severity:** blocker | high | medium | low
 - **Source evidence:** concrete changed-code or behavior-path evidence
-- **Expected impact:** plausible reachable consequence, or the concrete reasoning or locality cost for a structural hypothesis
+- **Expected impact:** plausible reachable consequence, or for a structural hypothesis the reasoning or maintenance cost, its causal mechanism, and the task it burdens
 - **Falsification condition:** evidence that would reject the concern
 - **Suggested validation:** cheapest decision-relevant check, never remediation
 - **Context references:** relevant manifest entries, or none
 
 When the concern is a violated boundary, contract, or invariant, name it in the source evidence or expected impact so validation and any later remediation can preserve it. Naming the constraint is not a remedy.
 
-A structural hypothesis concerns maintainability rather than runtime behavior and must meet the structural evidence standard: concrete maintainability-cost evidence in the changed code plus a demonstrated behavior-preserving simplification. Passing tests or correct behavior do not falsify it, and a style-only preference does not meet it. Put the simplification in the source evidence as proof that the complexity is incidental, not as a remedy, and state as the falsification condition the evidence that the complexity is essential to the behavior, that the simplification would change behavior or only rename or relocate complexity, or that the concern is a style-only preference. Never combine a structural concern and a correctness concern about the same code in one hypothesis.
+A structural hypothesis concerns maintainability rather than runtime behavior and must meet the structural evidence standard: a demonstrated reasoning or maintenance cost that an identifiable task bears in the reviewed code, plus a concrete behavior-preserving alternative that demonstrably reduces that cost without introducing an equal or greater reasoning or maintenance burden. The task is concrete work such as understanding a behavior or invariant, locating relevant knowledge, determining affected callers or states, or making a coherent change without scattered edits or hidden consequences. A preference for another design, technique, fewer lines, fewer helpers, or fewer layers does not meet the standard, and no paradigm, technique, or abstraction count is evidence. Passing tests or correct behavior do not falsify it. State the cost's causal mechanism and the task it burdens in the expected impact. Put the alternative in the source evidence, with how it reduces that cost, as proof that the cost is incidental, not as a remedy. State as the falsification condition the evidence that the identified task does not bear the cost, that the structure is essential to the behavior or its constraints, that the alternative would change behavior, only rename or relocate the cost, or introduce an equal or greater burden, or that the concern is only a style or design preference. Never combine a structural concern and a correctness concern about the same code in one hypothesis.
 
 Do not emit discarded or internal hypotheses, assign final severity, suggest remediation, or use validator outcome terminology. The coordinator assigns canonical IDs and deduplicates after every scout finishes.
