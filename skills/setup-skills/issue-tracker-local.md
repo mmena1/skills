@@ -24,6 +24,7 @@ Read the file at the referenced path. The user will normally pass the path or th
 - **Implementation-ready state**: `Status: ready-for-agent`, or the mapped value for that role in `docs/agents/triage-labels.md` when present. Only open, unblocked, unclaimed implementation tickets have this state.
 - **Planned state**: `Status: planned`. Every blocked implementation ticket has this explicit non-ready state.
 - **Parent/spec**: follow the ticket's `Parent:` path and read the spec. The ticket defines scope and acceptance criteria; the parent spec defines approved architecture and public seams.
+- **Standalone authority**: unsupported. Every implementation ticket requires a `Parent:` spec, and its approved parent spec is its only implementation authority. A parentless ticket has no implementation authority and is never made ready; `/implement` and `/reconcile` stop and report that this tracker requires a parent/spec. An Agent Brief grants no authority here, so never add one to a local ticket.
 - **Open and unblocked**: the ticket is open unless `Status` is `resolved` or `closed`. The `Blocked by:` references are the canonical gate; confirm each referenced ticket is resolved.
 - **Claim**: after all readiness checks pass, set `Status: claimed` and save before implementation.
 - **Resolve**: check completed acceptance criteria, append an `## Implementation` summary with commit and verification evidence, then set `Status: resolved`.
