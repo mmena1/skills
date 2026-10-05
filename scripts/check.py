@@ -477,10 +477,9 @@ def resolve_issue_authority(*, tracker: str, parent: str | None, issue: dict, re
     Returns "parent" or "standalone" when authority is established, "requires-parent"
     when a parent-only tracker meets a parentless ticket, "stale-tracker" when
     `/setup-skills` must migrate the tracker, and None when the ticket has no authority.
-    A parent-backed ticket never depends on the tracker's standalone authority mode.
+    A parent-backed ticket never depends on the tracker's standalone authority mode,
+    even a stale one: the retired record only stops parentless work.
     """
-    if tracker_defines_retired_record(tracker):
-        return "stale-tracker"
     if parent is not None:
         return "parent" if parent == "approved" else None
     mode = tracker_standalone_authority(tracker)
@@ -872,20 +871,34 @@ def validate_standalone_authority_modes() -> None:
 
     for document, required in (
         (implement, "this tracker requires a parent/spec and the ticket has none"),
-        (implement, "a parent-backed ticket never depends on it"),
+        (implement, "a parent-backed ticket never depends on it, even when that configuration is stale"),
         (implement, "claims standalone support without the complete Agent Brief rule"),
         (reconcile, "this tracker requires a parent/spec and make no mutations"),
-        (reconcile, "parent-backed reconciliation never depends on it"),
+        (reconcile, "parent-backed reconciliation never depends on it, even when that configuration is stale"),
         (reconcile, "claims standalone support without the complete Agent Brief rule"),
         (setup, "**Parent-only (current)**"),
         (setup, "It needs no Agent Brief rule; never propose one for it."),
         (setup, "**Incomplete (stale)**"),
+        (setup, "**Ambiguous (stale)**"),
+        (setup, "a retired, incomplete, undeclared, or ambiguous mode is a remaining gap"),
         (setup, "already states a current standalone authority mode, parent-only or standalone-capable"),
         (to_tickets, "never use the parentless template or add an Agent Brief there"),
         (triage, "a parentless issue needs a governing parent/spec"),
+        (triage, "On a parent-only tracker, post no agent brief"),
+        (triage, "Do not write an agent brief on such a tracker, neither as authority nor as documentation"),
+        (triage, "on a parent-only tracker, do not offer one"),
     ):
         if required not in document:
             fail(f"standalone authority mode contract is missing {required!r}")
+    # The retired-record stop belongs only to the parentless branch, so it can never
+    # block parent-backed work.
+    for relative, document, parentless_branch in (
+        ("skills/implement/SKILL.md", implement, "- If it has no parent/spec"),
+        ("skills/reconcile/SKILL.md", reconcile, "3. If the ticket has no parent"),
+    ):
+        branch = document.find(parentless_branch)
+        if branch == -1 or document.find(RETIRED_STANDALONE_RECORD) < branch:
+            fail(f"{relative}: the retired standalone record must stop only parentless work, inside its parentless branch")
 
     # The local seed is parent-only: it must never grow an Agent Brief rule, and its
     # ticket template always carries a Parent line and never an Agent Brief.
@@ -970,7 +983,12 @@ def validate_standalone_authority_modes() -> None:
         "D: parentless ticket on a tracker stating no mode": (undeclared, ticket(None, brief), "stale-tracker"),
         "D: parentless ticket on a tracker stating both modes": (ambiguous, ticket(None, brief), "stale-tracker"),
         "D: parentless ticket on a retired tracker": (retired_github, ticket(None, brief), "stale-tracker"),
+        # A stale standalone configuration never blocks parent-backed work.
         "D: parent-backed ticket on an incomplete standalone tracker": (incomplete, ticket("approved"), "start"),
+        "D: parent-backed ticket on a retired tracker": (retired_github, ticket("approved"), "start"),
+        "D: parent-backed ticket on a tracker stating no mode": (undeclared, ticket("approved"), "start"),
+        "D: parent-backed ticket on a tracker stating both modes": (ambiguous, ticket("approved"), "start"),
+        "D: unapproved parent on a retired tracker": (retired_github, ticket("unapproved"), "no-authority"),
     }
     for label, (document, subject, expected) in cases.items():
         found = gate(document, subject)
