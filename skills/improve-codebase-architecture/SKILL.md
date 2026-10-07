@@ -12,7 +12,7 @@ Surface architectural friction and propose **deepening opportunities**: refactor
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
-- Apply `codebase-design` for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its canonical seam-review checks (deletion, adapter reality, interface-as-test-surface, circular seam, bounce) plus whole-design fit checks (highest suitable seam, end-to-end ownership, dependency direction, concept singularity). If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first. Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
+- Apply `codebase-design` as the canonical authority for architecture vocabulary, seam review, and whole-design-fit adjudication. If it is not already loaded and the harness exposes skill files, load and follow its `SKILL.md` first. Use its architecture terms exactly in every suggestion.
 - The domain language in `GLOSSARY.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
 
 ## Process
@@ -26,7 +26,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 
 Read the project's domain glossary (`GLOSSARY.md`, or the legacy `CONTEXT.md` when it is absent) and any ADRs in the area you're touching first. Also read any active governing design or issue artifacts that project instructions identify or that the user supplies as an exact repository-relative path. Treat them as supplemental decision context alongside ADRs, and note their paths for the review handoff.
 
-Delegate an exploration pass using the current harness's available delegation or subagent mechanism. If no delegation mechanism is available, perform the exploration in this session as a separate pass. Don't follow rigid heuristics; explore organically and note where you experience friction:
+Delegate an exploration pass using the current harness's available delegation or subagent mechanism, instructing the delegate to apply the current `codebase-design` contract. If no delegation mechanism is available, perform the exploration in this session as a separate pass, applying the same contract. Don't follow rigid heuristics; explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow**, with an interface nearly as complex as the implementation?
@@ -34,7 +34,7 @@ Delegate an exploration pass using the current harness's available delegation or
 - Where do tightly-coupled modules leak across their seams?
 - Which parts of the codebase are untested, or hard to test through their current interface?
 
-Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
+Before presenting candidates, apply the current `codebase-design` contract to adjudicate each proposed deepening opportunity. Ground every recommendation in concrete architectural friction and expected improvements, not vague style or technique preferences.
 
 ### 2. Present candidates as an HTML report
 
@@ -83,7 +83,7 @@ The grilling is complete when every **load-bearing architectural commitment** is
 - **Load-bearing commitments** are the external module interface, ownership, invariants, and any internal seam that is itself part of the decision. Settle these.
 - **Open implementation choices** are everything else. Leave them to the implementer, so the design stays reviewable without a complete internal decomposition.
 
-Apply `codebase-design`'s rule that depth belongs to the interface: one deep external module does not imply one implementation class, file, or function. Internal seams and internal test surfaces stay valid and stay open unless they are themselves load-bearing. Add a project-owned pluggable interface only where something varies across it.
+Interface depth does not require one implementation class, file, or function. Internal seams and internal test surfaces stay valid and stay open unless they are themselves load-bearing.
 
 ### 4. Review handoff
 
