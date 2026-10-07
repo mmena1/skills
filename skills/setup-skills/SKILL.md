@@ -26,12 +26,14 @@ This is the one canonical list of capabilities a complete `docs/agents/issue-tra
 - **Planned/non-ready state**: the explicit state, or the explicit absence of the ready state, that every blocked or otherwise non-executable ticket has.
 - **Direct parent or spec lookup**: how to follow a ticket to its governing parent or spec and read its approval.
 - **Canonical blocker checks**: which blocker references are canonical (native dependencies or exact `Blocked by` references, and the fallback when native data is unavailable) and the rule that every blocker must be resolved.
+- **Direct dependent discovery**: how to enumerate the resolved trigger's direct open downstream dependents through canonical dependency references, independently of ready markers or titles, with native data taking precedence over fallback text.
+- **Affected reconciliation scopes**: how to resolve each dependent's own authority, select the trigger's normal scope and each valid dependent's scope, deduplicate those scopes, and confine readiness mutations to them without recursive dependency traversal. Retain the full trusted standalone set when that scope is selected; parent-only trackers never gain standalone authority. Preserve mapped non-agent triage states in every selected scope.
 - **Claim and assignment semantics**: how a ticket is claimed or assigned so it leaves the frontier.
 - **Resolution and resolved-state verification**: how a ticket is resolved, and how a later step verifies the resolved state before acting on it.
 - **Deterministic child/sibling enumeration and ordering**: how to enumerate every implementation child or sibling of a parent, and the order to use.
 - **Idempotent ready-state mutation**: how readiness is set or removed, changing only states that differ, so a rerun with unchanged tracker state makes no writes.
 - **Frontier promotion**: when unblocked, unclaimed tickets are promoted to ready and blocked or claimed tickets are demoted.
-- **`/reconcile` contract**: how `/reconcile <ticket-ref>` uses a resolved ticket to recompute its frontier.
+- **`/reconcile` contract**: how `/reconcile <ticket-ref>` validates a resolved trigger and recomputes every independently validated affected frontier, reports authority failures, and makes no writes for an open trigger.
 
 ## Process
 
@@ -56,6 +58,8 @@ When `docs/agents/issue-tracker.md` already exists, identify its tracker choice,
 - **Incomplete (stale)**: the file claims standalone support for parentless tickets without the complete Agent Brief rule.
 - **Undeclared (stale)**: the file states neither mode.
 - **Ambiguous (stale)**: the file states both modes.
+
+An older contract that refreshes only the trigger's normal scope is missing affected reconciliation scopes even if it already has a `/reconcile` paragraph. Direct dependent discovery and the expanded reconciliation contract must migrate together. Check native discovery and fallback precedence, each dependent's own approval or complete trusted Agent Brief, scope deduplication, held triage states in both branches, read versus mutation boundaries, direct-only traversal, deterministic frontiers, and idempotence. A dependency never supplies parent authority.
 
 ### 2. Present findings and ask
 
@@ -155,11 +159,15 @@ Define every entry in the required implementation-workflow capabilities above. A
 
 For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace or add only stale standalone authority wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
+When direct dependent discovery or affected reconciliation scopes are missing, add their tracker-specific operations and update the existing `/reconcile` and resolution/frontier wording needed to use them in the same migration diff. Preserve commands, custom state names, fallback conventions, notes, and the configured authority mode. A parent-only tracker still rejects parentless dependents; do not add an Agent Brief rule or standalone support. Show this complete diff in step 3 before writing, then recheck every capability and the authority mode after the edit.
+
 ### 5. Validate
 
 After writing `docs/agents/issue-tracker.md`, re-read the file from disk and validate it against every entry in the required implementation-workflow capabilities. Judge each capability by what the file defines in its own vocabulary, not by matching the seed template's wording.
 
 Also classify its standalone authority mode again. A parent-only or standalone-capable mode is valid; a retired, incomplete, undeclared, or ambiguous mode is a remaining gap.
+
+Validate the expanded reconciliation behavior as well as capability presence: direct-dependent discovery and the existing `/reconcile` contract must agree on native/fallback precedence, dependent authority, selected-scope boundaries, held states in both authority branches, and readiness-only idempotent mutations. A new discovery paragraph beside an unchanged trigger-only reconciliation contract is still incomplete.
 
 If any capability is still missing, report the setup or migration as incomplete and name each remaining missing capability. Never report it as complete while a gap remains.
 

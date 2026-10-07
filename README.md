@@ -84,7 +84,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 - [`implement`](./skills/implement/SKILL.md): Implement one approved issue through verification, review, commit, and closeout.
 - [`implementation-review`](./skills/implementation-review/SKILL.md): Review a diff against repository standards and its originating issue or spec.
 - [`improve-codebase-architecture`](./skills/improve-codebase-architecture/SKILL.md): Find and explore opportunities to deepen codebase modules.
-- [`reconcile`](./skills/reconcile/SKILL.md): Recompute an implementation frontier after a ticket resolves.
+- [`reconcile`](./skills/reconcile/SKILL.md): Refresh frontiers for a resolved issue and its direct dependents.
 - [`setup-skills`](./skills/setup-skills/SKILL.md): Configure a target repository for the issue, triage, and domain-document workflows used by these skills.
 - [`teach`](./skills/teach/SKILL.md): Teach a concept through a stateful workspace.
 - [`to-questionnaire`](./skills/to-questionnaire/SKILL.md): Turn a decision gap into a questionnaire for the person who can resolve it.

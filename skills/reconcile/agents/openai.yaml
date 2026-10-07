@@ -1,5 +1,5 @@
 interface:
   display_name: "Reconcile"
-  short_description: "Refresh a resolved ticket's implementation frontier"
+  short_description: "Refresh frontiers for a resolved issue and its direct dependents"
 policy:
   allow_implicit_invocation: false
