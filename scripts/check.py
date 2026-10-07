@@ -1313,6 +1313,11 @@ def validate_reconciliation_contract() -> None:
     ):
         if required not in document:
             fail(f"expanded reconciliation workflow is missing {required!r}")
+    for relative in ("docs/agents/issue-tracker.md", "skills/setup-skills/issue-tracker-github.md"):
+        document = (ROOT / relative).read_text(encoding="utf-8")
+        frontier = next(line for line in document.splitlines() if line.startswith("- **Frontier promotion**"))
+        if "non-held" not in frontier or "expanded `/reconcile` contract" not in frontier:
+            fail(f"{relative}: frontier promotion conflicts with held states or affected reconciliation scopes")
     for relative in ("skills/setup-skills/issue-tracker-github.md", "skills/setup-skills/issue-tracker-local.md"):
         seed = (ROOT / relative).read_text(encoding="utf-8")
         current_mode = tracker_standalone_authority(seed)
