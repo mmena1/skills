@@ -12,6 +12,8 @@ Implement exactly one approved issue or spec. The requested issue defines delive
 
 This is a self-contained worker. Finish the ticket through commits, review, and tracker closeout, but never pull downstream tickets into the change. A parallel orchestrator must give each worker one ticket and an isolated working copy; frontier selection and scheduling stay outside this skill.
 
+This skill consumes the working copy it is started in, which may have a detached HEAD. It never creates, replaces, switches to, or cleans up worktrees or other working copies, and it does not ask the user to do so as part of its normal flow. Creating, isolating, and disposing of that working copy belongs to the harness or orchestrator that launched it.
+
 ## 1. Resolve the work and its authority
 
 Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `GLOSSARY.md` (or the legacy `CONTEXT.md` when it is absent), and ADRs governing the area.
@@ -38,9 +40,11 @@ Before any write to the tracker or worktree:
 2. For a ticket, verify it is open, every blocker is resolved, and it is in the implementation-ready state defined by `docs/agents/issue-tracker.md`. A user may explicitly override a failed ticket-state gate.
 3. Require `git status --porcelain` to be empty. Continue from a dirty worktree only when the user explicitly authorizes that exact starting state.
 4. Capture `git rev-parse HEAD` as `BASELINE`. Keep this exact commit SHA fixed for the whole run.
-5. Resolve the repository's default branch before changing the worktree or tracker. Use this chain: the local symbolic remote `HEAD` for the repository's configured primary remote; the provider/tracker's authoritative default branch (for GitHub, `gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'`); the repository's explicitly documented default branch; then stop if none resolves. A failed or empty provider lookup proceeds to the next fallback; it does not weaken the stop condition. Then inspect the current branch with `git branch --show-current`.
+5. Resolve the repository's default branch before changing the worktree or tracker. Use this chain: the local symbolic remote `HEAD` for the repository's configured primary remote; the provider/tracker's authoritative default branch (for GitHub, `gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'`); the repository's explicitly documented default branch; then stop if none resolves. A failed or empty provider lookup proceeds to the next fallback; it does not weaken the stop condition. Then inspect the current branch with `git branch --show-current`. When it prints nothing, HEAD is detached only if `git symbolic-ref -q HEAD` fails.
    - If the current branch is the default branch, create and switch to a new branch following the repository's naming and branching conventions before claiming, editing, or committing; never commit implementation work on a default branch such as `main` or `master`.
-   - If the current branch is detached, empty, or branch creation fails, stop before changing the worktree or tracker and report the exact Git state and failure.
+   - If HEAD is detached, as in an isolated working copy a harness or orchestrator provided, it is a valid starting state. Before claiming, editing, or committing, create and switch to a new implementation branch at `BASELINE` (for example, `git switch -c <branch>`) following the repository's naming and branching conventions, without asking the user for permission. `BASELINE` stays the commit the run started from, so `<BASELINE>...HEAD` still contains exactly the ticket's work.
+   - If the current branch is any other non-default branch, continue on it.
+   - If the branch name is empty without a detached HEAD, or branch creation fails (for example, because the chosen name already exists or Git refuses the operation), stop before changing the worktree or tracker and report the exact Git state and failure. Never delete, reset, force, or overwrite an existing branch to make room for the new one.
 6. Claim the ticket using the configured tracker workflow when claiming is supported. Claiming is the first write and happens only after the preceding gates pass.
 
 ## 3. Separate implementation choices from contradictions

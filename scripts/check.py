@@ -518,6 +518,18 @@ def implementation_start_gate(*, tracker: str, required: set[str], ticket: dict)
     return "start"
 
 
+def implementation_branch_gate(*, current: str, detached: bool, default: str, created: bool) -> str:
+    """Model /implement's branch gate, which runs before the claim: "continue", "branch", or "stop".
+
+    A detached HEAD, such as a harness-provided isolated working copy, branches from the
+    current HEAD like the default branch does. An empty name that is not a detached HEAD
+    and a failed branch creation stop; no existing branch is ever replaced to make room.
+    """
+    if detached or current == default:
+        return "branch" if created else "stop"
+    return "continue" if current else "stop"
+
+
 def canonical_tracker_capabilities(setup: str) -> list[str]:
     """The capability names listed under the `/setup-skills` canonical heading."""
     lines = setup.splitlines()
@@ -870,6 +882,44 @@ def validate_implementation_authority_contract() -> None:
     retired_tracker = "## Implementation workflow\n\n```markdown\n" + retired_record + "\n```\n"
     if not tracker_defines_retired_record(retired_tracker) or tracker_defines_retired_record(tracker):
         fail("retired standalone record detection disagrees with the tracker contracts")
+
+
+def validate_implementation_working_copy_contract() -> None:
+    """/implement consumes a harness-provided working copy, including a detached HEAD, and never owns its lifecycle."""
+    implement = (ROOT / "skills/implement/SKILL.md").read_text(encoding="utf-8")
+    for required in (
+        "never creates, replaces, switches to, or cleans up worktrees or other working copies",
+        "belongs to the harness or orchestrator that launched it",
+        "HEAD is detached only if `git symbolic-ref -q HEAD` fails",
+        "If HEAD is detached",
+        "is a valid starting state",
+        "create and switch to a new implementation branch at `BASELINE`",
+        "without asking the user for permission",
+        "If the current branch is any other non-default branch, continue on it.",
+        "Never delete, reset, force, or overwrite an existing branch",
+        "never commit implementation work on a default branch",
+        "Confirm `git branch --show-current` is non-empty and is not the resolved default branch",
+    ):
+        if required not in implement:
+            fail(f"/implement working-copy contract is missing {required!r}")
+    if "If the current branch is detached" in implement:
+        fail("/implement still stops on a detached HEAD")
+    gates = implement.partition("## 2. Pass the start gates")[2].partition("## 3.")[0]
+    if not 0 <= gates.find("If HEAD is detached") < gates.find("Claim the ticket"):
+        fail("/implement must create the branch from a detached HEAD in its start gates, before the claim")
+
+    cases = {
+        "an existing non-default branch continues": ("feature", False, True, "continue"),
+        "an existing non-default branch never needs creation": ("feature", False, False, "continue"),
+        "the default branch branches": ("main", False, True, "branch"),
+        "the default branch stops when creation fails": ("main", False, False, "stop"),
+        "a detached HEAD branches from the current HEAD": ("", True, True, "branch"),
+        "a detached HEAD stops when creation fails": ("", True, False, "stop"),
+        "an empty name that is not a detached HEAD stops": ("", False, True, "stop"),
+    }
+    for label, (current, detached, created, outcome) in cases.items():
+        if implementation_branch_gate(current=current, detached=detached, default="main", created=created) != outcome:
+            fail(f"/implement branch gate: {label} (expected {outcome!r})")
 
 
 def validate_standalone_authority_modes() -> None:
@@ -1582,6 +1632,7 @@ def main() -> int:
         skill_names = validate_layout_and_skills()
         validate_repository_references(skill_names)
         validate_implementation_authority_contract()
+        validate_implementation_working_copy_contract()
         validate_standalone_authority_modes()
         validate_tracker_capability_contract()
         validate_reconciliation()
