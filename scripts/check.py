@@ -890,6 +890,7 @@ def validate_implementation_working_copy_contract() -> None:
     for required in (
         "never creates, replaces, switches to, or cleans up worktrees or other working copies",
         "belongs to the harness or orchestrator that launched it",
+        "HEAD is detached only if `git symbolic-ref -q HEAD` fails",
         "If HEAD is detached",
         "is a valid starting state",
         "create and switch to a new implementation branch at `BASELINE`",
@@ -907,18 +908,18 @@ def validate_implementation_working_copy_contract() -> None:
     if not 0 <= gates.find("If HEAD is detached") < gates.find("Claim the ticket"):
         fail("/implement must create the branch from a detached HEAD in its start gates, before the claim")
 
-    expected = {
-        (("feature", False), True): "continue",
-        (("feature", False), False): "continue",
-        (("main", False), True): "branch",
-        (("main", False), False): "stop",
-        (("", True), True): "branch",
-        (("", True), False): "stop",
-        (("", False), True): "stop",
+    cases = {
+        "an existing non-default branch continues": ("feature", False, True, "continue"),
+        "an existing non-default branch never needs creation": ("feature", False, False, "continue"),
+        "the default branch branches": ("main", False, True, "branch"),
+        "the default branch stops when creation fails": ("main", False, False, "stop"),
+        "a detached HEAD branches from the current HEAD": ("", True, True, "branch"),
+        "a detached HEAD stops when creation fails": ("", True, False, "stop"),
+        "an empty name that is not a detached HEAD stops": ("", False, True, "stop"),
     }
-    for ((current, detached), created), outcome in expected.items():
+    for label, (current, detached, created, outcome) in cases.items():
         if implementation_branch_gate(current=current, detached=detached, default="main", created=created) != outcome:
-            fail(f"/implement branch gate for branch {current!r}, detached={detached}, created={created} is not {outcome!r}")
+            fail(f"/implement branch gate: {label} (expected {outcome!r})")
 
 
 def validate_standalone_authority_modes() -> None:
