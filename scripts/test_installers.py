@@ -657,9 +657,9 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
     declared_plain.write_text("keep me\n", encoding="utf-8")
     for _ in range(2):
         invoke_from(retiring)(owned_home, option("all"))
-    for kept in (retired_link, retired_plain):
-        if not kept.is_file() or kept.read_text(encoding="utf-8") != "leave me\n" or backups_of(kept):
-            fail(f"{label} installer changed unrecognised content under a retired deep-review agent name: {kept}")
+    for untouched in (retired_link, retired_plain):
+        if not untouched.is_file() or untouched.read_text(encoding="utf-8") != "leave me\n" or backups_of(untouched):
+            fail(f"{label} installer changed unrecognised content under a retired deep-review agent name: {untouched}")
     found = backups_of(declared_plain)
     if len(found) != 1 or found[0].read_text(encoding="utf-8") != "keep me\n":
         fail(f"{label} installer did not back up unrecognised content under a declared deep-review agent name exactly once")
