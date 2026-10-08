@@ -108,24 +108,30 @@ function Backup-InstalledPath {
 }
 
 function New-InstalledPath {
-    param([string]$Source, [string]$Destination)
+    param([string]$Source, [string]$Destination, [switch]$CopyOnly)
     $action = 'Linked'
     $isDirectory = Test-Path -LiteralPath $Source -PathType Container
-    try {
-        if ($env:SKILLS_INSTALLER_FORCE_COPY -eq '1') { throw 'Link creation disabled.' }
-        if ($isDirectory) {
-            New-Item -ItemType Junction -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
-        } else {
-            New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+    $shouldCopy = $CopyOnly
+    if (-not $CopyOnly) {
+        try {
+            if ($env:SKILLS_INSTALLER_FORCE_COPY -eq '1') { throw 'Link creation disabled.' }
+            if ($isDirectory) {
+                New-Item -ItemType Junction -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+            } else {
+                New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -ErrorAction Stop | Out-Null
+            }
+        } catch {
+            $shouldCopy = $true
         }
-    } catch {
+    }
+    if ($shouldCopy) {
         Copy-Item -LiteralPath $Source -Destination $Destination -Recurse
         $marker = Get-ManagedMarkerPath $Destination
         Set-Content -LiteralPath $marker -Value $Source
         $action = 'Copied'
     }
     Write-Host "$action $Destination -> $Source"
-    if ($action -eq 'Copied') {
+    if ($action -eq 'Copied' -and -not $CopyOnly) {
         Write-Warning 'Link creation failed; rerun the installer after repository updates.'
     }
 }
@@ -240,7 +246,7 @@ function Remove-LegacyDeepReviewDevin {
 }
 
 function Install-ManagedPath {
-    param([string]$Source, [string]$Destination)
+    param([string]$Source, [string]$Destination, [switch]$CopyOnly)
     if (Test-InstalledPath $Destination) {
         if ((Test-LinkIntoRepo $Destination) -or (Test-ManagedCopy $Destination)) {
             Remove-InstalledPath $Destination
@@ -252,7 +258,7 @@ function Install-ManagedPath {
         }
     }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
-    New-InstalledPath $Source $Destination
+    New-InstalledPath $Source $Destination -CopyOnly:$CopyOnly
 }
 
 function Test-ManagedPath {
@@ -393,7 +399,8 @@ function Install-Agents {
     }
     if ($agents.Count -eq 0) { return }
     New-Item -ItemType Directory -Force -Path $DestinationRoot | Out-Null
-    foreach ($agent in $agents) { Install-ManagedPath $agent.FullName (Join-Path $DestinationRoot $agent.Name) }
+    # Codex refuses final-component symlinks when loading role configuration.
+    foreach ($agent in $agents) { Install-ManagedPath $agent.FullName (Join-Path $DestinationRoot $agent.Name) -CopyOnly:($Harness -eq 'codex') }
 }
 
 $installCodex = $Codex -or $All
