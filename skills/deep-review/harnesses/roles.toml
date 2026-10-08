@@ -13,7 +13,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
 [roles.scout.devin]
-model = "gpt-6-luna-high"
+model = "gpt-6-1-sol-high"
 allowed-tools = ["read", "grep", "glob", "exec"]
 
 [roles.scout.claude]
