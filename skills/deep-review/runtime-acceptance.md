@@ -214,14 +214,97 @@ Docs naturally returned `docs-H1`, a glossary pointer to a then-unavailable skil
 
 Local raw evidence remains under `/tmp/devin-native-smoke-71.9nP1qv`: `discovery.json`, `generic-before.json`, `generic-after.json`, `legacy-before.json`, `legacy-after.json`, `review-rerun.json`, `capacity.json`, `missing.json`, `two-scout.json`, and `static.json`. `child-evidence.json` preserves child inference metadata, `launch-grouping.json` preserves the exact native launch messages, and `verified-evidence-index.json` records session IDs, spawn-call counts, and SHA-256 for each export. Runtime-evidence assertions checked the exact discovery/migration profiles, absence of callable subagent tools in the zero-capacity session, zero launches in the stopped sessions, all seven served variants, two distinct scout launch messages, and the sole H1 static invocation. These assertions inspect actual runtime artifacts; the repository checker and installer integration suite remain separate static/integration verification, not native acceptance. The clean test worktree was removed after preserving evidence; the temporary installations, immutable context, and evidence files are intentionally retained for inspection. `python3 scripts/check.py` passed for 28 skills, `python3 scripts/test_installers.py` passed on macOS through Bash, and `git diff --check` passed. The Windows PowerShell installer path was not exercised.
 
-Per-harness coverage of the issue #71 checks as of 2026-10-08 (Claude Code skill `52ec495`; Devin skill `6ccd9f3`):
+Coverage from the Claude Code and Devin smoke passes, before the Codex pass below (Claude Code skill `52ec495`; Devin skill `6ccd9f3`):
 
 | Harness | PASS | FAIL | NOT EXERCISED |
 | --- | --- | --- | --- |
 | Claude Code 2.1.295, Linux | 1 fresh discovery; 2 upgrade from the generic scout layout; 3 model and effort for all seven roles; 4 two-lens single wave; 5 capacity preflight; 6 missing native role; 7 pipeline compatibility | None | Check 2 from a standalone `mmena1/deep-review` installation, which has no Claude Code form. Not run on Windows, where the installer copies agents when file symbolic links are unavailable. |
 | Devin CLI 3000.11.3, macOS | 1 fresh discovery; 2 generic-scout upgrade and standalone migration; 3 all seven harness-reported model/High Thinking variants; 5 zero-capacity stop; 6 missing selected native role. Supplemental natural-hypothesis native static handoff also passed. | 4 single-wave grouping in the bounded two-scout smoke, [#77](https://github.com/mmena1/skills/issues/77); enabled capacity observation needed for a complete review, [#76](https://github.com/mmena1/skills/issues/76). | Complete coordinator two-scout execution and check 7 pipeline compatibility; check 5 enabled numeric-cap enforcement; independently server-echoed effort; writable-probe behavior. No Windows/copy-fallback runtime run. |
-| Codex CLI | None | None | Checks 1 through 7 for the seven lens-specific agents. No Codex smoke was run in this Devin-only pass; the 2026-09-26 Codex evidence covers only the former four-role layout. |
 
-Remaining Codex acceptance: fresh discovery of all seven exact agents; upgrade from the generic scout and feasible standalone legacy installation with retired-agent rejection; actual model and effort per launched role; exactly the selected two scouts in one concurrent wave; below-selected-count capacity stop with required/available counts; missing selected-role stop without substitution; and the natural hypothesis-to-static-validator pipeline with one invocation per canonical hypothesis and a native-agent receipt. Use isolated installations for altered agents and capacity settings. Until observed, each remains `NOT EXERCISED`, not a pass inferred from this implementation or another harness.
+The Codex results and remaining acceptance checks are recorded below. These Claude Code and Devin passes supplied no Codex runtime evidence.
 
-Cross-harness acceptance of the lens-specific agents is incomplete: Codex checks 1 through 7 remain unexercised, Devin has the two linked failures and the explicit coverage gaps above, and the Claude Code platform gaps remain unchanged. No reviewer behavior, role manifest, installer, model configuration, or acceptance scenario was changed by this task. Issue #71 stays open.
+Cross-harness coverage is consolidated after the Codex results below. No reviewer behavior, role manifest, installer, model configuration, or acceptance scenario was changed by these smoke passes. Issue #71 stays open.
+
+
+## Codex CLI smoke, 2026-10-08
+
+Issue [#71](https://github.com/mmena1/skills/issues/71), using skill commit `52ec4956668cd9efa9195f3ac7113b8c80b434d3`, which contains the merged implementations of [#69](https://github.com/mmena1/skills/issues/69) and [#70](https://github.com/mmena1/skills/issues/70). Harness: Codex CLI 0.160.0, native multi-agent v2, Linux x86_64 on WSL2, kernel `6.18.33.2-microsoft-standard-WSL2`. Every coordinator ran on the existing `gpt-6.1-sol` / `high` selection; spawn calls supplied no model or effort overrides.
+
+Each installation used a separate home and matching Codex state directory. The normal Linux and Windows configurations and agent directories were left unchanged. The installer, protocol, role manifest, generated model assignments, and reviewer bodies were not changed. For the copy control, an isolated PATH shim made `ln` fail, exercising the installer's existing marked-copy fallback; the agent files were not hand-edited. That control's passes do not erase failures in the default symbolic-link installation.
+
+| Date | Harness | Skill commit | Check | Result | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 1. Discovery after fresh Bash install | PASS | The live `spawn_agent` tool advertised all seven exact native types. Discovery parent `01a11dab-b128-7581-b3ae-91d45dd684b4`. This verifies catalog discovery only; launch failed as recorded below. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | Native launch after the default linked install | FAIL | All seven exact-name readiness launches returned `agent type is currently not available`; no child session was created. Stderr reported `failed to apply role to config: Symbolic link loop (os error 40)`, although the links resolved normally to readable generated files. The default two-scout review also failed at its first native launch. Follow-up [#78](https://github.com/mmena1/skills/issues/78). |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 2. Discovery after in-place skills upgrade | PASS | Installed commit `6abc08d` with the former generic scout, checked out `52ec495` in that same disposable source checkout, then reran the installer. Runtime parent `01a11dac-d2f4-7230-94e9-5dedee56f589` advertised exactly the seven new types and rejected an attempted `deep-review-scout` launch with `unknown agent_type 'deep-review-scout'`. This is migration/discovery evidence; it does not claim successful linked launches. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 2. Discovery after standalone legacy upgrade | PASS | Ran the actual `mmena1/deep-review` installer at `1f8e7f92af27bec6e73c263b024b8e82554c1ed1`, then the current skills installer in the same isolated home. Runtime parent `01a11dac-d30d-7dc3-bca3-292698c4b96d` advertised all seven new types and rejected `deep-review-scout` as unknown. The standalone checkout remained clean. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | Fresh copy-fallback discovery and launch | PASS | Parent `01a11dac-b31e-7ed2-a4e6-ef7f6de5ddaa` launched all seven exact native types in capacity-safe readiness batches. Every child returned `READY`. Neither file inspection nor adopting a generated prompt was counted as a launch. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 3. Pinned model and effort, default linked install | NOT EXERCISED | Every attempted launch failed before child creation, so no reviewer model or effort was served in this installation. Generated fields alone do not establish runtime selection. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 3. Pinned model and effort, copy fallback | PASS | Each child's `session_meta.agent_role` identified the exact native role, and its `turn_context.model` and `effort` matched the pinned values. All seven returned `READY`; per-role records are below. The docs and conventions review children independently reported `gpt-6-luna` / `high`. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 4. Two selected scouts in one wave, default linked install | FAIL | Local range review parent `01a11dac-d305-7342-b773-81d5724cdab5` had 6 available slots for 2 selected scouts, but `deep-review-scout-docs` could not launch. No child started, no substitute was used, and the review remained incomplete and non-publishable. Same defect as [#78](https://github.com/mmena1/skills/issues/78). |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 4. Two selected scouts in one wave, copy fallback | FAIL | Parent `01a11dad-38c7-7f30-8312-6ec0da643993` launched only docs and conventions, at `22:42:38.018Z` and `22:42:45.792Z`, but in separate model responses. The first tool result arrived at `22:42:38.149Z`, before the second call. Their `token_usage_record.response_id` values differ, as recorded below. Both children overlapped on the same pinned worktree, but overlap does not satisfy parallel calls in one message. The parent receipt incorrectly reported PASS. Docs child `01a11dae-cf49-7b31-aa22-5fc8be023c44`; conventions child `01a11dae-eda6-7c71-8ce3-ad7e497119b8`. Follow-up [#80](https://github.com/mmena1/skills/issues/80). |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 5. Capacity preflight | PASS | With isolated `agents.max_concurrent_threads_per_session = 1`, parent `01a11dac-d2ff-74f2-b48e-6fcddc46b91c` observed only its own coordinator in the live agent list, reported 2 required scouts versus 1 available, and stopped before any `spawn_agent` call, target analysis, context capture, or worktree creation. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 6. Missing selected native role | PASS | Removed only the isolated copy installation's docs agent. Parent `01a11dac-d2fa-76c3-aa13-1bd5aec23e88` named `deep-review-scout-docs` as missing and stopped before any scout launch, target analysis, context capture, or worktree creation. Capacity was sufficient, 2 required versus 6 available; no generic agent, other scout, coordinator analysis, or model substituted. |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | Native role sandbox selection | FAIL | All seven copy-fallback readiness children, and both review scouts, recorded `sandbox_policy.type = danger-full-access`, inherited from the coordinator. The generated scout/static roles declare `read-only`, and the probe declares `workspace-write`. Model and effort pins were honored in those same records. This is an observed runtime policy metadata mismatch; write enforcement was not probed. Follow-up [#79](https://github.com/mmena1/skills/issues/79). |
+| 2026-10-08 | Codex CLI 0.160.0, Linux/WSL2 | `52ec495` | 7. Pipeline compatibility after natural hypotheses | NOT EXERCISED | In the copy-fallback review, conventions returned `No hypotheses` and docs emitted `docs-H1` about a glossary reference. The coordinator observed the sandbox mismatch, marked the review incomplete, preserved the hypothesis as not validated due to review failure, and stopped before static adjudication. Readiness launches of validator agents do not count as hypothesis validation. Neither one-invocation-per-canonical-hypothesis behavior nor a completed validator receipt was exercised. |
+
+Observed readiness model/effort records, from parent `01a11dac-b31e-7ed2-a4e6-ef7f6de5ddaa`:
+
+| Native role | Observed model | Observed effort | Child session, all returned READY |
+| --- | --- | --- | --- |
+| `deep-review-scout-bugs` | `gpt-6.1-sol` | `high` | `01a11dac-cc13-7cb2-8b6e-b718fc516e34` |
+| `deep-review-scout-conventions` | `gpt-6-luna` | `high` | `01a11dac-d5dc-7150-94e7-52854bac4ae2` |
+| `deep-review-scout-history` | `gpt-6-luna` | `high` | `01a11dac-e13d-7473-9f28-0f38ecd1c482` |
+| `deep-review-scout-docs` | `gpt-6-luna` | `high` | `01a11dac-ec42-72d1-b780-92e341ec7b2b` |
+| `deep-review-structural` | `gpt-6.1-sol` | `high` | `01a11dac-f5bc-7c02-9ff5-15235b95d559` |
+| `deep-review-validator-static` | `gpt-6.1-sol` | `high` | `01a11dac-ffee-7de0-b7ad-5ace5865b13b` |
+| `deep-review-validator-probe` | `gpt-6-luna` | `high` | `01a11dad-30f2-7ad0-b562-a571f40e4d19` |
+
+The local reviews used the existing committed documentation range `2672c670e1699150bfc333cd2d2e1f751ae2e058..c9fbab3e9227ad8147f2aa29a75e56dc682833b1`, ten added lines, with an explicitly empty context snapshot. No hypothesis was injected and no validation outcome was forced. The copy review's receipt named both native scouts, recorded their actual model/effort and the sandbox failure, and listed no validator agents as having run. Its one-wave PASS was incorrect; the acceptance record corrects it from native call and response evidence while retaining the original receipt unchanged.
+
+Combined passive receipt for the linked review, copy review, and capacity gate, scoped to their actual observations:
+
+| Scenario | Status | Observed evidence |
+| --- | --- | --- |
+| Zero hypotheses | NOT EXERCISED | Linked scouting failed to start; copy scouting produced one hypothesis. Neither run took the successful zero-hypothesis path. |
+| Surviving hypotheses | NOT EXERCISED | One natural docs hypothesis remained unvalidated after the runtime sandbox failure; no static adjudicator ran. |
+| Capacity-bounded static validation | NOT EXERCISED | No static queue was executed. |
+| Multiple selected scouts | FAIL | Default linked installation could not launch the wave (#78). Copy-fallback children overlapped, but separate parent model responses failed the required one-message grouping, and the receipt incorrectly reported PASS (#80). |
+| Insufficient scout capacity | PASS | The isolated one-slot run stopped before launch and reported exactly 2 required and 1 available. |
+| Validator probes | NOT EXERCISED | No static adjudication or `Needs probe` transition; readiness of the probe role is not a writable validation run. |
+| Scout failure | PASS | Default native launch failure produced an incomplete, non-publishable review; no running child needed waiting, and no substitution or `No findings` claim occurred. |
+| Validator partial failure | NOT EXERCISED | No validator adjudication began. |
+| PR-review-overlap | NOT EXERCISED | Local committed-range reviews, without a uniquely associated open PR; no comparison or publication occurred. |
+| PR head change | NOT EXERCISED | Fixed local range; no PR freshness transition was exercised. |
+| Cleanup | PASS | Each coordinator preserved its state/report, removed only its own authorized worktree and context/run directory, and verified registration removal. Both caller and standalone checkouts stayed clean. The capacity and missing-agent runs created no worktree to remove. |
+
+Runtime evidence is retained locally at `/home/martin/.codex/2026-10-08-issue-71-ljefe80e/`: `*.events.jsonl`, `*.stderr.log`, `*.prompt.txt`, installation logs, native child rollouts under the isolated homes, `runtime-observations.json`, `codex-launch-grouping.json`, and `SHA256SUMS`. The four review/preflight exits preserved `review-links-report.md`, `review-copy-report.md`, `capacity-report.md`, `missing-report.md` and matching `*-run-state.json` files. `normal-before.json` and `normal-after.json` verify unchanged normal configuration/agent contents and link targets. Credentials copied for isolation were removed after execution. Static file inspection and repository checks are configuration/maintenance evidence only; none supplied a runtime PASS.
+
+Issue #71 combined coverage by harness, incorporating the Claude Code and Devin evidence above:
+
+| Check | Codex CLI | Claude Code | Devin CLI |
+| --- | --- | --- | --- |
+| 1. Fresh discovery | PASS for the live seven-type catalog; default linked launch separately FAIL | PASS | PASS |
+| 2. Upgrade discovery | PASS for same-checkout and actual standalone migrations, including runtime rejection of the retired type | PASS for generic-scout upgrade; standalone migration NOT EXERCISED because no historical Claude Code form exists | PASS for generic-scout and actual standalone migrations |
+| 3. Pinned model and effort | PASS for all seven copy-fallback roles; NOT EXERCISED for unlaunchable linked roles | PASS for all seven roles' runtime models and harness-recorded high effort | PASS for all seven harness-reported model/High Thinking variants; independent server-echoed effort NOT EXERCISED |
+| 4. Exact two-scout concurrent wave | FAIL for default linked launches (#78) and copy-fallback one-message grouping/receipt (#80); child execution did overlap | PASS | FAIL for bounded one-message grouping (#77); full coordinator execution NOT EXERCISED |
+| 5. Capacity preflight | PASS, required 2 versus available 1 | PASS, cap 1 versus required 2 | PASS for disabled capacity, required 2 versus available 0; enabled numeric-cap enforcement NOT EXERCISED; usable enabled-capacity observation fails (#76) |
+| 6. Missing native role | PASS | PASS | PASS |
+| 7. Natural pipeline compatibility | NOT EXERCISED: reported sandbox failure blocked static adjudication | PASS, one static invocation for each of H1, H2, and H3 | NOT EXERCISED: enabled-capacity preflight blocked a complete coordinator review; supplemental native H1 handoff PASS only |
+
+Native Codex launch grouping, from parent `01a11dad-38c7-7f30-8312-6ec0da643993`:
+
+| Scout | Launch time, UTC | Parent model response ID |
+| --- | --- | --- |
+| docs | 22:42:38.018 | `resp_04b1a2f827a3fce7016ac81c5f2ab88193a6c2e49a08445052` |
+| conventions | 22:42:45.792 | `resp_04b1a2f827a3fce7016ac81c67a3a08193b62d06d1c2108c04` |
+
+The docs launch result was consumed before the conventions response. The response IDs are from native token-usage records, not the coordinator's report; distinct responses establish the grouping failure. Both selected children ran, and no other scout launched, but those observations alone do not establish the required single-message wave. The original copy review receipt is retained as evidence of the false PASS; `codex-launch-grouping.json` records the correction and raw source hash. No rerun or fix was performed for this correction.
+
+Remaining acceptance by harness:
+
+- Codex: resolve or characterize default linked launch failure (#78), reported sandbox selection mismatch (#79), and launch grouping/receipt failure (#80). Then rerun the affected native checks and exercise the natural static-validation pipeline and native-agent receipt. Model/effort selection is observed for all seven copy-fallback roles; linked-role serving remains NOT EXERCISED. Actual write enforcement and writable-probe behavior remain NOT EXERCISED.
+- Claude Code: Windows/copy-fallback runtime behavior remains NOT EXERCISED. The seven core Linux checks have passing evidence above. Standalone migration is NOT EXERCISED because there was no historical Claude Code installation form; it is not inferred as PASS.
+- Devin: resolve or characterize enabled capacity observation (#76) and one-message scout grouping/receipt (#77), then run the complete coordinator wave and pipeline. Enabled numeric-cap enforcement, independent server-echoed effort, writable-probe behavior, and Windows/copy-fallback runtime behavior remain NOT EXERCISED.
+
+Cross-harness acceptance is incomplete: Codex has three observed failures and an unexercised pipeline, Devin retains its two linked failures and explicit coverage gaps, and Claude Code retains its platform and unavailable legacy-form gaps. Issue #71 remains open. Follow-ups record failures; no protocol, installer, model configuration, or reviewer behavior was fixed in this task.
