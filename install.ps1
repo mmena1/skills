@@ -132,8 +132,9 @@ function New-InstalledPath {
 
 # The standalone mmena1/deep-review installer composed marked skill roots from links
 # into its checkout and linked its native agents from there. Recognise exactly those
-# installations so this repository's deep-review replaces them; anything else that
-# occupies the same name is backed up.
+# installations so this repository's deep-review replaces them, and reconciliation
+# removes those whose names it no longer declares; anything else that occupies a
+# declared name is backed up, and anything else under a retired name is left alone.
 $LegacyDeepReviewMarker = '.deep-review-managed'
 $LegacyDeepReviewEntries = @($LegacyDeepReviewMarker, 'SKILL.md', 'protocol.md', 'GLOSSARY.md', 'references', 'reviewers', 'agents')
 $LegacyDeepReviewDevinAgents = @('code-reviewer', 'code-reviewer-structural', 'code-reviewer-validator-static', 'code-reviewer-validator-probe')
@@ -201,7 +202,6 @@ function Test-LegacyDeepReviewInstallation {
 # Unlink each composed entry before removing the root so no link is followed.
 function Remove-LegacyDeepReview {
     param([string]$Path)
-    Write-Host "Replacing deep-review installation from the standalone repository: $Path"
     $item = Get-Item -LiteralPath $Path -Force
     if ($item.PSIsContainer -and -not $item.LinkType) {
         foreach ($entry in @(Get-ChildItem -LiteralPath $Path -Force)) { Remove-InstalledPath $entry.FullName }
@@ -223,15 +223,18 @@ function Test-LegacyDeepReviewDevinAgent {
     return ($lines -ccontains "name: $name") -and ($lines -ccontains '<!-- BEGIN GENERATED: shared reviewer body -->')
 }
 
-# Devin names the old installation used that this repository does not install.
+# Devin agent names the old installation used that this repository does not install.
+# Both of the old installer's Devin agent roots are checked, so this stays separate
+# from reconciliation, which visits only the current root.
 function Remove-LegacyDeepReviewDevin {
     param([string[]]$AgentRoots)
-    $skillRoot = Join-Path $HomePath '.config/devin/skills/deep-review'
-    if (Test-LegacyDeepReviewSkillRoot $skillRoot) { Remove-LegacyDeepReview $skillRoot }
     foreach ($agentRoot in $AgentRoots) {
         foreach ($name in $LegacyDeepReviewDevinAgents) {
             $path = Join-Path $agentRoot $name
-            if (Test-LegacyDeepReviewDevinAgent $path) { Remove-LegacyDeepReview $path }
+            if (Test-LegacyDeepReviewDevinAgent $path) {
+                Write-Host "Removing deep-review agent from the standalone repository: $path"
+                Remove-LegacyDeepReview $path
+            }
         }
     }
 }
@@ -242,6 +245,7 @@ function Install-ManagedPath {
         if ((Test-LinkIntoRepo $Destination) -or (Test-ManagedCopy $Destination)) {
             Remove-InstalledPath $Destination
         } elseif (Test-LegacyDeepReviewInstallation $Destination) {
+            Write-Host "Replacing deep-review installation from the standalone repository: $Destination"
             Remove-LegacyDeepReview $Destination
         } else {
             Backup-InstalledPath $Destination
@@ -268,9 +272,13 @@ function Sync-InstalledCollection {
             }
             continue
         }
-        if (-not $desired.Contains($installed.Name) -and (Test-ManagedPath $installed.FullName)) {
+        if ($desired.Contains($installed.Name)) { continue }
+        if (Test-ManagedPath $installed.FullName) {
             Write-Host "Removing repository-managed $Kind absent from desired set: $($installed.FullName)"
             Remove-InstalledPath $installed.FullName
+        } elseif (Test-LegacyDeepReviewInstallation $installed.FullName) {
+            Write-Host "Removing standalone deep-review $Kind absent from desired set: $($installed.FullName)"
+            Remove-LegacyDeepReview $installed.FullName
         }
     }
 }
