@@ -161,7 +161,7 @@ DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
 DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 DEEP_REVIEW_ROLES = {
     "scout": {
-        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-6-1-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-sonnet-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },

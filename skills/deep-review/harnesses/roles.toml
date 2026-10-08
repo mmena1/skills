@@ -8,7 +8,7 @@ description = "Read-only deep-review scout using one selected review lens."
 body = ["reviewers/SCOUT.md"]
 
 [roles.scout.codex]
-model = "gpt-6-luna"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
