@@ -15,25 +15,30 @@ The coordinator runs on the session's model. Only the roles below pin their own 
 
 ## Roles
 
-The protocol uses four roles. Every role runs as the native agent named `deep-review-<role>`, and that name is the same on every harness.
+The protocol uses seven roles. Every role runs as the native agent named `deep-review-<role>`, and that name is the same on every harness. Each scout role embeds the common scout contract followed by exactly its own lens, so a scout receives no lens at runtime.
 
 | Role | Native agent | Runs |
 | --- | --- | --- |
-| scout | `deep-review-scout` | The `bugs`, `conventions`, `history`, and `docs` scouts. Pass the matching `reviewers/lenses/<slug>.md`. |
+| scout-bugs | `deep-review-scout-bugs` | The `bugs` scout. |
+| scout-conventions | `deep-review-scout-conventions` | The `conventions` scout. |
+| scout-history | `deep-review-scout-history` | The `history` scout. |
+| scout-docs | `deep-review-scout-docs` | The `docs` scout. |
 | structural | `deep-review-structural` | The `structural` scout. |
 | validator-static | `deep-review-validator-static` | One static adjudication per canonical hypothesis. |
 | validator-probe | `deep-review-validator-probe` | One sequential writable probe per `Needs probe` outcome. |
 
-`harnesses/roles.toml` pins each role's model, tools, and sandbox, and the installer generates the agents from it and links them. Agents are generated for Codex, Devin, and Claude Code. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role. If the active harness has no installed `deep-review-*` agent for a required role, stop and report the missing role.
+`harnesses/roles.toml` pins each role's model, reasoning effort, tools, and sandbox, and the installer generates the agents from it and links them. Agents are generated for Codex, Devin, and Claude Code. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role.
+
+Before analysis, confirm that the native agent for every selected lens and both validator agents are installed on the active harness. If any is missing, stop and name the missing agent. Never substitute the coordinator, a generic agent, another scout, or another model for it.
 
 ## Orchestration
 
-- Check scout capacity with the harness mechanism below before analysis. Stop with required and available counts when the complete selected scout set cannot launch simultaneously. Capacity already occupied outside the run may only become visible at launch; the harness mechanism says how such a refusal is handled.
-- Launch every selected scout in one concurrent wave and wait for the complete wave. Preserve completed scout evidence when one invocation fails and mark the run incomplete.
+- Check scout capacity with the harness mechanism below before analysis, using the exact number of selected scouts. Stop with required and available counts when the complete selected scout set cannot launch simultaneously. Capacity already occupied outside the run may only become visible at launch; the harness mechanism says how such a refusal is handled.
+- Launch the native agent of every selected scout, and only those, in one concurrent wave, giving each the same pinned target, worktree, and context root plus its own lens slug and bounded manifest. Wait for the complete wave. Preserve completed scout evidence when one invocation fails and mark the run incomplete.
 - When hypotheses survive deduplication, queue canonical hypotheses in `H1`, `H2`, … order and launch one `deep-review-validator-static` invocation per hypothesis using the static validator capacity below. Refill a slot whenever an invocation finishes, including after failure or timeout, until every queued hypothesis has been attempted exactly once. Static failures mark the run incomplete but do not stop queue drainage.
 - After every static invocation has finished, verify the baseline and launch `deep-review-validator-probe` sequentially only when the static phase completed without failure. Any static failure or timeout blocks the entire writable phase.
-- Capture the harness identity and version and the native agent names for the runtime acceptance receipt described in `runtime-acceptance.md`. Mark only coordinator-observed paths as `PASS` or `FAIL`; leave every other row `NOT EXERCISED`.
-- Never substitute the coordinator or a built-in generic agent for a deep-review role. Never change the user's global harness concurrency settings.
+- Capture the harness identity and version, the native agent used for each selected lens, and the validator agents that ran, for the runtime acceptance receipt described in `runtime-acceptance.md`. Mark only coordinator-observed paths as `PASS` or `FAIL`; leave every other row `NOT EXERCISED`.
+- Never substitute the coordinator, a built-in generic agent, another scout, or another model for a deep-review role. Never change the user's global harness concurrency settings.
 
 ## Harness mechanisms
 

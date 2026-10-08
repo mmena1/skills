@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
+import json
 import re
 import shutil
 import subprocess
@@ -160,10 +162,25 @@ MODEL_INVOKED_SKILLS = {
 DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
 DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 DEEP_REVIEW_ROLES = {
-    "scout": {
+    "scout-bugs": {
         "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
         "devin": {"model": "gpt-6-1-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+    },
+    "scout-conventions": {
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "claude-haiku-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+    },
+    "scout-history": {
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-sonnet-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
+    },
+    "scout-docs": {
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
+        "claude": {"model": "claude-haiku-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "structural": {
         "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
@@ -1464,17 +1481,110 @@ def deep_review_shared_sources(skill: Path) -> list[Path]:
     ])
 
 
+def deep_review_lens_role(lens: str) -> str:
+    """The role whose native agent runs one lens: the structural scout, or `scout-<lens>`."""
+    return "structural" if lens == "structural" else f"scout-{lens}"
+
+
+def deep_review_catalog(protocol: str) -> list[str]:
+    """The lens slugs in the protocol's reviewer catalog, in catalog order."""
+    section = protocol.split("## Select reviewers and preflight the runtime", 1)[-1].split("\n## ", 1)[0]
+    return re.findall(r"(?m)^- `([a-z-]+)`: ", section)
+
+
+def reviewer_text(path: Path) -> str:
+    """A reviewer body as the generator embeds it."""
+    return path.read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
+
+
+def deep_review_role_problems(
+    catalog: list[str], roles: dict[str, generate_agents.Role], contract: str, lenses: dict[str, str],
+) -> list[str]:
+    """Every pinned role exists unchanged, and every catalog lens runs in exactly its own scout role."""
+    problems = []
+    if set(roles) != set(DEEP_REVIEW_ROLES):
+        problems.append(f"deep-review roles must be exactly {', '.join(sorted(DEEP_REVIEW_ROLES))}")
+    for name, expected in DEEP_REVIEW_ROLES.items():
+        if name in roles and roles[name].harnesses != expected:
+            problems.append(f"deep-review role {name!r} drifted from its pinned harness models and limits")
+    if not catalog or sorted(catalog) != sorted(lenses):
+        problems.append("deep-review reviewer catalog in protocol.md and reviewers/lenses/ must name the same lenses")
+    scouts = {name for name in roles if name.startswith("scout-") or name == "structural"}
+    if scouts != {deep_review_lens_role(lens) for lens in catalog}:
+        problems.append("deep-review scout roles must be exactly one per lens in the protocol's reviewer catalog")
+    for lens in catalog:
+        text = lenses.get(lens)
+        if text is None:
+            continue
+        name = deep_review_lens_role(lens)
+        embedding = sorted(role for role, entry in roles.items() if text in entry.body)
+        if len(embedding) != 1:
+            found = ", ".join(embedding) or "no role"
+            problems.append(f"deep-review lens {lens!r} must run in exactly one role, {name}, but is embedded by {found}")
+        role = roles.get(name)
+        if role is None:
+            problems.append(f"deep-review lens {lens!r} has no {name} role")
+            continue
+        if contract not in role.body:
+            problems.append(f"deep-review role {name!r} lacks the common scout contract")
+        if text not in role.body:
+            problems.append(f"deep-review role {name!r} lacks its {lens} lens")
+        others = [other for other in catalog if other != lens and lenses.get(other, "\0") in role.body]
+        if others:
+            problems.append(f"deep-review role {name!r} embeds another lens: {', '.join(others)}")
+        if role.body != f"{contract}\n\n{text}\n":
+            problems.append(f"deep-review role {name!r} must be the common scout contract followed by exactly its {lens} lens")
+    return problems
+
+
+def validate_deep_review_role_contract(
+    catalog: list[str], roles: dict[str, generate_agents.Role], contract: str, lenses: dict[str, str],
+) -> None:
+    """Prove the role check rejects each way a lens can lose, gain, or share its native scout."""
+    def with_body(name: str, body: str) -> dict[str, generate_agents.Role]:
+        return {**roles, name: dataclasses.replace(roles[name], body=body)}
+
+    drifted = {**DEEP_REVIEW_ROLES["scout-conventions"]["claude"], "model": "claude-sonnet-5-5"}
+    cases = {
+        "a catalog lens without a role": (
+            [*catalog, "extra"], roles, {**lenses, "extra": "# Extra Lens\n\nUnclaimed."},
+        ),
+        "a lens embedded by two roles": (
+            catalog, with_body("validator-static", roles["validator-static"].body + "\n" + lenses["bugs"]), lenses,
+        ),
+        "a scout without the common contract": (catalog, with_body("scout-docs", lenses["docs"] + "\n"), lenses),
+        "a scout without its lens": (catalog, with_body("scout-docs", contract + "\n"), lenses),
+        "a scout with another lens": (
+            catalog, with_body("scout-docs", f"{contract}\n\n{lenses['docs']}\n\n{lenses['history']}\n"), lenses,
+        ),
+        "a structural scout without the structural lens": (catalog, with_body("structural", contract + "\n"), lenses),
+        "drifted harness fields": (
+            catalog,
+            {**roles, "scout-conventions": dataclasses.replace(
+                roles["scout-conventions"], harnesses={**roles["scout-conventions"].harnesses, "claude": drifted},
+            )},
+            lenses,
+        ),
+        "a leftover generic scout role": (
+            catalog, {**roles, "scout": dataclasses.replace(roles["validator-static"], name="scout", body=contract + "\n")}, lenses,
+        ),
+    }
+    for label, (mutated_catalog, mutated_roles, mutated_lenses) in cases.items():
+        if not deep_review_role_problems(mutated_catalog, mutated_roles, contract, mutated_lenses):
+            fail(f"the deep-review role check accepted {label}")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
     roles = {role.name: role for role in generate_agents.load_roles(skill)}
-    if set(roles) != set(DEEP_REVIEW_ROLES):
-        fail(f"deep-review roles must be exactly {', '.join(sorted(DEEP_REVIEW_ROLES))}")
-    for name, expected in DEEP_REVIEW_ROLES.items():
-        if roles[name].harnesses != expected:
-            fail(f"deep-review role {name!r} drifted from its pinned harness models and limits")
-    if "# Structural Lens" not in roles["structural"].body or "# Structural Lens" in roles["scout"].body:
-        fail("only the deep-review structural scout embeds the structural lens")
+    catalog = deep_review_catalog((skill / "protocol.md").read_text(encoding="utf-8"))
+    contract = reviewer_text(skill / "reviewers" / "SCOUT.md")
+    lenses = {path.stem: reviewer_text(path) for path in (skill / "reviewers" / "lenses").glob("*.md")}
+    problems = deep_review_role_problems(catalog, roles, contract, lenses)
+    if problems:
+        fail(problems[0])
+    validate_deep_review_role_contract(catalog, roles, contract, lenses)
 
     shared = deep_review_shared_sources(skill)
     for path in shared:
@@ -1507,6 +1617,57 @@ def validate_deep_review() -> None:
         original = contents.get(path.read_text(encoding="utf-8"))
         if original is not None:
             fail(f"{path.relative_to(ROOT).as_posix()}: duplicate copy of {original.relative_to(ROOT).as_posix()}")
+
+
+def markdown_agent_fields(text: str) -> dict[str, object]:
+    """Read the frontmatter the generator writes for Devin and Claude Code agents."""
+    lines = text.split("\n---\n", 1)[0].removeprefix("---\n").splitlines()
+    fields: dict[str, object] = {}
+    key = None
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        if line.startswith("  - "):
+            fields[key].append(json.loads(line[4:]) if line[4:].startswith('"') else line[4:])
+            continue
+        key, _, value = line.partition(": ")
+        key = key.removesuffix(":")
+        fields[key] = (json.loads(value) if value.startswith('"') else value) if value else []
+    return fields
+
+
+def validate_deep_review_generation() -> None:
+    """Every deep-review agent renders with its pinned fields, regenerates idempotently, and replaces the generic scout."""
+    obsolete = {
+        "harnesses/codex/deep-review-scout.toml",
+        "harnesses/devin/deep-review-scout/AGENT.md",
+        "harnesses/claude/deep-review-scout.md",
+    }
+    with tempfile.TemporaryDirectory(prefix="skills-deep-review-agents-") as temp_value:
+        skill = Path(temp_value) / "deep-review"
+        shutil.copytree(SKILLS / "deep-review", skill, ignore=shutil.ignore_patterns(*generate_agents.HARNESSES))
+        for relative in obsolete:
+            (skill / relative).parent.mkdir(parents=True, exist_ok=True)
+            (skill / relative).write_text("generated by the former generic scout role\n", encoding="utf-8")
+        generate_agents.write_agents(skill)
+        leftovers = sorted(relative for relative in obsolete if (skill / relative).exists())
+        if leftovers:
+            fail(f"regenerating deep-review agents kept the obsolete generic scout output: {', '.join(leftovers)}")
+        for role, harnesses in DEEP_REVIEW_ROLES.items():
+            name = f"deep-review-{role}"
+            codex = tomllib.loads((skill / "harnesses" / "codex" / f"{name}.toml").read_text(encoding="utf-8"))
+            devin = markdown_agent_fields((skill / "harnesses" / "devin" / name / "AGENT.md").read_text(encoding="utf-8"))
+            claude = markdown_agent_fields((skill / "harnesses" / "claude" / f"{name}.md").read_text(encoding="utf-8"))
+            for harness, rendered in (("codex", codex), ("devin", devin), ("claude", claude)):
+                expected = {"name": name, **harnesses[harness]}
+                if {key: rendered.get(key) for key in expected} != expected:
+                    fail(f"generated {harness} agent {name} does not render its pinned name, model, effort, tools, and sandbox")
+        generated = snapshot_tree(skill / "harnesses")
+        expected_files = {f"{relative.removeprefix('harnesses/')}" for relative in generate_agents.render_agents(skill)}
+        if set(generated) != expected_files | {"roles.toml"} or len(expected_files) != 3 * len(DEEP_REVIEW_ROLES):
+            fail("deep-review agent generation does not produce exactly one agent per role for every harness")
+        if generate_agents.write_agents(skill) or snapshot_tree(skill / "harnesses") != generated:
+            fail("regenerating unchanged deep-review sources changed generated agent files")
 
 
 def remove_generated_agents(skill: Path) -> None:
@@ -1640,6 +1801,7 @@ def main() -> int:
         validate_native_agents()
         validate_generated_agents_untracked()
         validate_deep_review()
+        validate_deep_review_generation()
         validate_agent_generation_contract()
     except CheckFailure as error:
         print(f"FAIL: {error}", file=sys.stderr)

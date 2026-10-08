@@ -6,10 +6,10 @@
 Reviewed: [confirmed target]
 Base / reviewed head / current head: [base] / [reviewed SHA] / [current SHA]
 Publication: [PR # / local only / stale and blocked]
-Scouts: [selected scouts]
+Scouts: [each selected lens and its native agent, for example `bugs` → `deep-review-scout-bugs`]
 Validation: [run / not needed / incomplete]
 Context snapshot: [target-bound files/manifests, omitted optional files, warnings, or "empty"]
-Runtime: [harness identity/version] | Skill: [reviewed commit/version]
+Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validator agents: [validator agents that ran, or none]
 
 **Pipeline:** Hypotheses [discovered] → [after dedupe]; Validation [findings] Finding, [disproved] Disproved, [unresolved] Unresolved
 **Status:** complete | stale | **Review incomplete**: [scout/validator failure and affected hypotheses]

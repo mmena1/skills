@@ -1,13 +1,13 @@
 # Runtime Acceptance Matrix
 
-Static checks cannot prove multi-agent orchestration. Every real review therefore emits a passive receipt in its run state and final report with the harness identity/version, reviewed skill commit, selected roles, and observed result for every row. Use `PASS`, `FAIL`, or `NOT EXERCISED`; unobserved behavior is never a pass.
+Static checks cannot prove multi-agent orchestration. Every real review therefore emits a passive receipt in its run state and final report with the harness identity/version, reviewed skill commit, each selected lens with the native agent used for it, the validator agents that ran, and observed result for every row. Use `PASS`, `FAIL`, or `NOT EXERCISED`; unobserved behavior is never a pass.
 
 | Scenario | Devin expected result | Claude Code expected result | Codex expected result |
 | --- | --- | --- | --- |
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same | Same |
 | Surviving hypotheses | Independent static validator launches for every canonical hypothesis | Same | Same |
 | Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same, with at most 4 slots bounded by the concurrent subagent cap; a concurrency refusal requeues the hypothesis instead of failing it | Same |
-| Multiple selected scouts | Every selected scout starts in one simultaneous wave | Every selected scout launches as a parallel agent call in one message | Same |
+| Multiple selected scouts | The native agent of every selected lens, and only those, starts in one simultaneous wave | The native agent of every selected lens, and only those, launches as a parallel agent call in one message | Same |
 | Insufficient scout capacity | Review stops before launching any scout and reports required versus available capacity | Same when the selected scouts exceed the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap; a concurrency refusal at launch from slots occupied outside the session stops the review and marks it incomplete, and the receipt records that part of the gate as observed at launch | Same |
 | Validator probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same | Same |
 | Scout failure | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same | Same |
@@ -19,6 +19,20 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 Normal reviews exercise only paths they encounter. Keep rare failures and transitions `NOT EXERCISED` until natural execution or a targeted smoke run observes them; never perturb a real review solely to fill the matrix. After changes to `SKILL.md` orchestration, `harnesses/roles.toml`, or reviewer bodies, targeted Devin, Codex, and Claude Code smoke runs remain required for important gaps not covered by passive receipts.
 
 Cross-harness acceptance passes only when collected receipts and targeted smoke evidence show every harness preserves the protocol's state meanings, failure behavior, publication safeguards, and single-worktree invariant. Different hypotheses or wording across harnesses are expected and do not fail behavioral equivalence.
+
+## Native agents per lens
+
+Each selected lens runs in its own native agent, and the receipt names the agent used for each selected lens:
+
+| Lens | Native agent |
+| --- | --- |
+| `bugs` | `deep-review-scout-bugs` |
+| `conventions` | `deep-review-scout-conventions` |
+| `history` | `deep-review-scout-history` |
+| `docs` | `deep-review-scout-docs` |
+| `structural` | `deep-review-structural` |
+
+Static adjudication runs as `deep-review-validator-static` and writable probes as `deep-review-validator-probe`. Smoke rows and receipts below that name `deep-review-scout` record the former generic scout, which ran the `bugs`, `conventions`, `history`, and `docs` lenses with one shared model. They remain historical evidence and are not evidence for the lens-specific agents.
 
 ## PR-review-overlap scenarios
 

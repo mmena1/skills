@@ -35,13 +35,14 @@ Obtain a non-empty confirmed set. Before analysis, verify the invocation-specifi
 
 - the exact selected scout count is known;
 - enough simultaneous scout capacity exists for the complete set;
-- the common scout and selected lens contracts are available;
+- the native scout agent for every selected lens is installed: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`, each embedding the common scout contract and exactly its own lens;
+- the static and writable validator agents are installed;
 - an independent validator can launch when hypotheses survive;
 - scouts can inspect the pinned worktree read-only;
 - the validator can inspect it read-only during static adjudication and receive writable access for bounded probes;
 - every role can access the same pinned worktree and its bounded context manifests.
 
-If `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Never launch a partial set, run sequentially, use bounded waves, or change global harness concurrency policy.
+If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. If `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Never launch a partial set, run sequentially, use bounded waves, or change global harness concurrency policy.
 
 ## Capture context and create one worktree
 
@@ -53,7 +54,7 @@ If `N` scouts are selected and fewer than `N` simultaneous slots are available, 
 
 ## Scout concurrently
 
-Launch every selected scout simultaneously. The generic scout role executes `bugs`, `conventions`, `history`, and `docs` with the corresponding file under `reviewers/lenses/`; `structural` may use its specialized native execution profile but still follows `reviewers/SCOUT.md` and `reviewers/lenses/structural.md`. The structural scout and validators apply the structural evidence standard below; no design-guidance skill is a prerequisite, a supplied contract, or an adjudication authority for structural review.
+Launch the native agent of every selected scout, and only those, in one simultaneous wave: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`. Each scout agent embeds `reviewers/SCOUT.md` followed by its own file under `reviewers/lenses/`, so the coordinator passes each scout its lens slug, never a lens file. The structural scout and validators apply the structural evidence standard below; no design-guidance skill is a prerequisite, a supplied contract, or an adjudication authority for structural review.
 
 Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, or missing required context marks the run incomplete. An incomplete run cannot claim PASS or `No findings` and cannot publish.
 
@@ -111,7 +112,7 @@ The coordinator persists protocol state in one coordinator-owned `run-state.json
 
 ## Runtime acceptance receipt
 
-Every real review emits a passive runtime acceptance receipt from coordinator-observed state. The coordinator records the harness identity and version; the shared receipt also records the reviewed skill commit or version, selected roles, and one status for every acceptance scenario: `PASS`, `FAIL`, or `NOT EXERCISED`.
+Every real review emits a passive runtime acceptance receipt from coordinator-observed state. The coordinator records the harness identity and version; the shared receipt also records the reviewed skill commit or version, each selected lens with the native agent used for it, the validator agents that ran, and one status for every acceptance scenario: `PASS`, `FAIL`, or `NOT EXERCISED`.
 
 Record only observed behavior. Never perturb a real review to exercise a row, infer a pass from static configuration, or convert an unobserved path into a pass. Preserve concise evidence for each exercised row in `run-state.json` and the final report:
 
