@@ -39,18 +39,21 @@ def find_bash() -> str:
     fail("Git Bash is required for install.sh distribution tests on Windows")
 
 
-def write_agent_skill(skill: Path, body: str) -> None:
-    """Give a fixture skill one native reviewer agent role on every harness; the installer generates it."""
+def write_agent_skill(skill: Path, body: str, roles: tuple[str, ...] = ("probe",)) -> None:
+    """Give a fixture skill native reviewer agent roles on every harness; the installer generates them."""
     (skill / "reviewers").mkdir(parents=True, exist_ok=True)
     (skill / "harnesses").mkdir(exist_ok=True)
     (skill / "reviewers" / "probe.md").write_text(body + "\n", encoding="utf-8")
     (skill / "harnesses" / "roles.toml").write_text(
-        "[roles.probe]\n"
-        'description = "Fixture probe."\n'
-        'body = ["reviewers/probe.md"]\n'
-        '[roles.probe.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nsandbox_mode = "read-only"\n'
-        '[roles.probe.devin]\nmodel = "gpt-5-6-luna-high"\nallowed-tools = ["read"]\n'
-        '[roles.probe.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n',
+        "".join(
+            f"[roles.{role}]\n"
+            f'description = "Fixture {role}."\n'
+            'body = ["reviewers/probe.md"]\n'
+            f'[roles.{role}.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nsandbox_mode = "read-only"\n'
+            f'[roles.{role}.devin]\nmodel = "gpt-5-6-luna-high"\nallowed-tools = ["read"]\n'
+            f'[roles.{role}.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n'
+            for role in roles
+        ),
         encoding="utf-8",
     )
 
@@ -288,6 +291,65 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
             fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
 
 
+def test_agent_role_removal(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    """Removing one role from a skill that stays installed retires only that role's managed agents."""
+    skill = fixture / "skills" / f"{label}-shrinking-agents"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(f"---\nname: {skill.name}\ndescription: Shrinking fixture.\n---\n", encoding="utf-8")
+    kept, retired = f"{skill.name}-kept", f"{skill.name}-retired"
+    shapes = {"link": {}, "copy": {"SKILLS_INSTALLER_FORCE_COPY": "1"}}
+
+    owned_home = temporary / f"{label}-role-removal-owned"
+    for harness in AGENT_HARNESSES:
+        for name, text in ((kept, "keep me\n"), (retired, "leave me\n")):
+            path = installed_agent(owned_home, harness, name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+
+    try:
+        write_agent_skill(skill, "Shrinking reviewer.", ("kept", "retired"))
+        for shape, env in shapes.items():
+            home = temporary / f"{label}-role-removal-{shape}"
+            invoke(home, option("all"), extra_env=env)
+            for harness in AGENT_HARNESSES:
+                assert_agent(home, harness, retired, skill)
+
+        write_agent_skill(skill, "Shrinking reviewer.", ("kept",))
+        for shape, env in shapes.items():
+            home = temporary / f"{label}-role-removal-{shape}"
+            context = f"{label} {shape} role removal"
+            invoke(home, option("all"), extra_env=env)
+            for harness in AGENT_HARNESSES:
+                assert_no_agent(home, harness, retired, context)
+                assert_agent(home, harness, kept, skill)
+                for name in (kept, retired):
+                    if backups_of(installed_agent_entry(home, harness, name)):
+                        fail(f"{context} backed up a repository-managed {harness} agent {name}")
+                if orphaned_markers(agent_destinations(home)[harness]):
+                    fail(f"{context} left a managed marker for the removed {harness} agent")
+            before = snapshot_home(home)
+            invoke(home, option("all"), extra_env=env)
+            if snapshot_home(home) != before:
+                fail(f"{context} changed the home on a repeated install")
+
+        # User-owned agents that merely carry a declared or retired name are never deleted.
+        for _ in range(2):
+            invoke(owned_home, option("all"))
+        for harness in AGENT_HARNESSES:
+            backups = backups_of(installed_agent_entry(owned_home, harness, kept))
+            preserved = (backups[0] / "AGENT.md" if harness == "devin" else backups[0]) if len(backups) == 1 else None
+            if preserved is None or preserved.read_text(encoding="utf-8") != "keep me\n":
+                fail(f"{label} installer did not back up a user-owned {harness} agent under a declared name exactly once")
+            assert_agent(owned_home, harness, kept, skill)
+            untouched = installed_agent(owned_home, harness, retired)
+            if not untouched.is_file() or untouched.read_text(encoding="utf-8") != "leave me\n":
+                fail(f"{label} installer changed a user-owned {harness} agent under a retired name")
+            if backups_of(installed_agent_entry(owned_home, harness, retired)):
+                fail(f"{label} installer backed up a user-owned {harness} agent under a retired name")
+    finally:
+        shutil.rmtree(skill)
+
+
 def is_link(path: Path) -> bool:
     return path.is_symlink() or (os.name == "nt" and os.path.isjunction(path))
 
@@ -369,7 +431,11 @@ def path_without_python(temporary: Path) -> dict[str, str]:
     return {"PATH": str(tools)}
 
 
-LEGACY_DEEP_REVIEW_CODEX_AGENTS = tuple(f"deep-review-{role}" for role in DEEP_REVIEW_ROLES)
+# The native agents the standalone mmena1/deep-review repository shipped, pinned so that
+# renaming a current deep-review role never changes the legacy installations under test.
+LEGACY_DEEP_REVIEW_CODEX_AGENTS = (
+    "deep-review-scout", "deep-review-structural", "deep-review-validator-static", "deep-review-validator-probe",
+)
 LEGACY_DEEP_REVIEW_DEVIN_AGENTS = (
     "code-reviewer", "code-reviewer-structural", "code-reviewer-validator-static", "code-reviewer-validator-probe",
 )
@@ -447,6 +513,26 @@ def deep_review_repository(repository: Path) -> Path:
     return repository
 
 
+def drop_role(skill: Path, role: str) -> None:
+    """Remove one role's tables from a skill's role manifest, as a role rename or removal would."""
+    manifest = skill / "harnesses" / "roles.toml"
+    kept, dropping = [], False
+    for line in manifest.read_text(encoding="utf-8").splitlines(keepends=True):
+        header = re.fullmatch(r"\[roles\.([^.\]]+)(?:\.[^\]]+)?\]\s*", line)
+        if header:
+            dropping = header.group(1) == role
+        if not dropping:
+            kept.append(line)
+    manifest.write_text("".join(kept), encoding="utf-8")
+    if role in {entry.name for entry in generate_agents.load_roles(skill)}:
+        fail(f"could not drop role {role} from {manifest}")
+
+
+def declared_agents(skill: Path, harness: str) -> set[str]:
+    """The agent names a skill currently declares for one harness."""
+    return {role.agent_name for role in generate_agents.load_roles(skill) if harness in role.harnesses}
+
+
 def test_deep_review_claude(label: str, temporary: Path, invoke_from, option) -> None:
     """Selecting Claude Code installs deep-review and links every one of its native reviewer agents."""
     repository = deep_review_repository(temporary / f"{label}-deep-review-claude-repository")
@@ -521,7 +607,11 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
         if os.path.lexists(home / ".config" / "devin" / "skills" / "deep-review"):
             fail(f"{label} installer retained the old {shape} deep-review Devin skill root")
         for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
-            assert_agent(home, "codex", name, skill)
+            if name in declared_agents(skill, "codex"):
+                assert_agent(home, "codex", name, skill)
+            else:
+                assert_no_agent(home, "codex", name, f"{label} replacement of the old {shape} deep-review installation")
+        for name in sorted(declared_agents(skill, "devin")):
             assert_agent(home, "devin", name, skill)
         for name in LEGACY_DEEP_REVIEW_DEVIN_AGENTS:
             if os.path.lexists(home / ".config" / "devin" / "agents" / name):
@@ -531,6 +621,49 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
             fail(f"{label} installer backed up an old {shape} deep-review installation instead of replacing it: {backups[0]}")
         if snapshot_files(checkout) != checkout_files:
             fail(f"{label} installer changed the old deep-review checkout while replacing its {shape} installation")
+
+    # A legacy Codex agent whose name the current deep-review no longer declares is retired.
+    retiring = deep_review_repository(temporary / f"{label}-legacy-retiring-repository")
+    retiring_skill = retiring / "skills" / "deep-review"
+    drop_role(retiring_skill, "scout")
+    for shape, copies in (("linked", False), ("copied", True)):
+        home = temporary / f"{label}-legacy-retiring-{shape}"
+        context = f"{label} retirement of an undeclared {shape} deep-review agent"
+        install_legacy_deep_review(home, checkout, copies=copies)
+        invoke_from(retiring)(home, option("all"))
+        assert_no_agent(home, "codex", "deep-review-scout", context)
+        for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS[1:]:
+            assert_agent(home, "codex", name, retiring_skill)
+        backups = [path for path in home.rglob("*.bak-*")]
+        if backups:
+            fail(f"{context} backed up an old installation instead of removing it: {backups[0]}")
+        if snapshot_files(checkout) != checkout_files:
+            fail(f"{context} changed the old deep-review checkout")
+        before = snapshot_home(home)
+        invoke_from(retiring)(home, option("all"))
+        if snapshot_home(home) != before:
+            fail(f"{context} changed the home on a repeated install")
+
+    # Content that only carries a retired or declared legacy name is not recognisably owned.
+    owned_home = temporary / f"{label}-legacy-retiring-owned"
+    retired_link = owned_home / ".codex" / "agents" / "deep-review-scout.toml"
+    retired_target = temporary / f"{label}-legacy-retired-foreign.toml"
+    retired_target.write_text("leave me\n", encoding="utf-8")
+    create_file_link(retired_link, retired_target)
+    retired_plain = owned_home / ".claude" / "agents" / "deep-review-scout.md"
+    retired_plain.parent.mkdir(parents=True)
+    retired_plain.write_text("leave me\n", encoding="utf-8")
+    declared_plain = owned_home / ".codex" / "agents" / "deep-review-structural.toml"
+    declared_plain.write_text("keep me\n", encoding="utf-8")
+    for _ in range(2):
+        invoke_from(retiring)(owned_home, option("all"))
+    for untouched in (retired_link, retired_plain):
+        if not untouched.is_file() or untouched.read_text(encoding="utf-8") != "leave me\n" or backups_of(untouched):
+            fail(f"{label} installer changed unrecognised content under a retired deep-review agent name: {untouched}")
+    found = backups_of(declared_plain)
+    if len(found) != 1 or found[0].read_text(encoding="utf-8") != "keep me\n":
+        fail(f"{label} installer did not back up unrecognised content under a declared deep-review agent name exactly once")
+    assert_agent(owned_home, "codex", "deep-review-structural", retiring_skill)
 
     unrelated_home = temporary / f"{label}-legacy-unrelated"
     marked_root = unrelated_home / ".agents" / "skills" / "deep-review"
@@ -719,6 +852,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
 
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_agent_role_removal("shell", fixture, temporary, invoke, shell_options.__getitem__)
     without_python = None if os.name == "nt" else path_without_python(temporary)
     test_agent_prerequisites("shell", fixture, temporary, invoke_from, shell_options.__getitem__, without_python)
     test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
@@ -860,6 +994,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
 
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_agent_role_removal("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_agent_prerequisites("powershell", fixture, temporary, invoke_from, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)

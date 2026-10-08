@@ -197,8 +197,9 @@ materialize_path() {
 
 # The standalone mmena1/deep-review installer composed marked skill roots from links
 # into its checkout and linked its native agents from there. Recognise exactly those
-# installations so this repository's deep-review replaces them; anything else that
-# occupies the same name is backed up.
+# installations so this repository's deep-review replaces them, and reconciliation
+# removes those whose names it no longer declares; anything else that occupies a
+# declared name is backed up, and anything else under a retired name is left alone.
 LEGACY_DEEP_REVIEW_MARKER=".deep-review-managed"
 LEGACY_DEEP_REVIEW_ENTRIES="|$LEGACY_DEEP_REVIEW_MARKER|SKILL.md|protocol.md|GLOSSARY.md|references|reviewers|agents|"
 LEGACY_DEEP_REVIEW_DEVIN_AGENTS="code-reviewer code-reviewer-structural code-reviewer-validator-static code-reviewer-validator-probe"
@@ -278,7 +279,6 @@ is_legacy_deep_review_installation() {
 # Unlink each composed entry before removing the root so no link is followed.
 remove_legacy_deep_review() {
   local destination="$1" entry
-  echo "Replacing deep-review installation from the standalone repository: $destination"
   if [ ! -d "$destination" ] || [ -L "$destination" ]; then
     rm -f "$destination"
     return
@@ -309,15 +309,18 @@ is_legacy_deep_review_devin_agent() {
     tr -d '\r' < "$destination/AGENT.md" | grep -qx '<!-- BEGIN GENERATED: shared reviewer body -->'
 }
 
-# Devin names the old installation used that this repository does not install.
+# Devin agent names the old installation used that this repository does not install.
+# Both of the old installer's Devin agent roots are checked, so this stays separate
+# from reconciliation, which visits only the current root.
 remove_legacy_deep_review_devin() {
   local root name destination
-  destination="${HOME}/.config/devin/skills/deep-review"
-  if is_legacy_deep_review_skill_root "$destination"; then remove_legacy_deep_review "$destination"; fi
   for root in "${HOME}/.config/devin/agents" "$(devin_agents_root)"; do
     for name in $LEGACY_DEEP_REVIEW_DEVIN_AGENTS; do
       destination="$root/$name"
-      if is_legacy_deep_review_devin_agent "$destination"; then remove_legacy_deep_review "$destination"; fi
+      if is_legacy_deep_review_devin_agent "$destination"; then
+        echo "Removing deep-review agent from the standalone repository: $destination"
+        remove_legacy_deep_review "$destination"
+      fi
     done
   done
 }
@@ -331,6 +334,7 @@ install_managed_path() {
   elif managed_copy_points_into_repo "$destination"; then
     remove_managed_path "$destination"
   elif is_legacy_deep_review_installation "$destination"; then
+    echo "Replacing deep-review installation from the standalone repository: $destination"
     remove_legacy_deep_review "$destination"
   elif path_exists "$destination"; then
     backup_path "$destination"
@@ -365,6 +369,9 @@ reconcile_collection() {
     if managed_path_points_into_repo "$destination"; then
       echo "Removing repository-managed $kind absent from desired set: $destination"
       remove_managed_path "$destination"
+    elif is_legacy_deep_review_installation "$destination"; then
+      echo "Removing standalone deep-review $kind absent from desired set: $destination"
+      remove_legacy_deep_review "$destination"
     fi
   done
 }
