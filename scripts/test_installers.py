@@ -513,21 +513,6 @@ def deep_review_repository(repository: Path) -> Path:
     return repository
 
 
-def drop_role(skill: Path, role: str) -> None:
-    """Remove one role's tables from a skill's role manifest, as a role rename or removal would."""
-    manifest = skill / "harnesses" / "roles.toml"
-    kept, dropping = [], False
-    for line in manifest.read_text(encoding="utf-8").splitlines(keepends=True):
-        header = re.fullmatch(r"\[roles\.([^.\]]+)(?:\.[^\]]+)?\]\s*", line)
-        if header:
-            dropping = header.group(1) == role
-        if not dropping:
-            kept.append(line)
-    manifest.write_text("".join(kept), encoding="utf-8")
-    if role in {entry.name for entry in generate_agents.load_roles(skill)}:
-        fail(f"could not drop role {role} from {manifest}")
-
-
 def declared_agents(skill: Path, harness: str) -> set[str]:
     """The agent names a skill currently declares for one harness."""
     return {role.agent_name for role in generate_agents.load_roles(skill) if harness in role.harnesses}
@@ -547,6 +532,62 @@ def test_deep_review_claude(label: str, temporary: Path, invoke_from, option) ->
     for harness in ("codex", "devin"):
         if os.path.lexists(agent_destinations(home)[harness]):
             fail(f"{label} Claude deep-review install wrote agents for unselected harness {harness}")
+
+
+FORMER_GENERIC_SCOUT_ROLE = """
+[roles.scout]
+description = "Read-only deep-review scout using one selected review lens."
+body = ["reviewers/SCOUT.md"]
+
+[roles.scout.codex]
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.scout.devin]
+model = "gpt-6-1-sol-high"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.scout.claude]
+model = "claude-sonnet-5-5"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+"""
+
+
+def test_deep_review_scout_upgrade(label: str, temporary: Path, invoke_from, option) -> None:
+    """Upgrading from the generic scout retires its managed agent everywhere and installs every lens-specific scout."""
+    repository = deep_review_repository(temporary / f"{label}-scout-upgrade-repository")
+    skill = repository / "skills" / "deep-review"
+    manifest = skill / "harnesses" / "roles.toml"
+    current = manifest.read_text(encoding="utf-8")
+    invoke = invoke_from(repository)
+    shapes = {"link": {}, "copy": {"SKILLS_INSTALLER_FORCE_COPY": "1"}}
+
+    manifest.write_text(current + FORMER_GENERIC_SCOUT_ROLE, encoding="utf-8")
+    for shape, env in shapes.items():
+        home = temporary / f"{label}-scout-upgrade-{shape}"
+        invoke(home, option("all"), extra_env=env)
+        for harness in AGENT_HARNESSES:
+            assert_agent(home, harness, "deep-review-scout", skill)
+
+    manifest.write_text(current, encoding="utf-8")
+    for shape, env in shapes.items():
+        home = temporary / f"{label}-scout-upgrade-{shape}"
+        context = f"{label} {shape} upgrade from the generic deep-review scout"
+        invoke(home, option("all"), extra_env=env)
+        for harness in AGENT_HARNESSES:
+            assert_no_agent(home, harness, "deep-review-scout", context)
+            for role in DEEP_REVIEW_ROLES:
+                assert_agent(home, harness, f"deep-review-{role}", skill)
+            if backups_of(installed_agent_entry(home, harness, "deep-review-scout")):
+                fail(f"{context} backed up the repository-managed {harness} generic scout")
+            if orphaned_markers(agent_destinations(home)[harness]):
+                fail(f"{context} left a managed marker for the {harness} generic scout")
+        before = snapshot_home(home)
+        invoke(home, option("all"), extra_env=env)
+        if snapshot_home(home) != before:
+            fail(f"{context} changed the home on a repeated install")
 
 
 def test_renamed_skills(label: str, temporary: Path, invoke_from, option) -> None:
@@ -596,6 +637,9 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
     checkout = temporary / f"{label}-old-deep-review"
     write_legacy_deep_review_checkout(checkout)
     checkout_files = snapshot_files(checkout)
+    # The current deep-review no longer declares the legacy generic scout, so its legacy agent is retired.
+    if "deep-review-scout" in declared_agents(skill, "codex"):
+        fail("deep-review still declares the legacy generic scout agent")
     for shape, copies in (("linked", False), ("copied", True)):
         home = temporary / f"{label}-legacy-{shape}"
         install_legacy_deep_review(home, checkout, copies=copies)
@@ -621,31 +665,13 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
             fail(f"{label} installer backed up an old {shape} deep-review installation instead of replacing it: {backups[0]}")
         if snapshot_files(checkout) != checkout_files:
             fail(f"{label} installer changed the old deep-review checkout while replacing its {shape} installation")
-
-    # A legacy Codex agent whose name the current deep-review no longer declares is retired.
-    retiring = deep_review_repository(temporary / f"{label}-legacy-retiring-repository")
-    retiring_skill = retiring / "skills" / "deep-review"
-    drop_role(retiring_skill, "scout")
-    for shape, copies in (("linked", False), ("copied", True)):
-        home = temporary / f"{label}-legacy-retiring-{shape}"
-        context = f"{label} retirement of an undeclared {shape} deep-review agent"
-        install_legacy_deep_review(home, checkout, copies=copies)
-        invoke_from(retiring)(home, option("all"))
-        assert_no_agent(home, "codex", "deep-review-scout", context)
-        for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS[1:]:
-            assert_agent(home, "codex", name, retiring_skill)
-        backups = [path for path in home.rglob("*.bak-*")]
-        if backups:
-            fail(f"{context} backed up an old installation instead of removing it: {backups[0]}")
-        if snapshot_files(checkout) != checkout_files:
-            fail(f"{context} changed the old deep-review checkout")
         before = snapshot_home(home)
-        invoke_from(retiring)(home, option("all"))
+        invoke(home, option("all"))
         if snapshot_home(home) != before:
-            fail(f"{context} changed the home on a repeated install")
+            fail(f"{label} replacement of the old {shape} deep-review installation changed the home on a repeated install")
 
     # Content that only carries a retired or declared legacy name is not recognisably owned.
-    owned_home = temporary / f"{label}-legacy-retiring-owned"
+    owned_home = temporary / f"{label}-legacy-owned"
     retired_link = owned_home / ".codex" / "agents" / "deep-review-scout.toml"
     retired_target = temporary / f"{label}-legacy-retired-foreign.toml"
     retired_target.write_text("leave me\n", encoding="utf-8")
@@ -656,14 +682,14 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
     declared_plain = owned_home / ".codex" / "agents" / "deep-review-structural.toml"
     declared_plain.write_text("keep me\n", encoding="utf-8")
     for _ in range(2):
-        invoke_from(retiring)(owned_home, option("all"))
+        invoke(owned_home, option("all"))
     for untouched in (retired_link, retired_plain):
         if not untouched.is_file() or untouched.read_text(encoding="utf-8") != "leave me\n" or backups_of(untouched):
             fail(f"{label} installer changed unrecognised content under a retired deep-review agent name: {untouched}")
     found = backups_of(declared_plain)
     if len(found) != 1 or found[0].read_text(encoding="utf-8") != "keep me\n":
         fail(f"{label} installer did not back up unrecognised content under a declared deep-review agent name exactly once")
-    assert_agent(owned_home, "codex", "deep-review-structural", retiring_skill)
+    assert_agent(owned_home, "codex", "deep-review-structural", skill)
 
     unrelated_home = temporary / f"{label}-legacy-unrelated"
     marked_root = unrelated_home / ".agents" / "skills" / "deep-review"
@@ -672,7 +698,7 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
     (marked_root / "notes.md").write_text("keep me\n", encoding="utf-8")
     foreign_target = temporary / f"{label}-legacy-foreign.toml"
     foreign_target.write_text("keep me\n", encoding="utf-8")
-    foreign_link = unrelated_home / ".codex" / "agents" / "deep-review-scout.toml"
+    foreign_link = unrelated_home / ".codex" / "agents" / "deep-review-scout-bugs.toml"
     create_file_link(foreign_link, foreign_target)
     plain_agent = unrelated_home / ".codex" / "agents" / "deep-review-structural.toml"
     plain_agent.write_text("keep me\n", encoding="utf-8")
@@ -690,7 +716,7 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
         if preserved is None or preserved.read_text(encoding="utf-8") != "keep me\n":
             fail(f"{label} installer did not back up an unrecognised deep-review destination exactly once: {destination}")
     assert_skill(marked_root, "name: deep-review")
-    assert_agent(unrelated_home, "codex", "deep-review-scout", skill)
+    assert_agent(unrelated_home, "codex", "deep-review-scout-bugs", skill)
     assert_agent(unrelated_home, "codex", "deep-review-structural", skill)
     for kept in (devin_root / "notes.md", devin_agent / "AGENT.md"):
         if not kept.is_file() or kept.read_text(encoding="utf-8") != "leave me\n":
@@ -857,6 +883,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     test_agent_prerequisites("shell", fixture, temporary, invoke_from, shell_options.__getitem__, without_python)
     test_legacy_deep_review("shell", temporary, invoke_from, shell_options.__getitem__)
     test_deep_review_claude("shell", temporary, invoke_from, shell_options.__getitem__)
+    test_deep_review_scout_upgrade("shell", temporary, invoke_from, shell_options.__getitem__)
     test_renamed_skills("shell", temporary, invoke_from, shell_options.__getitem__)
 
 
@@ -998,6 +1025,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     test_agent_prerequisites("powershell", fixture, temporary, invoke_from, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)
+    test_deep_review_scout_upgrade("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_renamed_skills("powershell", temporary, invoke_from, powershell_options.__getitem__)
 
 

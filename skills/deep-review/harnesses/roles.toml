@@ -2,22 +2,79 @@
 # harness, named "deep-review-<role>" everywhere. The installer
 # generates them; they are gitignored. Regenerate locally with
 # `python scripts/generate_agents.py` after editing this file or a body.
+#
+# Each scout role embeds the common scout contract followed by exactly one
+# lens from reviewers/lenses/. Validators embed the validator contract.
 
-[roles.scout]
-description = "Read-only deep-review scout using one selected review lens."
-body = ["reviewers/SCOUT.md"]
+[roles.scout-bugs]
+description = "Read-only deep-review scout using the bugs lens."
+body = ["reviewers/SCOUT.md", "reviewers/lenses/bugs.md"]
 
-[roles.scout.codex]
+[roles.scout-bugs.codex]
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
-[roles.scout.devin]
+[roles.scout-bugs.devin]
 model = "gpt-6-1-sol-high"
 allowed-tools = ["read", "grep", "glob", "exec"]
 
-[roles.scout.claude]
+[roles.scout-bugs.claude]
+model = "claude-opus-5-5"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+
+[roles.scout-conventions]
+description = "Read-only deep-review scout using the conventions lens."
+body = ["reviewers/SCOUT.md", "reviewers/lenses/conventions.md"]
+
+[roles.scout-conventions.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.scout-conventions.devin]
+model = "gpt-6-luna-high"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.scout-conventions.claude]
+model = "claude-haiku-5-5"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+
+[roles.scout-history]
+description = "Read-only deep-review scout using the history lens."
+body = ["reviewers/SCOUT.md", "reviewers/lenses/history.md"]
+
+[roles.scout-history.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.scout-history.devin]
+model = "gpt-6-luna-high"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.scout-history.claude]
 model = "claude-sonnet-5-5"
+tools = ["Read", "Grep", "Glob", "Bash"]
+effort = "high"
+
+[roles.scout-docs]
+description = "Read-only deep-review scout using the docs lens."
+body = ["reviewers/SCOUT.md", "reviewers/lenses/docs.md"]
+
+[roles.scout-docs.codex]
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+[roles.scout-docs.devin]
+model = "gpt-6-luna-high"
+allowed-tools = ["read", "grep", "glob", "exec"]
+
+[roles.scout-docs.claude]
+model = "claude-haiku-5-5"
 tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
