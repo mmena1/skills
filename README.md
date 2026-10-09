@@ -35,9 +35,29 @@ The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Ba
 
 Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with pinned models and supported tool lists. Codex native agents inherit the parent's effective sandbox and approval policy; read-only behavior relies on reviewer instructions within that inherited policy. For each selected harness, the installer installs the agents that selected skills ship into that harness's personal agent directory:
 
-- Codex: `~/.codex/agents/<agent>.toml`
+- Codex: `<Codex configuration directory>/agents/<agent>.toml`, defaulting to `~/.codex/agents/<agent>.toml`
 - Devin CLI: `~/.config/devin/agents/<agent>/AGENT.md`, or `%APPDATA%\devin\agents\<agent>\AGENT.md` on Windows
 - Claude Code: `~/.claude/agents/<agent>.md`
+
+The Codex configuration directory is selected in this order: `--codex-home DIRECTORY` in Bash or `-CodexHome DIRECTORY` in PowerShell, then a non-empty `CODEX_HOME`, then `~/.codex` (under `-HomePath` when supplied to PowerShell). An unset or empty `CODEX_HOME` uses the default. The dedicated target option changes only Codex native-agent destinations; select Codex with `--codex`/`-Codex`, `--all`/`-All`, or normal harness detection. Shared skills and other harness destinations keep their existing locations. Refresh, backup, reconciliation, and recognized standalone deep-review agent migration operate only in the selected Codex directory. Other Codex directories are left untouched.
+
+Use an absolute path accessible to the executing shell and quote paths containing spaces. Bash accepts Unix paths, including `/mnt/c/...` in WSL and `/c/...` in Git Bash; Git Bash also accepts native Windows paths. PowerShell accepts absolute Windows paths. Invalid selected Codex targets stop before destination changes, with no fallback to another directory. Selecting only Devin or Claude does not use or modify a Codex target.
+
+For Codex Desktop configured to use a Windows directory from WSL, explicitly select that shell-accessible directory:
+
+```bash
+./install.sh --codex --codex-home '/mnt/c/Users/your-name/.codex'
+# Alternatively, use the environment target:
+CODEX_HOME='/mnt/c/Users/your-name/.codex' ./install.sh --codex
+```
+
+In native Windows PowerShell:
+
+```powershell
+./install.ps1 -Codex -CodexHome 'C:\Users\your-name\Desktop config'
+```
+
+WSL detection alone never discovers or redirects installation to a Windows profile. Rerun with the same target after repository updates to refresh the marked Codex copies.
 
 Agents follow the same rules as skills. Agents from experimental skills are installed only with the experimental option. Repository-managed agents are replaced, or removed when no selected skill ships them any longer, including when a skill that stays installed drops one of its roles. Unrelated agents with a name that is still shipped are backed up, and unrelated agents under any other name, including a retired one, are left in place. Codex agents always use regular-file copies with a `<agent-file>.skills-repo-managed` marker naming the generated source, because Codex refuses symlinked role configuration files at launch. This intentional copy prints no link-failure warning. Rerun the installer after repository updates to regenerate and refresh these agents. Existing repository-managed Codex links are replaced with marked copies without backups. Devin agents remain linked directories and use junctions on Windows. Claude Code agents remain single-file links: on Windows they are symbolic links when the account may create them, which normally requires Developer Mode or an administrator shell. Otherwise the installer copies the file, writes a `<agent-file>.skills-repo-managed` marker beside it, and warns that it must be rerun after repository updates.
 
