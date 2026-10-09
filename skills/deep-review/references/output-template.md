@@ -19,6 +19,8 @@ Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validat
 
 ### Runtime acceptance receipt
 
+Describe the enforcement mechanism specified by the active harness in `SKILL.md`, with observed inherited session policy when available. Distinguish instructions from mechanical isolation and phase access from additional permissions.
+
 | Scenario | Status | Observed evidence |
 |---|---|---|
 | Zero hypotheses | PASS / FAIL / NOT EXERCISED | [coordinator observation] |

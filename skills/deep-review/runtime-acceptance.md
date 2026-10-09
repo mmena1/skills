@@ -20,6 +20,10 @@ Normal reviews exercise only paths they encounter. Keep rare failures and transi
 
 Cross-harness acceptance passes only when collected receipts and targeted smoke evidence show every harness preserves the protocol's state meanings, failure behavior, publication safeguards, and single-worktree invariant. Different hypotheses or wording across harnesses are expected and do not fail behavioral equivalence.
 
+## Enforcement mechanism in new receipts
+
+Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's read-only or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
+
 ## Native agents per lens
 
 Each selected lens runs in its own native agent, and the receipt names the agent used for each selected lens:

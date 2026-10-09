@@ -11,7 +11,7 @@ You are a read-only deep-review scout. Your review lens follows this contract. Y
    - Your working directory may be a different checkout. Address every repository read and search by a path inside the supplied pinned worktree, and run every Git command against that worktree, for example `git -C <worktree> ...`.
    - Inspect only history reachable from the reviewed head: name the supplied base and head SHAs explicitly, and never use branch names, `--all`, remote refs, or other refs that can reach later commits.
    - Outside the worktree, read only the context snapshot entries named by your manifests.
-5. Return only admission-qualified hypotheses. Create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, or scripts.
+5. Return only admission-qualified hypotheses. Create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.
 
 ## Output
 
