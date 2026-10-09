@@ -147,7 +147,7 @@ HELD_TRIAGE_STATES = {"needs-triage", "needs-info", "ready-for-human", "wontfix"
 USER_INVOKED_SKILLS = {
     "deep-review", "design-review", "evaluate-model", "grill-me",
     "grill-with-docs", "handoff-doc", "implement", "implementation-review",
-    "improve-codebase-architecture", "reconcile", "setup-skills", "teach",
+    "improve-codebase-architecture", "portfolio", "reconcile", "setup-skills", "teach",
     "to-questionnaire", "to-spec", "to-tickets", "triage", "wait-what",
     "wayfinder", "write-pr",
 }

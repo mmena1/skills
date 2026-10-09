@@ -1,0 +1,5 @@
+interface:
+  display_name: "Portfolio"
+  short_description: "Read-only portfolio overview and likely next steps"
+policy:
+  allow_implicit_invocation: false
