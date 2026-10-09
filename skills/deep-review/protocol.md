@@ -64,7 +64,7 @@ Prepare all selected launch arguments before dispatch. Emit the complete selecte
 
 Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, missing required context, or confirmed one-message grouping violation marks the run incomplete. Preserve completed evidence and identify unattempted hypotheses as not validated due to review failure. An incomplete run cannot claim PASS or `No findings` and cannot publish. Preserve a failed wave rather than relaunching it until one passes.
 
-If every scout succeeds and emits zero hypotheses, do not create validator state or launch a validator. Report that all selected dimensions completed and there was nothing to validate.
+If the scout wave is complete and every scout succeeds and emits zero hypotheses, do not create validator state or launch a validator. Report that all selected dimensions completed and there was nothing to validate.
 
 ## Hypotheses
 
