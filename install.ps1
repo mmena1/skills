@@ -1,3 +1,17 @@
+<#
+.SYNOPSIS
+Install portable skills and native reviewer agents for selected harnesses.
+.PARAMETER CodexHome
+Absolute Windows Codex configuration directory. Precedence: -CodexHome, non-empty
+CODEX_HOME, then .codex under HomePath (the user's home by default). Quote paths
+with spaces. This changes only the Codex agent destination, not shared skills or
+harness selection. Invalid selected targets fail before destination changes.
+Codex agents are marked regular-file copies; rerun after updates to refresh them.
+From WSL, use install.sh --codex --codex-home '/mnt/c/Users/your-name/.codex'
+to explicitly select a Desktop directory. WSL alone never redirects installation.
+.EXAMPLE
+./install.ps1 -Codex -CodexHome 'C:\Users\your-name\Desktop config'
+#>
 [CmdletBinding()]
 param(
     [switch]$Codex,
@@ -5,6 +19,8 @@ param(
     [switch]$Claude,
     [switch]$All,
     [switch]$Experimental,
+    [ValidateNotNullOrEmpty()]
+    [string]$CodexHome,
     [string]$HomePath = $HOME
 )
 
@@ -406,9 +422,10 @@ function Install-Agents {
 $installCodex = $Codex -or $All
 $installDevin = $Devin -or $All
 $installClaude = $Claude -or $All
+$codexConfigRoot = if ($PSBoundParameters.ContainsKey('CodexHome')) { $CodexHome } elseif ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HomePath '.codex' }
 if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
     $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
-        (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
+        (Test-Path -LiteralPath $codexConfigRoot) -or
         (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
     $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
         (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
@@ -416,6 +433,42 @@ if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
         (Test-Path -LiteralPath (Join-Path $HomePath '.claude'))
     if (-not $installCodex -and -not $installDevin -and -not $installClaude) {
         throw 'No supported harness detected. Use -Codex, -Devin, -Claude, or -All.'
+    }
+}
+
+if ($installCodex) {
+    try {
+        if ($codexConfigRoot -notmatch '^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/]+[\\/][^\\/]+)') {
+            throw 'Use an absolute Windows directory path.'
+        }
+        $codexConfigRoot = [System.IO.Path]::GetFullPath($codexConfigRoot)
+        $filesystemRoot = [System.IO.Path]::GetPathRoot($codexConfigRoot)
+        $probe = Join-Path $codexConfigRoot 'agents'
+        while ($probe) {
+            $item = $null
+            try {
+                $item = Get-Item -LiteralPath $probe -Force -ErrorAction Stop
+            } catch [System.Management.Automation.ItemNotFoundException] {
+                # A missing directory can be created beneath an existing filesystem root.
+            }
+            if ($null -ne $item -and -not $item.PSIsContainer) {
+                throw "Not a directory: $probe"
+            }
+            if ($null -ne $item -and -not (Test-Path -LiteralPath $probe -PathType Container)) {
+                throw "Not an accessible directory: $probe"
+            }
+            if ($probe.TrimEnd('\', '/') -eq $filesystemRoot.TrimEnd('\', '/')) {
+                if ($null -eq $item) { throw "No accessible filesystem root: $probe" }
+                break
+            }
+            $parent = Split-Path -Parent $probe
+            if (-not $parent -and $null -eq $item) {
+                throw "No accessible filesystem root: $probe"
+            }
+            $probe = $parent
+        }
+    } catch {
+        Stop-Install "Invalid Codex configuration directory: $codexConfigRoot. $($_.Exception.Message) No destination was changed."
     }
 }
 
@@ -428,7 +481,7 @@ if ($installDevin) {
 }
 if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
 $devinAgents = if ($env:APPDATA) { Join-Path $env:APPDATA 'devin/agents' } else { Join-Path $HomePath '.config/devin/agents' }
-if ($installCodex) { Install-Agents 'codex' (Join-Path $HomePath '.codex/agents') }
+if ($installCodex) { Install-Agents 'codex' (Join-Path $codexConfigRoot 'agents') }
 if ($installDevin) {
     Install-Agents 'devin' $devinAgents
     Remove-LegacyDeepReviewDevin @((Join-Path $HomePath '.config/devin/agents'), $devinAgents)
