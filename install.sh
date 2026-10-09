@@ -183,14 +183,14 @@ create_link() {
 }
 
 materialize_path() {
-  local source="$1" destination="$2" action="Linked"
-  if ! create_link "$source" "$destination"; then
+  local source="$1" destination="$2" copy_only="${3:-0}" action="Linked"
+  if [ "$copy_only" -eq 1 ] || ! create_link "$source" "$destination"; then
     cp -R "$source" "$destination"
     printf '%s\n' "$source" > "$(marker_path "$destination")"
     action="Copied"
   fi
   echo "$action $destination -> $source"
-  if [ "$action" = "Copied" ]; then
+  if [ "$action" = "Copied" ] && [ "$copy_only" -eq 0 ]; then
     echo "Warning: link creation failed; rerun the installer after repository updates." >&2
   fi
 }
@@ -326,7 +326,7 @@ remove_legacy_deep_review_devin() {
 }
 
 install_managed_path() {
-  local source="$1" destination="$2"
+  local source="$1" destination="$2" copy_only="${3:-0}"
   if [ -L "$destination" ] && symlink_points_into_repo "$destination"; then
     remove_managed_path "$destination"
   elif junction_points_into_repo "$destination"; then
@@ -340,7 +340,7 @@ install_managed_path() {
     backup_path "$destination"
   fi
   mkdir -p "$(dirname "$destination")"
-  materialize_path "$source" "$destination"
+  materialize_path "$source" "$destination" "$copy_only"
 }
 
 managed_path_points_into_repo() {
@@ -482,7 +482,9 @@ collect_selected_agents() {
 }
 
 install_agents() {
-  local harness="$1" destination_root="$2" source desired_names="|"
+  local harness="$1" destination_root="$2" source desired_names="|" copy_only=0
+  # Codex refuses final-component symlinks when loading role configuration.
+  [ "$harness" != "codex" ] || copy_only=1
   collect_selected_agents "$harness"
   for source in ${SELECTED_AGENTS[@]+"${SELECTED_AGENTS[@]}"}; do
     desired_names="${desired_names}${source##*/}|"
@@ -493,7 +495,7 @@ install_agents() {
   [ "${#SELECTED_AGENTS[@]}" -gt 0 ] || return 0
   mkdir -p "$destination_root"
   for source in "${SELECTED_AGENTS[@]}"; do
-    install_managed_path "$source" "$destination_root/${source##*/}"
+    install_managed_path "$source" "$destination_root/${source##*/}" "$copy_only"
   done
 }
 

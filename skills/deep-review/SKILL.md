@@ -27,7 +27,7 @@ The protocol uses seven roles. Every role runs as the native agent named `deep-r
 | validator-static | `deep-review-validator-static` | One static adjudication per canonical hypothesis. |
 | validator-probe | `deep-review-validator-probe` | One sequential writable probe per `Needs probe` outcome. |
 
-`harnesses/roles.toml` pins each role's model, reasoning effort, tools, and sandbox, and the installer generates the agents from it and links them. Agents are generated for Codex, Devin, and Claude Code. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role.
+`harnesses/roles.toml` pins each role's model, reasoning effort, tools, and sandbox, and the installer generates the agents from it for Codex, Devin, and Claude Code. Codex agents use marked regular-file copies because Codex refuses symlinked role configuration files at launch. Claude Code and Devin retain their links, junctions, and copy fallback. Rerun the installer after repository updates to regenerate and refresh the agents. No Claude Code agent sets `permissionMode`, so the user's own permission settings still apply to every role.
 
 Before analysis, confirm that the native agent for every selected lens and both validator agents are installed on the active harness. If any is missing, stop and name the missing agent. Never substitute the coordinator, a generic agent, another scout, or another model for it.
 

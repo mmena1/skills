@@ -160,14 +160,27 @@ def assert_agent(home: Path, harness: str, name: str, skill: Path) -> None:
         fail(f"{skill.name} does not declare the {harness} agent {name}")
     if not installed.is_file() or installed.read_bytes() != expected.encode("utf-8"):
         fail(f"missing or stale installed agent: {installed}")
+    if harness == "codex":
+        marker = agent_marker(installed, harness)
+        source = skill / "harnesses" / harness / installed.name
+        if is_link(installed) or not marker.is_file():
+            fail(f"Codex agent must be a marked regular-file copy: {installed}")
+        recorded = marker.read_text(encoding="utf-8-sig").strip()
+        if os.name == "nt" and recorded.startswith("/"):
+            # Git Bash also maps /tmp to the Windows temporary directory.
+            recorded = run([find_bash(), "-c", 'cygpath -w "$1"', "marker-source", recorded], cwd=skill).stdout.strip()
+        if Path(recorded).resolve() != source.resolve():
+            fail(f"Codex agent marker does not name its generated source: {marker}")
 
 
 def agent_marker(entry: Path, harness: str) -> Path:
     return entry / MANAGED_MARKER if harness == "devin" else Path(str(entry) + MANAGED_MARKER)
 
 
-def assert_agent_linked(home: Path, harness: str, name: str, context: str) -> None:
-    """A normal install links every agent; only a Windows file agent may fall back to a marked copy."""
+def assert_agent_materialized(home: Path, harness: str, name: str, context: str) -> None:
+    """Codex copies are checked by assert_agent; other agents retain linking and Windows fallback."""
+    if harness == "codex":
+        return
     entry = installed_agent_entry(home, harness, name)
     if entry.is_symlink() or (os.name == "nt" and os.path.isjunction(entry)):
         if harness != "devin" and agent_marker(entry, harness).exists():
@@ -206,7 +219,7 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
     for harness in AGENT_HARNESSES:
         for name in roles:
             assert_agent(all_home, harness, name, stable)
-            assert_agent_linked(all_home, harness, name, f"{label} install")
+            assert_agent_materialized(all_home, harness, name, f"{label} install")
         assert_no_agent(all_home, harness, "lab-skill-probe", f"{label} stable install included an experimental agent")
 
     for selected in AGENT_HARNESSES:
@@ -215,7 +228,7 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
         for harness in AGENT_HARNESSES:
             if harness == selected:
                 assert_agent(home, harness, "agent-skill-scout", stable)
-                assert_agent_linked(home, harness, "agent-skill-scout", f"{label} {selected} install")
+                assert_agent_materialized(home, harness, "agent-skill-scout", f"{label} {selected} install")
             elif os.path.lexists(agent_destinations(home)[harness]):
                 fail(f"{label} {selected} install wrote agents for unselected harness {harness}")
 
@@ -270,8 +283,9 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
     reported = output.replace("\\", "/")
     copies = re.findall(r"(?m)^Copied ", output)
     warnings = output.lower().count("rerun the installer after repository updates")
-    if not copies or warnings != len(copies):
-        fail(f"{label} copy fallback printed {warnings} rerun warnings for {len(copies)} copies")
+    codex_copies = len(roles) + 1  # Stable roles plus the experimental probe copy intentionally.
+    if not copies or warnings != len(copies) - codex_copies:
+        fail(f"{label} copy fallback printed {warnings} rerun warnings for {len(copies) - codex_copies} fallback copies")
     for harness in AGENT_HARNESSES:
         entry = installed_agent_entry(copy_home, harness, "lab-skill-probe")
         if not re.search(rf"Copied .*{re.escape('/'.join(entry.parts[-3:]))} -> ", reported):
@@ -286,9 +300,52 @@ def test_agent_installation(label: str, fixture: Path, temporary: Path, invoke, 
         if backups_of(installed_agent_entry(copy_home, harness, "agent-skill-scout")):
             fail(f"{label} installer backed up a repository-managed {harness} agent copy")
         assert_agent(copy_home, harness, "agent-skill-scout", stable)
-        assert_agent_linked(copy_home, harness, "agent-skill-scout", f"{label} relink after copy fallback")
+        assert_agent_materialized(copy_home, harness, "agent-skill-scout", f"{label} relink after copy fallback")
         if orphaned_markers(agent_destinations(copy_home)[harness]):
             fail(f"{label} installer left an orphaned managed marker for a {harness} agent")
+
+
+def test_codex_copy_upgrade(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    """Upgrade managed links without backups, refresh copies, and preserve unrelated agents."""
+    skill = fixture / "skills" / "agent-skill"
+    home = temporary / f"{label}-codex-copy-upgrade"
+    invoke(home, option("codex"))
+    root = agent_destinations(home)["codex"]
+    for name in ("agent-skill-scout", "agent-skill-probe"):
+        entry = installed_agent(home, "codex", name)
+        entry.unlink()
+        agent_marker(entry, "codex").unlink()
+        create_file_link(entry, skill / "harnesses" / "codex" / entry.name)
+    unrelated = root / "my-agent.toml"
+    unrelated.write_text("leave me\n", encoding="utf-8")
+    unrelated_target = temporary / f"{label}-foreign-agent.toml"
+    unrelated_target.write_text("keep me\n", encoding="utf-8")
+    unrelated_link = root / "my-linked-agent.toml"
+    create_file_link(unrelated_link, unrelated_target)
+    unrelated_identity = unrelated_link.stat()
+    for _ in range(2):
+        result = invoke(home, option("codex"))
+        if "link creation failed" in (result.stdout + result.stderr).lower():
+            fail(f"{label} intentional Codex copies printed a link-failure warning")
+        for name in ("agent-skill-scout", "agent-skill-probe"):
+            assert_agent(home, "codex", name, skill)
+            if backups_of(installed_agent(home, "codex", name)):
+                fail(f"{label} backed up a repository-managed Codex link or copy")
+        if unrelated.read_text(encoding="utf-8") != "leave me\n" or not os.path.samestat(unrelated_link.stat(), unrelated_identity):
+            fail(f"{label} changed unrelated Codex agents")
+        if unrelated_link.read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} changed the unrelated Codex link target")
+    before = snapshot_home(home)
+    invoke(home, option("codex"))
+    if snapshot_home(home) != before:
+        fail(f"{label} Codex copy installation changed on an unchanged rerun")
+    # An owned copy must be refreshed from the source, not mistaken for a foreign file.
+    entry = installed_agent(home, "codex", "agent-skill-scout")
+    entry.write_text("stale installed copy\n", encoding="utf-8")
+    invoke(home, option("codex"))
+    assert_agent(home, "codex", "agent-skill-scout", skill)
+    if backups_of(entry):
+        fail(f"{label} backed up a managed Codex copy during refresh")
 
 
 def test_agent_role_removal(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
@@ -528,7 +585,7 @@ def test_deep_review_claude(label: str, temporary: Path, invoke_from, option) ->
     for role in DEEP_REVIEW_ROLES:
         name = f"deep-review-{role}"
         assert_agent(home, "claude", name, skill)
-        assert_agent_linked(home, "claude", name, f"{label} Claude deep-review install")
+        assert_agent_materialized(home, "claude", name, f"{label} Claude deep-review install")
     for harness in ("codex", "devin"):
         if os.path.lexists(agent_destinations(home)[harness]):
             fail(f"{label} Claude deep-review install wrote agents for unselected harness {harness}")
@@ -878,6 +935,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
 
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_codex_copy_upgrade("shell", fixture, temporary, invoke, shell_options.__getitem__)
     test_agent_role_removal("shell", fixture, temporary, invoke, shell_options.__getitem__)
     without_python = None if os.name == "nt" else path_without_python(temporary)
     test_agent_prerequisites("shell", fixture, temporary, invoke_from, shell_options.__getitem__, without_python)
@@ -1021,6 +1079,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
 
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_codex_copy_upgrade("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_agent_role_removal("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_agent_prerequisites("powershell", fixture, temporary, invoke_from, powershell_options.__getitem__)
     test_legacy_deep_review("powershell", temporary, invoke_from, powershell_options.__getitem__)
