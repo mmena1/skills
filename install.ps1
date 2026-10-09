@@ -363,6 +363,32 @@ function Stop-Install {
     exit 1
 }
 
+# Opening a directory handle checks effective Windows access without writing a probe.
+function Test-CodexDirectoryWritable {
+    param([string]$Path)
+    if (-not ('SkillsInstallerDirectoryAccess' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class SkillsInstallerDirectoryAccess {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(string path, uint access,
+        uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    public static bool CanCreateEntries(string path) {
+        // FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY, shared access, OPEN_EXISTING,
+        // FILE_FLAG_BACKUP_SEMANTICS permits opening the directory itself.
+        using (var handle = CreateFileW(path, 0x6, 0x7, IntPtr.Zero, 3,
+                                       0x02000000, IntPtr.Zero)) {
+            return !handle.IsInvalid;
+        }
+    }
+}
+'@
+    }
+    return [SkillsInstallerDirectoryAccess]::CanCreateEntries($Path)
+}
+
 # Generated agents are ignored install artifacts. Regenerate them for every selected
 # skill that declares roles before any destination changes, so a missing Python or a
 # malformed manifest stops the run without a stale or partial agent install.
@@ -444,6 +470,7 @@ if ($installCodex) {
         $codexConfigRoot = [System.IO.Path]::GetFullPath($codexConfigRoot)
         $filesystemRoot = [System.IO.Path]::GetPathRoot($codexConfigRoot)
         $probe = Join-Path $codexConfigRoot 'agents'
+        $checkedAccess = $false
         while ($probe) {
             $item = $null
             try {
@@ -456,6 +483,12 @@ if ($installCodex) {
             }
             if ($null -ne $item -and -not (Test-Path -LiteralPath $probe -PathType Container)) {
                 throw "Not an accessible directory: $probe"
+            }
+            if ($null -ne $item -and -not $checkedAccess) {
+                if (-not (Test-CodexDirectoryWritable $item.FullName)) {
+                    throw "Not a writable directory: $probe"
+                }
+                $checkedAccess = $true
             }
             if ($probe.TrimEnd('\', '/') -eq $filesystemRoot.TrimEnd('\', '/')) {
                 if ($null -eq $item) { throw "No accessible filesystem root: $probe" }

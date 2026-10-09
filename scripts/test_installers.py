@@ -963,6 +963,27 @@ def test_codex_target_legacy(label: str, temporary: Path, invoke_from, option) -
         fail(f"{label} alternate-target migration changed another Codex directory or old checkout")
 
 
+def test_codex_unwritable_target(temporary: Path, invoke) -> None:
+    """A readable Windows directory with denied creation rights fails before any writes."""
+    home = temporary / "powershell-unwritable-home"
+    target = temporary / "powershell-unwritable-config"
+    target.mkdir()
+    powershell = find_powershell()
+    sid = run([powershell, "-NoProfile", "-Command",
+               "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value"],
+              cwd=temporary).stdout.strip()
+    icacls = str(Path(os.environ["SystemRoot"]) / "System32" / "icacls.exe")
+    try:
+        run([icacls, str(target), "/deny", f"*{sid}:(W)"], cwd=temporary)
+        before = snapshot_home(temporary)
+        expect_install_failure("powershell", "with denied target write access", home, invoke,
+                               "-All", "-CodexHome", str(target), extra_env={}, mentions="Codex")
+        if snapshot_home(temporary) != before:
+            fail("PowerShell changed a destination before rejecting an unwritable target")
+    finally:
+        run([icacls, str(target), "/remove:d", f"*{sid}"], cwd=temporary)
+
+
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
 
@@ -1249,6 +1270,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     test_codex_environment_target("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_codex_explicit_target("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_codex_invalid_target("powershell", temporary, invoke, powershell_options.__getitem__)
+    test_codex_unwritable_target(temporary, invoke)
     test_codex_empty_environment("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_codex_target_legacy("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
