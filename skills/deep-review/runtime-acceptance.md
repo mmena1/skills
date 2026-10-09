@@ -334,3 +334,29 @@ Remaining acceptance by harness:
 - Devin: resolve or characterize enabled capacity observation (#76) and one-message scout grouping/receipt (#77), then run the complete coordinator wave and pipeline. Enabled numeric-cap enforcement, independent server-echoed effort, writable-probe behavior, and Windows/copy-fallback runtime behavior remain NOT EXERCISED.
 
 Cross-harness acceptance is incomplete: Codex has three observed failures and an unexercised pipeline, Devin retains its two linked failures and explicit coverage gaps, and Claude Code retains its platform and unavailable legacy-form gaps. Issue #71 remains open. Follow-ups record failures; no protocol, installer, model configuration, or reviewer behavior was fixed in this task.
+
+## Codex targeted launch smoke, 2026-10-09 (issue #80)
+
+This new bounded smoke tested the dispatch and receipt guidance at skill commit `4bfef7f344fcea09dabb701c4fd984dbbab03392`. It does not replace the dated #71 results or raw receipts above. Harness: Codex CLI 0.160.0, native multi-agent v2, Linux/WSL2, kernel `6.18.33.2-microsoft-standard-WSL2`. A fresh Bash installation used an isolated home and Codex state directory, with installer-generated marked regular-file native agents. The coordinator kept the existing `gpt-6.1-sol` / `high` selection and configured six-slot capacity. Neither scout call supplied model or effort overrides; both child traces record their pinned `gpt-6-luna` / `high` selection.
+
+Exactly docs and conventions were selected on one clean detached worktree at `4bfef7f344fcea09dabb701c4fd984dbbab03392`, base `a8b99e955dab80369930e8a8f73466a16e00a798`, with an explicit empty immutable context bundle and separate bounded lens manifests. The live catalog exposed both selected native roles and both validators; the parent observed two required scouts and five available slots under the live tool's coordinator-inclusive accounting. No validator launched. This was one dispatch attempt, with no retry or substitute role.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Passive `Multiple selected scouts` receipt | NOT EXERCISED | The coordinator reported that supported live tools exposed child task identities but neither native parent response boundaries nor launch call IDs. It preserved the specific gap and made no grouping PASS claim. It did not read private session logs. |
+| Targeted native one-message grouping | FAIL | Parent `01a120c6-a942-75e1-81b6-bfde91870a27` emitted the two calls in distinct native model responses, listed below. The docs tool result arrived before the conventions call. Both selected children completed, but completion and overlap cannot repair the failed wave. |
+| Selected native roles and pinned target | PASS | Exactly `deep-review-scout-docs` and `deep-review-scout-conventions` started. Both child traces record the same target path and pinned model/effort. Each returned `No hypotheses`; the worktree stayed clean at its pin. This passes only role/target observations, not dispatch grouping or a complete review. |
+| Full coordinator pipeline and failure transitions | NOT EXERCISED | This bounded launch smoke ran no adjudication or publication. Zero-hypothesis validation, surviving-hypothesis validation, validator queueing/probes, capacity refusal, scout/validator failure, PR overlap and head-change paths were not exercised. |
+
+Native parent call and response identities:
+
+| Lens / native agent | Launch time, UTC | Call ID | Parent model response ID | Child session ID |
+| --- | --- | --- | --- | --- |
+| docs / `deep-review-scout-docs` | 13:09:00.624 | `call_e0895fa5bea4495e9bf2429d067f4112` | `resp_04b7260b4e4b1de8016ac8e75e59488196ad733c4682a26220` | `01a120c8-0057-7b41-930f-84db5cd37e2b` |
+| conventions / `deep-review-scout-conventions` | 13:09:12.512 | `call_c431851154994a539d23414de09610f3` | `resp_04b7260b4e4b1de8016ac8e7770f5c8196acaa1a185a16322a` | `01a120c8-2ec7-71d0-999c-863268415047` |
+
+The docs `function_call_output` is timestamped `13:09:00.746Z`. Targeted verification read only this isolated smoke's traces: each parent native `spawn_agent` response item is retained with its matching `SubAgentActivity` event (`item.id` equals the call ID), the following `token_usage_record` restricted to the parent thread, and the matching call output. The token records identify the two distinct responses. The CLI JSON event stream and live child task identities alone did not supply these boundaries. The externally verified FAIL is retained alongside the accurate passive NOT EXERCISED receipt; neither is presented as an overall review success.
+
+Local evidence is retained at `/home/martin/.codex/2026-10-09-issue-80-a7ggkq7_/`: `metadata.json`, `smoke.prompt.txt`, `smoke.command.json`, `smoke.events.jsonl`, `smoke.stderr.log`, `smoke.final.md`, the isolated parent and child native traces, `native-parent-records.json`, `native-launch-evidence.json`, `historical-verification.json`, and `SHA256SUMS`. The evidence JSON includes raw trace hashes and the association method. Historical #71 dated evidence was checked byte-for-byte, and the retained #80 failure trace still matches its recorded hash. Normal Linux and Windows config/agent hashes and link targets matched before/after snapshots. Temporary credentials and only the smoke's exact worktree were removed after evidence retention; the isolated installation, source checkout and immutable context remain. No normal configuration, model pins, global concurrency policy, installer behavior, reviewer bodies, or Devin #77 evidence changed.
+
+`python3 scripts/check.py` and `git diff --check` passed. Installer integration tests were not required because installer and native installation behavior did not change. Native one-message dispatch remains an observed failure; it was preserved without a rerun. Cross-harness and full-pipeline acceptance remain incomplete.
