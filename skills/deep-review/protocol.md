@@ -58,11 +58,11 @@ If a required native agent is missing, stop before analysis and name it; never s
 
 ## Scout concurrently
 
-Launch the native agent of every selected scout, and only those, in one simultaneous wave: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`. Each scout agent embeds `reviewers/SCOUT.md` followed by its own file under `reviewers/lenses/`, so the coordinator passes each scout its lens slug, never a lens file. The structural scout and validators apply the structural evidence standard below; no design-guidance skill is a prerequisite, a supplied contract, or an adjudication authority for structural review.
+Launch the native agent of every selected scout, and only those, as one concurrent wave: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`. Each scout agent embeds `reviewers/SCOUT.md` followed by its own file under `reviewers/lenses/`, so the coordinator passes each scout its lens slug, never a lens file. The structural scout and validators apply the structural evidence standard below; no design-guidance skill is a prerequisite, a supplied contract, or an adjudication authority for structural review.
 
-Prepare all selected launch arguments before dispatch. Emit the complete selected set as parallel native calls in one parent message, before consuming any launch result or performing another parent inference. Overlapping child execution does not establish this grouping. Evaluate the observed launch boundaries and call identities using the receipt decision rules in `runtime-acceptance.md`.
+Dispatch every selected scout before waiting for any scout to complete. Launches may occur in separate parent messages or model responses; receiving a launch acknowledgment before dispatching the next scout is allowed.
 
-Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, missing required context, or confirmed one-message grouping violation marks the run incomplete. Preserve completed evidence and identify unattempted hypotheses as not validated due to review failure. An incomplete run cannot claim PASS or `No findings` and cannot publish. Preserve a failed wave rather than relaunching it until one passes.
+Wait for every selected scout. Allow already-running scouts to finish after one fails so diagnostic evidence is preserved. A launch failure, timeout, or missing required context marks the run incomplete. An incomplete run cannot claim PASS or `No findings` and cannot publish.
 
 If the scout wave is complete and every scout succeeds and emits zero hypotheses, do not create validator state or launch a validator. Report that all selected dimensions completed and there was nothing to validate.
 
@@ -127,7 +127,7 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - zero hypotheses: whether validation was correctly skipped;
 - surviving hypotheses: whether every canonical hypothesis received independent static adjudication;
 - capacity-bounded static validation: whether hypotheses exceeding available validator slots were queued in canonical ID order, launched as slots freed, and completed without capacity alone making the run incomplete;
-- multiple selected scouts: whether native parent message or response boundaries and every selected launch call identity establish the complete selected set launched in one message; apply the receipt decision rules in `runtime-acceptance.md`, leaving missing grouping evidence `NOT EXERCISED` with the specific gap;
+- multiple selected scouts: whether the complete selected set was dispatched before waiting for any scout to complete;
 - insufficient scout capacity: whether analysis stopped before any partial launch;
 - validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe;
 - scout failure: whether running scouts finished, the run became incomplete, and publication/PASS were blocked;

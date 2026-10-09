@@ -7,7 +7,7 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same | Same |
 | Surviving hypotheses | Independent static validator launches for every canonical hypothesis | Same | Same |
 | Capacity-bounded static validation | When hypotheses exceed available validator slots, queued hypotheses launch as slots free, every hypothesis is attempted once, and capacity alone does not make the run incomplete | Same, with at most 4 slots bounded by the concurrent subagent cap; a concurrency refusal requeues the hypothesis instead of failing it | Same |
-| Multiple selected scouts | The native agent of every selected lens, and only those, starts in one simultaneous wave | The native agent of every selected lens, and only those, launches as a parallel agent call in one message | Same |
+| Multiple selected scouts | The native agent of every selected lens, and only those, is dispatched before waiting for any scout to complete; separate parent messages or model responses are allowed | Same | Same |
 | Insufficient scout capacity | Review stops before launching any scout and reports required versus available capacity | Same when the selected scouts exceed the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` cap; a concurrency refusal at launch from slots occupied outside the session stops the review and marks it incomplete, and the receipt records that part of the gate as observed at launch | Same |
 | Validator probes | Static wave completes first; baseline is verified, then restored before every sequential writable probe | Same | Same |
 | Scout failure | Running scouts may finish; run becomes incomplete and cannot publish or claim PASS/`No findings` | Same | Same |
@@ -37,28 +37,6 @@ Each selected lens runs in its own native agent, and the receipt names the agent
 | `structural` | `deep-review-structural` |
 
 Static adjudication runs as `deep-review-validator-static` and writable probes as `deep-review-validator-probe`. Smoke rows and receipts below that name `deep-review-scout` record the former generic scout, which ran the `bugs`, `conventions`, `history`, and `docs` lenses with one shared model. They remain historical evidence and are not evidence for the lens-specific agents.
-
-## Scout launch-grouping receipts
-
-For `Multiple selected scouts`, retain the native parent message or model response identity and each launch's call ID, selected lens, exact native agent, launch outcome and child identity when created. Include the pinned worktree and base/head identity shared by the calls, the evidence source, and all scout launch attempts in the wave, including failed or extra calls. A session/thread ID or a whole user-turn ID alone does not identify one parent model response. Apply these rules to the observed evidence:
-
-| Observation | Receipt result | Review consequence |
-| --- | --- | --- |
-| Native boundaries identify all and only the selected scout calls, once each, in one parent message or response, emitted before any launch result is consumed or another parent inference occurs; every launch starts on the same pinned worktree | PASS | Establishes only the scout launch row; other rows require their own evidence. |
-| Native evidence confirms separate parent responses, an intervening result consumption or parent inference, a missing/extra/duplicate scout, a launch failure, or different pinned worktrees | FAIL | Mark the review incomplete, allow running scouts to finish, preserve completed diagnostic evidence and block PASS, `No findings`, and publication. |
-| No confirmed violation, but native grouping evidence is unavailable or incomplete, even when all selected children overlap | NOT EXERCISED | Record the exact missing boundary, call identity, or launch observation; never infer a grouping PASS or invent a dispatch failure. |
-
-Confirmed violations take precedence over other evidence gaps. The retained #80 case below is FAIL: docs and conventions have distinct native response IDs and the docs launch result precedes the conventions call. Their overlap and the original coordinator's PASS narrative cannot overturn that evidence. Conversely, one shared native response containing the complete selected call set can pass when the remaining launch observations above are present.
-
-A passive receipt uses observations already available to the coordinator through the active runtime's supported tools, trace, or API. It does not require a normal review to discover or parse private session logs. When the runtime does not expose grouping boundaries or call identities, record that gap as `NOT EXERCISED`. Timestamps, child overlap, and a coordinator's statement that it dispatched one wave are insufficient substitutes for native grouping evidence.
-
-### Targeted Codex native launch smoke
-
-When explicitly running a targeted dispatch smoke, use a throwaway installation and exactly the native docs and conventions scouts on one clean pinned worktree, with the same base/head and an explicit immutable context bundle and bounded lens manifests. Check role availability and capacity first, then follow the Codex dispatch mechanism in `SKILL.md` for one launch attempt. Wait for running children and retain their outputs even after a violation. Keep native role/model pins, the coordinator's existing model/effort selection, normal user configuration, and global concurrency policy unchanged. Do not launch validators or claim full pipeline acceptance from this bounded smoke.
-
-Retain harness/version, tested skill commit, target/worktree identity, prompt, native launch calls/results and call IDs, parent message/response identities, and raw evidence hashes. Prefer a supported native export when it exposes the required boundaries. If it does not, this explicitly targeted verification may inspect and retain only the isolated smoke session's native trace read-only, recording how calls were associated with parent responses. This is smoke verification, not a new log-parsing obligation for passive receipts. If neither source establishes grouping, record `NOT EXERCISED` with the gap; an observed violation remains `FAIL`. Do not repeat a failed dispatch until a run happens to pass.
-
-Record the new dated smoke result separately from historical acceptance rows and raw receipts. A correction or successful later smoke never rewrites or erases a historical failure. Keep the Devin #77 investigation separate.
 
 ## PR-review-overlap scenarios
 
@@ -95,6 +73,12 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Locally justified helper, adapter, or dependency injection | Added indirection that isolates knowledge, supports a needed test seam, or follows a governing local convention produces no hypothesis, and a crafted single-adapter or fewer-layers hypothesis is Disproved without appeal to any design philosophy. |
 | Alternative with an equal or greater burden | A hypothesis whose alternative adds modes, hides policy, or scatters knowledge is Disproved on that ground. |
 | Structural review without a design-guidance skill | Selecting `structural` passes preflight, and the scout admits and the validators adjudicate without any supplied design contract. |
+
+## Concurrency clarification, 2026-10-09 (issue #80)
+
+The one-parent-message or response grouping requirement is intentionally retired. The coordinator dispatches all selected scouts before waiting for any scout to complete, allowing concurrent execution. Separate parent responses and intervening launch acknowledgments are acceptable. Passive receipts record observed dispatch and waiting behavior; native response IDs, call grouping, private-log parsing, and additional trace collection are not required.
+
+The historical #71 Codex and #80 grouping FAIL records below evaluated the former requirement. They remain unchanged as historical evidence, but their separate-response grouping no longer represents a functional review failure under the current contract. This clarification does not establish a full-pipeline PASS or erase other failures and unexercised paths. No Codex runtime patch or Code Mode workaround is required or pursued for #80. The separate Devin #77 investigation and its historical evidence are unchanged.
 
 ## Smoke runs
 
