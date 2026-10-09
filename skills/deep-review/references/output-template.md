@@ -26,7 +26,7 @@ Describe the enforcement mechanism specified by the active harness in `SKILL.md`
 | Zero hypotheses | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Surviving hypotheses | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Capacity-bounded static validation | PASS / FAIL / NOT EXERCISED | [hypothesis count, available slots, queue order, and observed completion] |
-| Multiple selected scouts | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
+| Multiple selected scouts | PASS / FAIL / NOT EXERCISED | [native parent message/response identity, every selected launch call ID, lens/agent and launch outcome; evidence source or specific grouping gap, following runtime-acceptance.md] |
 | Insufficient scout capacity | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Validator probes | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Scout failure | PASS / FAIL / NOT EXERCISED | [coordinator observation] |

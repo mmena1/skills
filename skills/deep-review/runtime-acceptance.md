@@ -38,6 +38,28 @@ Each selected lens runs in its own native agent, and the receipt names the agent
 
 Static adjudication runs as `deep-review-validator-static` and writable probes as `deep-review-validator-probe`. Smoke rows and receipts below that name `deep-review-scout` record the former generic scout, which ran the `bugs`, `conventions`, `history`, and `docs` lenses with one shared model. They remain historical evidence and are not evidence for the lens-specific agents.
 
+## Scout launch-grouping receipts
+
+For `Multiple selected scouts`, retain the native parent message or model response identity and each launch's call ID, selected lens, exact native agent, launch outcome and child identity when created. Include the pinned worktree and base/head identity shared by the calls, the evidence source, and all scout launch attempts in the wave, including failed or extra calls. A session/thread ID or a whole user-turn ID alone does not identify one parent model response. Apply these rules to the observed evidence:
+
+| Observation | Receipt result | Review consequence |
+| --- | --- | --- |
+| Native boundaries identify all and only the selected scout calls, once each, in one parent message or response, emitted before any launch result is consumed or another parent inference occurs; every launch starts on the same pinned worktree | PASS | Establishes only the scout launch row; other rows require their own evidence. |
+| Native evidence confirms separate parent responses, an intervening result consumption or parent inference, a missing/extra/duplicate scout, a launch failure, or different pinned worktrees | FAIL | Mark the review incomplete, allow running scouts to finish, preserve completed diagnostic evidence and block PASS, `No findings`, and publication. |
+| No confirmed violation, but native grouping evidence is unavailable or incomplete, even when all selected children overlap | NOT EXERCISED | Record the exact missing boundary, call identity, or launch observation; never infer a grouping PASS or invent a dispatch failure. |
+
+Confirmed violations take precedence over other evidence gaps. The retained #80 case below is FAIL: docs and conventions have distinct native response IDs and the docs launch result precedes the conventions call. Their overlap and the original coordinator's PASS narrative cannot overturn that evidence. Conversely, one shared native response containing the complete selected call set can pass when the remaining launch observations above are present.
+
+A passive receipt uses observations already available to the coordinator through the active runtime's supported tools, trace, or API. It does not require a normal review to discover or parse private session logs. When the runtime does not expose grouping boundaries or call identities, record that gap as `NOT EXERCISED`. Timestamps, child overlap, and a coordinator's statement that it dispatched one wave are insufficient substitutes for native grouping evidence.
+
+### Targeted Codex native launch smoke
+
+When explicitly running a targeted dispatch smoke, use a throwaway installation and exactly the native docs and conventions scouts on one clean pinned worktree, with the same base/head and an explicit immutable context bundle and bounded lens manifests. Check role availability and capacity first, then follow the Codex dispatch mechanism in `SKILL.md` for one launch attempt. Wait for running children and retain their outputs even after a violation. Keep native role/model pins, the coordinator's existing model/effort selection, normal user configuration, and global concurrency policy unchanged. Do not launch validators or claim full pipeline acceptance from this bounded smoke.
+
+Retain harness/version, tested skill commit, target/worktree identity, prompt, native launch calls/results and call IDs, parent message/response identities, and raw evidence hashes. Prefer a supported native export when it exposes the required boundaries. If it does not, this explicitly targeted verification may inspect and retain only the isolated smoke session's native trace read-only, recording how calls were associated with parent responses. This is smoke verification, not a new log-parsing obligation for passive receipts. If neither source establishes grouping, record `NOT EXERCISED` with the gap; an observed violation remains `FAIL`. Do not repeat a failed dispatch until a run happens to pass.
+
+Record the new dated smoke result separately from historical acceptance rows and raw receipts. A correction or successful later smoke never rewrites or erases a historical failure. Keep the Devin #77 investigation separate.
+
 ## PR-review-overlap scenarios
 
 Use the coordinator's final report and proposed publication payload as the observation seams. Inspect scout and static/writable validator inputs to verify no existing PR discussion was supplied. Observe these cases in targeted smoke runs or natural reviews, retaining evidence per case in the shared receipt; an aggregate `PASS` describes only the cases actually observed, not the entire table.
