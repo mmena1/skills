@@ -163,37 +163,37 @@ DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
 DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 DEEP_REVIEW_ROLES = {
     "scout-bugs": {
-        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-1-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "scout-conventions": {
-        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-haiku-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "scout-history": {
-        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-sonnet-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "scout-docs": {
-        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-luna-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-haiku-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "structural": {
-        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-1-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-static": {
-        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high", "sandbox_mode": "read-only"},
+        "codex": {"model": "gpt-6.1-sol", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-1-sol-high", "allowed-tools": DEEP_REVIEW_READ_ONLY_TOOLS},
         "claude": {"model": "claude-opus-5-5", "tools": DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "effort": "high"},
     },
     "validator-probe": {
-        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high", "sandbox_mode": "workspace-write"},
+        "codex": {"model": "gpt-6-luna", "model_reasoning_effort": "high"},
         "devin": {"model": "gpt-6-luna-high", "allowed-tools": [*DEEP_REVIEW_READ_ONLY_TOOLS, "write", "edit"]},
         "claude": {"model": "claude-sonnet-5-5", "tools": [*DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS, "Edit", "Write"], "effort": "high"},
     },
@@ -1415,14 +1415,14 @@ def validate_reconciliation_contract() -> None:
             fail("expanded reconciliation migration lost a custom readiness state or user note")
 
 
-def validate_native_agents() -> None:
+def validate_native_agents(root: Path = ROOT) -> None:
     """Every role manifest renders each harness agent in memory, with one owner per agent name."""
     owners: dict[str, str] = {}
-    for skill in generate_agents.agent_skill_directories(ROOT):
+    for skill in generate_agents.agent_skill_directories(root):
         harnesses = sorted(path.name for path in (skill / "harnesses").iterdir() if path.is_dir())
         unsupported = sorted(set(harnesses) - set(generate_agents.HARNESSES))
         if unsupported:
-            fail(f"{skill.relative_to(ROOT).as_posix()}/harnesses: unsupported harness directories {', '.join(unsupported)}")
+            fail(f"{skill.relative_to(root).as_posix()}/harnesses: unsupported harness directories {', '.join(unsupported)}")
         try:
             rendered = generate_agents.render_agents(skill)
             roles = generate_agents.load_roles(skill)
@@ -1435,8 +1435,13 @@ def validate_native_agents() -> None:
             codex = rendered.get(f"harnesses/codex/{role.agent_name}.toml")
             if codex is not None:
                 parsed = tomllib.loads(codex)
+                if "sandbox_mode" in parsed:
+                    fail(f"{skill.name}: generated Codex agent {role.agent_name} contains unsupported sandbox_mode")
                 if parsed.get("name") != role.agent_name or parsed.get("developer_instructions") != role.body:
                     fail(f"{skill.name}: generated Codex agent {role.agent_name} does not round-trip its name and body")
+        for path in (skill / "harnesses" / "codex").glob("*.toml"):
+            if "sandbox_mode" in tomllib.loads(path.read_text(encoding="utf-8")):
+                fail(f"{path.relative_to(root).as_posix()}: generated Codex agent contains unsupported sandbox_mode")
     if "agent-skill" not in owners.values():
         fail("tests/fixtures/agent-skill must ship native reviewer agents")
 
@@ -1574,9 +1579,80 @@ def validate_deep_review_role_contract(
             fail(f"the deep-review role check accepted {label}")
 
 
+DEEP_REVIEW_ACCESS_RULES = {
+    "SKILL.md": (
+        "Codex native agents inherit the parent's effective sandbox and approval policy. "
+        "This cannot be overridden per role and applies to the writable probe too.",
+        "On Codex, reports and runtime acceptance receipts describe the boundary as instruction-enforced plus the inherited session policy. "
+        "An inherited sandbox that differs from a role's read-only or writable behavior contract is not a review failure.",
+    ),
+    "protocol.md": (
+        "Scouts and static validators create no files, probes, fixtures, or temporary tests; "
+        "run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.",
+        "Static validators never execute artifact-producing commands.",
+    ),
+    "reviewers/SCOUT.md": (
+        "Create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, "
+        "package-manager commands, scripts, or artifact-producing commands.",
+    ),
+    "reviewers/validator.md": (
+        "In the static phase, use repository reads/searches and read-only Git inspection only. "
+        "Run no builds, tests, linters, typecheckers, scripts, probes, package-manager commands, or artifact-producing commands.",
+        "Create no files, fixtures, or temporary tests in the static phase.",
+    ),
+}
+DEEP_REVIEW_CODEX_ACCESS_CELLS = {
+    "Read-only scouts and static validators": (
+        "Instruction-enforced. Their no-write and no-probe contract relies on the reviewer instructions "
+        "and the coordinator's inherited sandbox and approval policy."
+    ),
+    "Writable probe": (
+        "Runs under the inherited coordinator policy with no probe-specific permission. "
+        "It can write only as far as that policy allows."
+    ),
+}
+
+
+def deep_review_access_problems(documents: dict[str, str]) -> list[str]:
+    """Preserve strict role behavior while describing the actual Codex enforcement mechanism."""
+    problems = []
+    for relative, rules in DEEP_REVIEW_ACCESS_RULES.items():
+        for rule in rules:
+            if rule not in documents[relative]:
+                problems.append(f"deep-review/{relative}: missing access contract {rule!r}")
+    for mechanism, expected in DEEP_REVIEW_CODEX_ACCESS_CELLS.items():
+        rows = [line.split("|")[2].strip() for line in documents["SKILL.md"].splitlines()
+                if line.startswith(f"| {mechanism} |")]
+        if rows != [expected]:
+            problems.append(f"deep-review/SKILL.md: incorrect Codex {mechanism.lower()} enforcement mechanism")
+    return problems
+
+
+def validate_deep_review_access_contract(skill: Path) -> None:
+    """Reject removed or weakened prohibitions, role sandboxes, and missing inheritance guidance."""
+    documents = {relative: (skill / relative).read_text(encoding="utf-8") for relative in DEEP_REVIEW_ACCESS_RULES}
+    problems = deep_review_access_problems(documents)
+    if problems:
+        fail(problems[0])
+    for relative, rules in DEEP_REVIEW_ACCESS_RULES.items():
+        for rule in rules:
+            for replacement in ("", rule.replace("no ", "optional ").replace("never ", "sometimes ")):
+                if replacement == rule:
+                    continue
+                mutated = {**documents, relative: documents[relative].replace(rule, replacement)}
+                if not deep_review_access_problems(mutated):
+                    fail(f"the access check accepted a removed or weakened {relative} contract")
+    for mechanism, expected in DEEP_REVIEW_CODEX_ACCESS_CELLS.items():
+        for sandbox in ("read-only", "workspace-write"):
+            mutated = {**documents, "SKILL.md": documents["SKILL.md"].replace(expected, f"Enforced by the `{sandbox}` sandbox.")}
+            if not deep_review_access_problems(mutated):
+                fail(f"the access check accepted a role-specific Codex sandbox for {mechanism}")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
+    validate_deep_review_access_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}
     catalog = deep_review_catalog((skill / "protocol.md").read_text(encoding="utf-8"))
     contract = reviewer_text(skill / "reviewers" / "SCOUT.md")
@@ -1661,7 +1737,7 @@ def validate_deep_review_generation() -> None:
             for harness, rendered in (("codex", codex), ("devin", devin), ("claude", claude)):
                 expected = {"name": name, **harnesses[harness]}
                 if {key: rendered.get(key) for key in expected} != expected:
-                    fail(f"generated {harness} agent {name} does not render its pinned name, model, effort, tools, and sandbox")
+                    fail(f"generated {harness} agent {name} does not render its pinned name, model, effort, and tools")
         generated = snapshot_tree(skill / "harnesses")
         expected_files = {f"{relative.removeprefix('harnesses/')}" for relative in generate_agents.render_agents(skill)}
         if set(generated) != expected_files | {"roles.toml"} or len(expected_files) != 3 * len(DEEP_REVIEW_ROLES):
@@ -1694,6 +1770,11 @@ def validate_agent_generation_contract() -> None:
 
         fresh_copy()
         rendered = generate_agents.render_agents(skill)
+        for relative, content in rendered.items():
+            if relative.startswith("harnesses/codex/"):
+                parsed = tomllib.loads(content)
+                if set(parsed) != {"name", "description", "model", "model_reasoning_effort", "developer_instructions"}:
+                    fail("generated Codex agents must contain only identity, model, effort, and reviewer instructions")
         expected_files = {
             "harnesses/codex/agent-skill-scout.toml",
             "harnesses/devin/agent-skill-scout/AGENT.md",
@@ -1759,7 +1840,34 @@ def validate_agent_generation_contract() -> None:
                 fail(f"the agent generator wrote files before rejecting a {label} role manifest")
 
         fresh_copy()
+        generate_agents.write_agents(skill)
+        codex_scout = skill / "harnesses" / "codex" / "agent-skill-scout.toml"
+        codex_scout.write_text('sandbox_mode = "read-only"\n' + codex_scout.read_text(encoding="utf-8"), encoding="utf-8")
+        fixtures = temporary / "tests" / "fixtures"
+        fixtures.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(skill, fixtures / "agent-skill")
+        try:
+            validate_native_agents(temporary)
+        except CheckFailure as error:
+            if "unsupported sandbox_mode" not in str(error):
+                raise
+        else:
+            fail("the repository check accepted sandbox_mode in a generated Codex agent")
+
+        fresh_copy()
         manifest = (source / "harnesses" / "roles.toml").read_text(encoding="utf-8")
+        sandbox_manifest = manifest.replace(
+            "[roles.scout.codex]\n", '[roles.scout.codex]\nsandbox_mode = "read-only"\n',
+        )
+        (skill / "harnesses" / "roles.toml").write_text(sandbox_manifest, encoding="utf-8")
+        errors = io.StringIO()
+        before = snapshot_tree(temporary)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+            status = generate_agents.main([str(healthy), str(skill)])
+        if status == 0 or "unsupported fields sandbox_mode" not in errors.getvalue():
+            fail("the agent generator must reject Codex sandbox_mode as an unsupported field")
+        if snapshot_tree(temporary) != before:
+            fail("the agent generator wrote files before rejecting an unsupported Codex sandbox")
         for harness, fields in generate_agents.HARNESS_FIELDS.items():
             for field in fields:
                 (skill / "harnesses" / "roles.toml").write_text(

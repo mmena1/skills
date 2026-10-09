@@ -23,7 +23,7 @@ The strict PR-gate review workflow owned by the `deep-review` skill: parallel re
 _Avoid_: implementation review (that is the lighter `implementation-review` skill)
 
 **Native reviewer agent**:
-A harness-specific agent definition that a skill ships so the harness can launch a named role with its own model, tools, and sandbox. Only skills whose protocol requires distinct roles ship them.
+A harness-specific agent definition that a skill ships so the harness can launch a named role with a pinned model and supported tool list. Codex native agents inherit the parent's effective sandbox and approval policy; read-only behavior relies on reviewer instructions within that inherited policy. Only skills whose protocol requires distinct roles ship them.
 
 ## Relationships
 

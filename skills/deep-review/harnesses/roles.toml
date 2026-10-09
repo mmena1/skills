@@ -13,7 +13,6 @@ body = ["reviewers/SCOUT.md", "reviewers/lenses/bugs.md"]
 [roles.scout-bugs.codex]
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.scout-bugs.devin]
 model = "gpt-6-1-sol-high"
@@ -31,7 +30,6 @@ body = ["reviewers/SCOUT.md", "reviewers/lenses/conventions.md"]
 [roles.scout-conventions.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.scout-conventions.devin]
 model = "gpt-6-luna-high"
@@ -49,7 +47,6 @@ body = ["reviewers/SCOUT.md", "reviewers/lenses/history.md"]
 [roles.scout-history.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.scout-history.devin]
 model = "gpt-6-luna-high"
@@ -67,7 +64,6 @@ body = ["reviewers/SCOUT.md", "reviewers/lenses/docs.md"]
 [roles.scout-docs.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.scout-docs.devin]
 model = "gpt-6-luna-high"
@@ -85,7 +81,6 @@ body = ["reviewers/SCOUT.md", "reviewers/lenses/structural.md"]
 [roles.structural.codex]
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.structural.devin]
 model = "gpt-6-1-sol-high"
@@ -103,7 +98,6 @@ body = ["reviewers/validator.md"]
 [roles.validator-static.codex]
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.validator-static.devin]
 model = "gpt-6-1-sol-high"
@@ -121,7 +115,6 @@ body = ["reviewers/validator.md"]
 [roles.validator-probe.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
 
 [roles.validator-probe.devin]
 model = "gpt-6-luna-high"

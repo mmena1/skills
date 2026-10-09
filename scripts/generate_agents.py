@@ -32,11 +32,10 @@ PLAIN_SCALAR = re.compile(r"[A-Za-z][A-Za-z0-9._/-]*")
 YAML_KEYWORDS = {"true", "false", "null", "yes", "no", "on", "off", "y", "n"}
 HEADER = "Generated from harnesses/roles.toml by scripts/generate_agents.py. Do not edit."
 HARNESS_FIELDS = {
-    "codex": {"model": str, "model_reasoning_effort": str, "sandbox_mode": str},
+    "codex": {"model": str, "model_reasoning_effort": str},
     "devin": {"model": str, "allowed-tools": list},
     "claude": {"model": str, "tools": list, "effort": str},
 }
-CODEX_SANDBOX_MODES = {"read-only", "workspace-write", "danger-full-access"}
 CLAUDE_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
@@ -107,8 +106,6 @@ def _validate_harness(harness: str, table: object, where: str) -> dict[str, obje
             if not isinstance(value, list) or not value:
                 raise AgentManifestError(f"{where}.{key} must be a non-empty list of strings")
             fields[key] = [_require_string(item, f"{where}.{key}") for item in value]
-    if harness == "codex" and fields["sandbox_mode"] not in CODEX_SANDBOX_MODES:
-        raise AgentManifestError(f"{where}.sandbox_mode must be one of {', '.join(sorted(CODEX_SANDBOX_MODES))}")
     if harness == "claude" and fields["effort"] not in CLAUDE_EFFORTS:
         raise AgentManifestError(f"{where}.effort must be one of {', '.join(sorted(CLAUDE_EFFORTS))}")
     return fields
@@ -182,7 +179,7 @@ def _markdown_agent(role: Role, fields: list[tuple[str, object]]) -> str:
 def render_codex(role: Role) -> str:
     fields = role.harnesses["codex"]
     lines = [f"# {HEADER}", f"name = {_toml_string(role.agent_name)}", f"description = {_toml_string(role.description)}"]
-    for key in ("model", "model_reasoning_effort", "sandbox_mode"):
+    for key in ("model", "model_reasoning_effort"):
         lines.append(f"{key} = {_toml_string(fields[key])}")
     lines.append(f"developer_instructions = {_toml_multiline(role.body)}")
     return "\n".join(lines) + "\n"

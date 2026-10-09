@@ -33,7 +33,7 @@ The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Ba
 
 ### Native reviewer agents
 
-Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with their own model, tools, and sandbox. For each selected harness, the installer installs the agents that selected skills ship into that harness's personal agent directory:
+Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with pinned models and supported tool lists. Codex native agents inherit the parent's effective sandbox and approval policy; read-only behavior relies on reviewer instructions within that inherited policy. For each selected harness, the installer installs the agents that selected skills ship into that harness's personal agent directory:
 
 - Codex: `~/.codex/agents/<agent>.toml`
 - Devin CLI: `~/.config/devin/agents/<agent>/AGENT.md`, or `%APPDATA%\devin\agents\<agent>\AGENT.md` on Windows

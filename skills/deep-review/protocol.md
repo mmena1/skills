@@ -42,6 +42,10 @@ Obtain a non-empty confirmed set. Before analysis, verify the invocation-specifi
 - the validator can inspect it read-only during static adjudication and receive writable access for bounded probes;
 - every role can access the same pinned worktree and its bounded context manifests.
 
+Read-only and writable describe role behavior contracts; their enforcement follows the active harness mechanisms in `SKILL.md`. A writable probe stays within the coordinator's effective permissions and gains no permissions from its phase.
+
+Scouts and static validators create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.
+
 If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. If `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Never launch a partial set, run sequentially, use bounded waves, or change global harness concurrency policy.
 
 ## Capture context and create one worktree
@@ -113,6 +117,8 @@ The coordinator persists protocol state in one coordinator-owned `run-state.json
 ## Runtime acceptance receipt
 
 Every real review emits a passive runtime acceptance receipt from coordinator-observed state. The coordinator records the harness identity and version; the shared receipt also records the reviewed skill commit or version, each selected lens with the native agent used for it, the validator agents that ran, and one status for every acceptance scenario: `PASS`, `FAIL`, or `NOT EXERCISED`.
+
+Record the enforcement mechanism specified by the active harness in `SKILL.md` and the observed inherited session policy when available. Role behavior contracts alone are not evidence of mechanical isolation or additional probe permissions.
 
 Record only observed behavior. Never perturb a real review to exercise a row, infer a pass from static configuration, or convert an unobserved path into a pass. Preserve concise evidence for each exercised row in `run-state.json` and the final report:
 

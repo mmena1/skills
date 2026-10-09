@@ -49,7 +49,7 @@ def write_agent_skill(skill: Path, body: str, roles: tuple[str, ...] = ("probe",
             f"[roles.{role}]\n"
             f'description = "Fixture {role}."\n'
             'body = ["reviewers/probe.md"]\n'
-            f'[roles.{role}.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nsandbox_mode = "read-only"\n'
+            f'[roles.{role}.codex]\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "high"\n'
             f'[roles.{role}.devin]\nmodel = "gpt-5-6-luna-high"\nallowed-tools = ["read"]\n'
             f'[roles.{role}.claude]\nmodel = "inherit"\ntools = ["Read"]\neffort = "high"\n'
             for role in roles
@@ -599,7 +599,6 @@ body = ["reviewers/SCOUT.md"]
 [roles.scout.codex]
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 [roles.scout.devin]
 model = "gpt-6-1-sol-high"

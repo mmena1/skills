@@ -10,7 +10,6 @@ body = ["reviewers/reviewer.md"]
 [roles.scout.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "medium"
-sandbox_mode = "read-only"
 
 [roles.scout.devin]
 model = "gpt-5-6-luna-medium"
@@ -28,7 +27,6 @@ body = ["reviewers/reviewer.md", "reviewers/probe.md"]
 [roles.probe.codex]
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
 
 [roles.probe.devin]
 model = "gpt-5-6-luna-high"
