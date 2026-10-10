@@ -23,11 +23,16 @@ def git(repository, *arguments, data=None, environment=None, check=True):
     )
 
 
-def source_for(repositories, sha):
+def source_for_pair(repositories, base, head):
     for repository in repositories:
-        if git(repository, "cat-file", "-e", sha + "^{commit}", check=False).returncode == 0:
+        if all(git(repository, "cat-file", "-e", sha + "^{commit}", check=False).returncode == 0
+               for sha in [base, head]):
             return repository
-    raise RuntimeError(f"Pinned object unavailable: {sha}")
+    raise RuntimeError(
+        f"No supplied repository contains both pinned commits: base {base}, head {head}. "
+        "Fetch both exact SHAs without --depth into one bare evaluator depot, then pass "
+        "its path with --repository. Checked: " + ", ".join(str(path) for path in repositories)
+    )
 
 
 def export(repository, sha, target):
@@ -57,6 +62,13 @@ def main():
     parser.add_argument("--seed", default="20261009-pilot")
     args = parser.parse_args()
     catalog = json.loads(Path(__file__).with_name("case-catalog.json").read_text())
+    case_sources = []
+    for case in catalog["snapshots"]:
+        try:
+            source = source_for_pair(args.repository, case["base"], case["head"])
+        except RuntimeError as error:
+            parser.error(f"{case['id']}: {error}")
+        case_sources.append((case, source))
     # Requiring a new directory prevents mixing artifacts or retaining stale objects.
     args.output.mkdir(parents=True, exist_ok=False)
     capsules = args.output / "capsules"
@@ -77,7 +89,7 @@ def main():
         }:
             del environment[key]
     receipts = []
-    for case in catalog["snapshots"]:
+    for case, source in case_sources:
         alias = hashlib.sha256((args.seed + case["id"]).encode()).hexdigest()[:16]
         root = capsules / alias
         repository = root / "repository"
@@ -85,10 +97,7 @@ def main():
         git(repository, "init", "--quiet", "--template=", environment=environment)
         commits = []
         trees = []
-        sources = []
         for name in ["base", "head"]:
-            source = source_for(args.repository, case[name])
-            sources.append(source)
             if commits:
                 for entry in repository.iterdir():
                     if entry.name == ".git":
@@ -112,7 +121,7 @@ def main():
             commits.append(commit)
         git(repository, "update-ref", "refs/heads/review", commits[1], environment=environment)
         git(repository, "symbolic-ref", "HEAD", "refs/heads/review", environment=environment)
-        original_diff = git(sources[1], "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
+        original_diff = git(source, "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
                             case["base"], case["head"]).stdout
         capsule_diff = git(repository, "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
                            *commits).stdout

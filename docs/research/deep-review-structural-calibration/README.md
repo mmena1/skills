@@ -174,17 +174,24 @@ Keep model changes, installation fixes, orchestration changes and mtg-copilot re
 
 ## Reproduction commands
 
-Use Python 3.11+ and Git. Source repositories and output directories are evaluator-only. If an original pre-rebase object is missing, fetch that exact SHA to a separate bare depot with the host's existing authentication; do not change credentials:
+Use Python 3.11+ and Git. Source repositories and output directories are evaluator-only. For each case, at least one supplied repository must contain both pinned commits. The preparer uses that same repository for both exports and the original diff; it does not combine objects from separate repositories. It resolves all pairs before creating output and reports the failing case, SHAs and checked paths when no complete source exists.
+
+If base and head are split across sources or an original pre-rebase object is missing, populate one bare evaluator depot with both exact SHAs from each catalog pair. Use the host's existing authentication; do not change credentials. For example, populate M91's original pair:
 
 ```bash
 git init --bare /path/to/evaluator/corpus.git
 git -c 'credential.helper=!gh auth git-credential' \
   --git-dir=/path/to/evaluator/corpus.git fetch --no-tags \
   https://github.com/mmena1/mtg-copilot.git \
-  f9acf3a39d2af2ff6e34ce53e9e54d9371382c4f
+  ad18e21533fb8da562e4351ade0d4bd9e546b8f3 \
+  6a276a789b7e1d8d385f4e9382ea14f2d1c4f358
+git --git-dir=/path/to/evaluator/corpus.git cat-file -e \
+  'ad18e21533fb8da562e4351ade0d4bd9e546b8f3^{commit}'
+git --git-dir=/path/to/evaluator/corpus.git cat-file -e \
+  '6a276a789b7e1d8d385f4e9382ea14f2d1c4f358^{commit}'
 ```
 
-Repeat exact-SHA fetching for missing base/head pins in the catalog. The depot and source checkouts must never be mounted into a reviewer environment. Then run:
+Repeat the fetch with each remaining base/head pair in the catalog. Fetch without `--depth` into a newly initialized, non-shallow depot; fetching only a shallow head can leave its base unavailable. Supplying multiple repositories is supported, but each case needs a complete pair in one of them. The depot and source checkouts must never be mounted into a reviewer environment. Then run:
 
 ```bash
 python3 docs/research/deep-review-structural-calibration/prepare-capsules.py \
@@ -192,6 +199,7 @@ python3 docs/research/deep-review-structural-calibration/prepare-capsules.py \
   --repository /path/to/evaluator/corpus.git \
   --output /path/to/evaluator/new-preflight \
   --seed 20261009-pilot
+python3 docs/research/deep-review-structural-calibration/test_prepare_capsules.py -v
 python3 scripts/check.py
 git diff --check
 ```
