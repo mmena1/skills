@@ -496,7 +496,9 @@ def run_session(session_dir, *, model, effort, budget, system_prompt, user_promp
                 forbidden=(), claude="claude", upstream=None, extra_env=None, batch_guard=None):
     """Run one fresh, isolated CLI session. Writes raw evidence to session_dir; returns meta."""
     session_dir = Path(session_dir)
-    if batch_guard and not batch_guard.start_session():
+    if batch_guard is None:
+        raise BatchLimitReached("live execution requires an explicit approved aggregate batch budget")
+    if not batch_guard.start_session():
         raise BatchLimitReached("batch circuit is open or approved session budget is exhausted")
     session_dir.mkdir(parents=True, exist_ok=False)
     session_id = str(uuid.uuid4())

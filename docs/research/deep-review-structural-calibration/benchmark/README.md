@@ -60,16 +60,16 @@ export BENCH=docs/research/deep-review-structural-calibration/benchmark
    python3 $BENCH/calibrate.py prepare --evidence $EVIDENCE --repository $EVIDENCE/inputs/corpus.git --seed 20261009-issue89
    ```
 
-4. Exercise the boundary. Nothing that calls a model runs until this receipt passes.
+4. Exercise the boundary. This command includes four real challenge sessions and refuses to launch unless you supply a fresh attempt ID, operator, reason, and aggregate session/request budget. Live calls are disabled when these explicit plan fields are absent. The attempt receipt records estimates separately from actual observed usage.
 
    ```bash
-   python3 $BENCH/calibrate.py isolation --evidence $EVIDENCE --model claude-opus-5-5 --effort high
+   python3 $BENCH/calibrate.py isolation --evidence $EVIDENCE --model claude-opus-5-5 --effort high --attempt-id isolation-1 --max-sessions 4 --max-requests 100 --approved-by OPERATOR --reason "Approved bounded isolation challenges"
    ```
 
 5. Adjudicate labels and controls independently, then freeze them. Two fresh sessions per candidate see only the capsule and a minimal restatement (no dispositions, comments, fixes, treatments or remedies) and must establish task, cost, mechanism, diff relevance and their own qualifying alternative under B's quoted neutral standard. Agreement decides; disagreement goes to a fresh resolver; an unresolved disagreement is provisional. Controls must be independently confirmed negative.
 
    ```bash
-   python3 $BENCH/calibrate.py adjudicate --evidence $EVIDENCE --model claude-opus-5-5 --effort high --workers 4
+   python3 $BENCH/calibrate.py adjudicate --evidence $EVIDENCE --model claude-opus-5-5 --effort high --workers 4 --attempt-id labels-1 --max-sessions 60 --max-requests 1000 --approved-by OPERATOR --reason "Approved bounded label and control adjudication"
    ```
 
 6. Freeze the pilot (M91, M94, N1, N2; one repetition per arm; validator cap 12). Live execution is disabled by default. An operator must approve a bounded attempt before any model call:

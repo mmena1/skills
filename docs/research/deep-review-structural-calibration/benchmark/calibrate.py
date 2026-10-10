@@ -376,10 +376,49 @@ def command_note(args):
     print("recorded")
 
 
+def setup_live_batch(evidence, phase, args):
+    evidence.set_attempt(args.attempt_id)
+    if args.max_sessions <= 0 or args.max_requests <= 0:
+        raise GateError("setup live plan must grant positive total session and request budgets")
+    if not args.approved_by.strip() or not args.reason.strip():
+        raise GateError("setup live plan must identify its approving operator and reason")
+    hashes = {"calibrate": sha256_file(Path(__file__)), "definitions": sha256_file(DEFINITIONS),
+              "catalog": sha256_file(CATALOG),
+              "broker": sha256_file(HERE / "broker.py"), "capsule_server": sha256_file(HERE / "capsule_server.py"),
+              "preparation": sha256_file(evidence.receipt("preparation"))}
+    if phase == "adjudicate":
+        hashes["isolation"] = sha256_file(evidence.receipt("isolation"))
+        hashes["roles"] = {path.name: sha256_file(path) for path in sorted(ROLES.iterdir())}
+    approved = {"phase": phase, "attempt_id": args.attempt_id, "model": args.model, "effort": args.effort,
+                "claude": args.claude, "cli_version": cli_version(args.claude),
+                "approved_by": args.approved_by, "reason": args.reason,
+                "total_session_budget": args.max_sessions, "total_request_budget": args.max_requests,
+                "hashes": hashes,
+                "provider_quota_enforcement": "not exact; provider-side shared limits are not observable or reserved"}
+    usage_root = evidence.phase_receipts(phase)
+    write_once(usage_root / "live-approval.json", approved)
+    return (broker.BatchGuard(max_sessions=args.max_sessions, max_requests=args.max_requests),
+            usage_root / "live-usage-0001.json", approved)
+
+
+def save_live_usage(path, phase, attempt_id, approval, guard):
+    dump(path, {"phase": phase, "attempt_id": attempt_id, "at": now(),
+                "approved_limits": {"sessions": approval["total_session_budget"],
+                                    "requests": approval["total_request_budget"]},
+                "actual": guard.snapshot(),
+                "provider_quota_enforcement": approval["provider_quota_enforcement"]})
+
+
 def command_isolation(args):
     evidence = Evidence(args.evidence)
+    with live_run_lock(evidence):
+        return _command_isolation_locked(args)
+
+
+def _command_isolation_locked(args):
+    evidence = Evidence(args.evidence)
+    evidence.set_attempt(args.attempt_id)
     evidence.require("preparation", "run prepare first")
-    archive_attempt(evidence, "isolation")
     preparation = load(evidence.receipt("preparation"))
     aliases = {case: row["alias"] for case, row in preparation["capsules"].items()}
     fix_objects = sorted({row["first_fix"] for row in load(evidence.inputs / "preparer/case-catalog.json")["snapshots"]})
@@ -389,7 +428,7 @@ def command_isolation(args):
         "repository": REPOSITORY, "research-raw": RESEARCH_RAW,
     }
     results = {}
-    scratch = evidence.root / "scratch-isolation"
+    scratch = evidence.root / f"scratch-isolation-{args.attempt_id}"
     for case in sorted(aliases):
         sibling = next(alias for other, alias in sorted(aliases.items()) if other != case)
         results[case] = broker.challenge_capsule(capsule_for(evidence, case), sibling=sibling,
@@ -397,7 +436,12 @@ def command_isolation(args):
                                                  scratch=scratch)
         print(f"{case}: {'PASS' if results[case]['pass'] else 'FAIL'} "
               f"({sum(c['pass'] for c in results[case]['checks'])}/{len(results[case]['checks'])})")
-    live = live_boundary_checks(evidence, args)
+    guard, usage_path, approval = setup_live_batch(evidence, "isolation", args)
+    archive_attempt(evidence, "isolation")
+    try:
+        live = live_boundary_checks(evidence, args, guard)
+    finally:
+        save_live_usage(usage_path, "isolation", args.attempt_id, approval, guard)
     shutil.rmtree(scratch, ignore_errors=True)
     verdict = "PASS" if all(r["pass"] for r in results.values()) and all(c["pass"] for c in live) else "FAIL"
     dump(evidence.receipt("isolation"), {
@@ -410,10 +454,10 @@ def command_isolation(args):
         raise GateError("isolation challenges failed; no model session may run")
 
 
-def live_boundary_checks(evidence, args):
+def live_boundary_checks(evidence, args, batch_guard):
     """Real CLI launches: a capsule round trip works; inherited tools, wrong effort and leaked tokens are refused."""
     checks = []
-    root = evidence.sessions / "isolation" / datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+    root = evidence.phase_sessions("isolation") / "live"
     capsule = capsule_for(evidence, CHALLENGE_FIXTURE)
     budget = dict(BUDGETS["validator"], timeout_seconds=300)
     system = "You verify tool connectivity for a repository service."
@@ -427,10 +471,22 @@ def live_boundary_checks(evidence, args):
         ("leaked-token-refused", None, user + " " + str(evidence.root), "leaked_context"),
     ]
     for name, override, prompt, expected in cases:
+        if batch_guard.snapshot()["circuit"]:
+            checks.append({"check": f"live:{name}", "expected_status": expected, "status": "not_run",
+                           "reasons": ["global_limit_reached"], "session": None, "pass": False,
+                           "tools_offered": [], "tool_calls": []})
+            continue
         claude = argv_wrapper(root / "launchers", args.claude, *override) if override else args.claude
-        meta = broker.run_session(root / name, model=args.model, effort=args.effort, budget=budget,
-                                  system_prompt=system, user_prompt=prompt, capsule=capsule,
-                                  forbidden=forbidden_tokens(evidence, capsule), claude=claude)
+        try:
+            meta = broker.run_session(root / name, model=args.model, effort=args.effort, budget=budget,
+                                      system_prompt=system, user_prompt=prompt, capsule=capsule,
+                                      forbidden=forbidden_tokens(evidence, capsule), claude=claude,
+                                      batch_guard=batch_guard)
+        except broker.BatchLimitReached:
+            checks.append({"check": f"live:{name}", "expected_status": expected, "status": "not_run",
+                           "reasons": ["global_limit_reached"], "session": None, "pass": False,
+                           "tools_offered": [], "tool_calls": []})
+            continue
         passed = meta["status"] == expected
         if name == "capsule-roundtrip":
             calls = [call["status"] for call in meta["tool_calls"]]
@@ -525,12 +581,20 @@ def evaluator_plan(args):
 
 def command_adjudicate(args):
     evidence = Evidence(args.evidence)
+    with live_run_lock(evidence):
+        return _command_adjudicate_locked(args)
+
+
+def _command_adjudicate_locked(args):
+    evidence = Evidence(args.evidence)
+    evidence.set_attempt(args.attempt_id)
     evidence.require("isolation", "isolation must pass before any model session")
     definitions = load(DEFINITIONS)
     plan = evaluator_plan(args)
     if evidence.receipt("labels").exists() or evidence.receipt("controls").exists():
         raise GateError("labels or controls are already frozen")
-    root = evidence.sessions / "adjudication"
+    root = evidence.phase_sessions("adjudicate")
+    guard, usage_path, approval = setup_live_batch(evidence, "adjudicate", args)
 
     def label_job(label):
         spec = definitions["labels"][label]
@@ -539,7 +603,8 @@ def command_adjudicate(args):
         assessments = []
         for index in (1, 2):
             value, attempts = evaluator_session(root / f"label-{label}-{index}", "adjudicator", plan=plan,
-                                                system=system, user=user, capsule=capsule, evidence=evidence)
+                                                system=system, user=user, capsule=capsule, evidence=evidence,
+                                                batch_guard=guard)
             assessments.append({"value": value, "sessions": attempts})
         decisions = [a["value"]["decision"] if a["value"] else "failed" for a in assessments]
         record = {"label": label, "case": spec["case"], "assessments": assessments, "independent_decisions": decisions}
@@ -553,7 +618,7 @@ def command_adjudicate(args):
             value, attempts = resolve_pair(root / f"label-{label}-resolver", "adjudicator", plan=plan,
                                            evidence=evidence, capsule=capsule, instructions=system, packet=user,
                                            first=assessments[0]["value"], second=assessments[1]["value"],
-                                           schema_key="decision")
+                                           schema_key="decision", batch_guard=guard)
             resolved = value.get("decision") if value else "failed"
             record["resolver"] = {"value": value, "sessions": attempts}
             if resolved == "eligible":
@@ -578,7 +643,8 @@ def command_adjudicate(args):
         assessments = []
         for index in (1, 2):
             value, attempts = evaluator_session(root / f"control-{control}-{index}", "adjudicator", plan=plan,
-                                                system=system, user=user, capsule=capsule, evidence=evidence)
+                                                system=system, user=user, capsule=capsule, evidence=evidence,
+                                                batch_guard=guard)
             assessments.append({"value": value, "sessions": attempts})
 
         def negative(value):
@@ -596,15 +662,21 @@ def command_adjudicate(args):
             value, attempts = resolve_pair(root / f"control-{control}-resolver", "adjudicator", plan=plan,
                                            evidence=evidence, capsule=capsule, instructions=system, packet=user,
                                            first=assessments[0]["value"], second=assessments[1]["value"],
-                                           schema_key="expected_outcome")
+                                           schema_key="expected_outcome", batch_guard=guard)
             record["resolver"] = {"value": value, "sessions": attempts}
             record["expected"] = "negative" if negative(value) else "unestablished"
             record["resolution"] = "disagreement resolved by independent resolver"
         print(f"control {control}: {verdicts} -> {record['expected']}")
         return record
 
-    labels = parallel(sorted(definitions["labels"]), label_job, args.workers)
-    controls = parallel(list(CONTROLS), control_job, args.workers)
+    try:
+        labels = parallel(sorted(definitions["labels"]), label_job, args.workers)
+        controls = parallel(list(CONTROLS), control_job, args.workers)
+    finally:
+        save_live_usage(usage_path, "adjudicate", args.attempt_id, approval, guard)
+    if guard.snapshot()["circuit"]:
+        print(f"INCOMPLETE: adjudication stopped by {guard.snapshot()['circuit']['kind']}; labels and controls remain unfrozen")
+        return
     label_verdict = "PASS" if all(r["decision"] in ("eligible", "excluded", "provisional") for r in labels) else "FAIL"
     control_verdict = "PASS" if all(r["expected"] == "negative" for r in controls) else "FAIL"
     write_once(evidence.receipt("labels"), {
@@ -1400,8 +1472,14 @@ def main(argv=None):
     prepare = common(sub.add_parser("prepare", help="build fixtures, prepare capsules twice, export treatments"))
     prepare.add_argument("--repository", action="append", required=True)
     prepare.add_argument("--seed", required=True)
-    common(sub.add_parser("isolation", help="exercise access challenges and broker refusals"), model=True)
-    common(sub.add_parser("adjudicate", help="independent label and control adjudication, then freeze"), model=True)
+    for name, help_text in (("isolation", "exercise access challenges and broker refusals"),
+                            ("adjudicate", "independent label and control adjudication, then freeze")):
+        command = common(sub.add_parser(name, help=help_text), model=True)
+        command.add_argument("--attempt-id", required=True, help="unique immutable setup-attempt namespace")
+        command.add_argument("--max-sessions", type=int, required=True, help="explicit total session budget")
+        command.add_argument("--max-requests", type=int, required=True, help="explicit total forwarded-request budget")
+        command.add_argument("--approved-by", required=True, help="operator approving this bounded live plan")
+        command.add_argument("--reason", required=True, help="reason for the live setup batch")
     freeze = common(sub.add_parser("freeze", help="freeze the schedule, budgets and hashes for a phase"), model=True)
     freeze.add_argument("--phase", choices=sorted(PHASES), required=True)
     freeze.add_argument("--seed", required=True)

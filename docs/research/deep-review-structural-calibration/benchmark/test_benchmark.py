@@ -213,7 +213,8 @@ class Workspace(unittest.TestCase):
                                   budget=budget or BUDGET, system_prompt="contract", user_prompt="packet",
                                   capsule=self.capsule if capsule == "default" else capsule,
                                   forbidden=forbidden, claude=str(self.fake), upstream=upstream.address,
-                                  extra_env=environment)
+                                  extra_env=environment,
+                                  batch_guard=broker.BatchGuard(max_sessions=100, max_requests=1000))
 
 
 @unittest.skipUnless(HAS_BWRAP, "bubblewrap user namespaces unavailable")
@@ -727,6 +728,31 @@ class ScoringTests(unittest.TestCase):
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_live_session_requires_explicit_batch_approval(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            session = Path(temporary) / "must-not-start"
+            with self.assertRaisesRegex(broker.BatchLimitReached, "explicit approved aggregate"):
+                broker.run_session(session, model="m", effort="high", budget=BUDGET,
+                                   system_prompt="s", user_prompt="u", claude="must-not-run")
+            self.assertFalse(session.exists())
+
+    def test_setup_live_plan_records_aggregate_limits_per_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = calibrate.Evidence(Path(temporary) / "evidence")
+            calibrate.dump(evidence.receipt("preparation"), {"verdict": "PASS"})
+            args = type("Args", (), {"attempt_id": "isolation-a", "max_sessions": 4, "max_requests": 40,
+                                     "approved_by": "operator", "reason": "bounded offline fixture approval",
+                                     "model": "m", "effort": "high", "claude": "claude"})()
+            guard, usage_path, approval = calibrate.setup_live_batch(evidence, "isolation", args)
+            self.assertEqual(approval["total_session_budget"], 4)
+            self.assertEqual(approval["total_request_budget"], 40)
+            self.assertTrue((evidence.phase_receipts("isolation") / "live-approval.json").exists())
+            with self.assertRaises(calibrate.GateError):
+                calibrate.setup_live_batch(evidence, "isolation", args)
+            guard.trip("quota_limited", "fake 429")
+            calibrate.save_live_usage(usage_path, "isolation", args.attempt_id, approval, guard)
+            self.assertEqual(calibrate.load(usage_path)["actual"]["circuit"]["kind"], "quota_limited")
+
     def test_incomplete_evaluator_attempt_is_preserved(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "assessment"
