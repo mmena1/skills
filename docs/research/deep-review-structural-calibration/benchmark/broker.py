@@ -28,6 +28,7 @@ SERVER = HERE / "capsule_server.py"
 JAIL_REPOSITORY = "/capsule/repository"
 TOOL_NAMES = ("list_files", "read_file", "search", "git")
 ALLOWED_TOOLS = tuple(f"mcp__capsule__{name}" for name in TOOL_NAMES)
+UPSTREAM = ("https", "api.anthropic.com", 443)
 REDACTED_HEADERS = {"authorization", "x-api-key", "cookie", "proxy-authorization"}
 # Context the CLI itself injects. Anything else in a request that is not ours, the
 # model's own turns or capsule tool results fails the session as unexpected context.
@@ -406,7 +407,7 @@ def classify(*, timed_out, launch_error, violations, result, init, capsule, fina
 
 
 def run_session(session_dir, *, model, effort, budget, system_prompt, user_prompt, capsule=None,
-                forbidden=(), claude="claude", upstream=("https", "api.anthropic.com", 443), extra_env=None):
+                forbidden=(), claude="claude", upstream=None, extra_env=None):
     """Run one fresh, isolated CLI session. Writes raw evidence to session_dir; returns meta."""
     session_dir = Path(session_dir)
     session_dir.mkdir(parents=True, exist_ok=False)
@@ -431,13 +432,16 @@ def run_session(session_dir, *, model, effort, budget, system_prompt, user_promp
     timed_out = False
     launch_error = None
     with Proxy(session_dir / "api.jsonl", model=model, effort=effort, budget=budget,
-               allowed_tools=ALLOWED_TOOLS if capsule else (), forbidden=forbidden, upstream=upstream) as proxy:
+               allowed_tools=ALLOWED_TOOLS if capsule else (), forbidden=forbidden,
+               upstream=upstream or UPSTREAM) as proxy:
         proxy.expected_texts = [system_prompt, user_prompt, user_prompt.rstrip("\n")]
         environment = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.environ.get("HOME", ""),
             "LANG": "C.UTF-8", "ANTHROPIC_BASE_URL": proxy.url, "DISABLE_TELEMETRY": "1",
             "DISABLE_ERROR_REPORTING": "1", "DISABLE_AUTOUPDATER": "1",
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "MCP_TIMEOUT": "60000",
+            # The CLI otherwise injects a "user hasn't heard from you" nudge after silent tool turns.
+            "CLAUDE_CODE_SILENT_TURN_REMINDER": "0",
         }
         environment.update(extra_env or {})
         with open(session_dir / "stdout.jsonl", "wb") as stdout, open(session_dir / "stderr.txt", "wb") as stderr:

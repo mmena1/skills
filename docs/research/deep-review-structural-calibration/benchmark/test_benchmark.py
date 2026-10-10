@@ -36,6 +36,9 @@ TREATMENTS_AVAILABLE = all(subprocess.run(["git", "-C", str(calibrate.REPOSITORY
 FAKE_CLI = r'''#!/usr/bin/env python3
 import json, os, subprocess, sys, time, urllib.error, urllib.request
 args = sys.argv[1:]
+if args == ["--version"]:
+    print("0.0.0 (fake)")
+    sys.exit(0)
 def option(name):
     return args[args.index(name) + 1] if name in args else None
 mode = os.environ.get("FAKE_MODE", "reply")
@@ -67,6 +70,25 @@ body = {"model": model, "max_tokens": 1000, "system": [{"type": "text", "text": 
         "messages": [{"role": "user", "content": content}], "tools": tools,
         "output_config": {"effort": option("--effort")}, "thinking": {"type": "adaptive"}, "stream": True}
 reply = os.environ.get("FAKE_REPLY", "No hypotheses")
+if mode == "roles":
+    import re
+    if system.startswith("You are the structural reviewer"):
+        reply = ("### Hypothesis structural-H1\n- **Origin:** structural\n- **Title:** Cost\n- **File/line:** a.py:1\n"
+                 "- **Potential severity:** low\n- **Source evidence:** evidence and alternative\n"
+                 "- **Expected impact:** task, cost and mechanism\n- **Falsification condition:** f\n"
+                 "- **Suggested validation:** v\n- **Context references:** none")
+    elif system.startswith("You are the independent validator"):
+        reply = "### Disproved\n- **Hypothesis:** H\n- **File/line:** a.py:1\n- **Evidence:** preference only"
+    elif system.startswith("You are an independent assessor") or system.startswith("You resolve"):
+        ids = sorted(set(re.findall(r"### Hypothesis (H-[0-9a-f]+)", prompt)))
+        reply = "```json\n" + json.dumps({"assessments": [{"id": i, "admission_qualified": True, "admission_gaps": [],
+                 "schema_problems": [], "structural": True, "matches": []} for i in ids]}) + "\n```"
+    elif system.startswith("You classify"):
+        ids = sorted(set(re.findall(r"Outcome (R-[0-9a-f]+)", prompt)))
+        reply = "```json\n" + json.dumps({"classifications": [{"id": i, "reason": "preference", "explanation": "x"}
+                 for i in ids]}) + "\n```"
+    else:
+        reply = "```json\n" + json.dumps({"decision": "eligible"}) + "\n```"
 for turn in range(int(os.environ.get("FAKE_TURNS", "1"))):
     request = urllib.request.Request(os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", data=json.dumps(body).encode(),
                                      headers={"content-type": "application/json", "User-Agent": "fake-cli/1"})
@@ -411,6 +433,77 @@ class PreparationTests(unittest.TestCase):
         _, system_b, _ = calibrate.scout_prompts(self.evidence, {}, "N1", "B")
         self.assertIn("codebase-design/SKILL.md", system_a)
         self.assertNotIn("codebase-design/SKILL.md", system_b)
+
+
+@unittest.skipUnless(HAS_BWRAP and TREATMENTS_AVAILABLE, "needs bubblewrap and the treatment commits")
+class PilotPipelineTests(unittest.TestCase):
+    """The real pilot runner, cap exhaustion, budget revision, scorer and gate, with a role-aware fake model."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        self.fake = root / "fake-claude"
+        self.fake.write_text(FAKE_CLI)
+        self.fake.chmod(0o755)
+        self.upstream = FakeUpstream()
+        self.addCleanup(self.upstream.close)
+        self.evidence = calibrate.Evidence(root / "evidence")
+        calibrate.prepare(self.evidence, [], "pipeline-seed", snapshots=[])
+        capsules = {case: {"pass": True} for case in ("N1", "N2", "C1")}
+        calibrate.dump(self.evidence.receipt("isolation"), {"verdict": "PASS", "capsules": capsules, "live": []})
+        definitions = calibrate.load(calibrate.DEFINITIONS)
+        labels = {label: {"decision": "eligible"} for label in definitions["labels"]}
+        calibrate.dump(self.evidence.receipt("labels"), {"verdict": "PASS", "frozen_at": calibrate.now(), "labels": labels})
+        calibrate.dump(self.evidence.receipt("controls"), {"verdict": "PASS", "frozen_at": calibrate.now()})
+        patches = [
+            mock.patch.dict(calibrate.PHASES, {"pilot": {"cases": ["N1", "N2"], "repetitions": 1, "validator_cap": 1}}),
+            mock.patch.object(broker, "UPSTREAM", self.upstream.address),
+            mock.patch.dict(os.environ, {"FAKE_MODE": "roles"}),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def cli(self, *arguments):
+        calibrate.main([arguments[0], "--evidence", str(self.evidence.root), *arguments[1:]])
+
+    def test_cap_exhaustion_blocks_until_prospective_revision_then_gate_passes(self):
+        original = broker.run_session
+
+        def with_mode(*args, **kwargs):
+            kwargs["extra_env"] = {"FAKE_MODE": "roles"}
+            return original(*args, **kwargs)
+
+        with mock.patch.object(broker, "run_session", with_mode):
+            self.cli("freeze", "--phase", "pilot", "--seed", "s", "--model", "model-x", "--effort", "high",
+                     "--claude", str(self.fake), "--workers", "2")
+            self.cli("run", "--phase", "pilot")
+            replay = calibrate.load(self.evidence.receipts / "pilot/replay-status.json")
+            self.assertFalse(replay["complete"])
+            self.assertEqual((replay["unique_hypotheses"], replay["replayed"]), (2, 1))
+            self.assertFalse((self.evidence.receipts / "pilot/assessments.json").exists())
+            with self.assertRaises(SystemExit):
+                self.cli("run", "--phase", "pilot")
+            self.cli("revise-budget", "--phase", "pilot", "--validator-cap", "4", "--reason", "prospective test revision")
+            self.cli("run", "--phase", "pilot")
+            self.cli("gate", "--phase", "pilot")
+        gate = calibrate.load(self.evidence.receipt("gate-pilot"))
+        self.assertEqual(gate["verdict"], "PASS", [c for c in gate["checks"] if not c["pass"]])
+        scores = calibrate.load(self.evidence.results / "pilot-scores.json")
+        self.assertEqual(scores["admission"]["A"]["raw_emissions"], 2)
+        self.assertEqual(scores["controls"]["B"]["control_admission_rate"], 1.0)
+        self.assertEqual(scores["controls"]["B"]["validated_findings"], 0)
+        challenges = calibrate.load(self.evidence.receipt("challenges"))
+        self.assertEqual(challenges["verdict"], "PASS")
+        self.assertEqual({r["id"]: r["outcome"] for r in challenges["results"]}["Z1"], "deviation")
+        pool = calibrate.load(self.evidence.receipts / "pilot/pool.json")
+        for entry in pool["replays"].values():
+            self.assertNotIn("structural-H1", entry["text"])
+        for directory in (self.evidence.sessions / "pilot/validators").iterdir():
+            prompt = (directory / "user.txt").read_text() + (directory / "system.txt").read_text()
+            for secret in ("pilot-N", "-A", "-B", "arm", "treatment", "N1", "N2"):
+                self.assertNotIn(secret, prompt)
 
 
 class GateTests(unittest.TestCase):

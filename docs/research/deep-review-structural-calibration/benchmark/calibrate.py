@@ -428,7 +428,8 @@ def argv_wrapper(directory, claude, flag, value):
 
 def cli_version(claude):
     try:
-        return subprocess.run([claude, "--version"], capture_output=True, text=True, timeout=60).stdout.strip()
+        return subprocess.run([claude, "--version"], capture_output=True, text=True, timeout=60,
+                              stdin=subprocess.DEVNULL).stdout.strip()
     except OSError as error:
         return f"unavailable: {error}"
 
