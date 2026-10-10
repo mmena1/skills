@@ -1,0 +1,293 @@
+{
+  "version": 1,
+  "warning": "EVALUATOR ONLY. Restated labels, control identities and expectations, and challenge expectations must never enter a reviewer or validator session.",
+  "treatments": {
+    "A": {
+      "commit": "b3a568ec926abc17326213dfb3bd00a48feb256a",
+      "scout_bundle": [
+        "skills/deep-review/reviewers/SCOUT.md",
+        "skills/deep-review/reviewers/lenses/structural.md",
+        "skills/codebase-design/SKILL.md"
+      ]
+    },
+    "B": {
+      "commit": "5e61f1a0494701f4844c04351235fa77714d9c4e",
+      "scout_bundle": [
+        "skills/deep-review/reviewers/SCOUT.md",
+        "skills/deep-review/reviewers/lenses/structural.md"
+      ]
+    }
+  },
+  "validator": {
+    "commit": "5e61f1a0494701f4844c04351235fa77714d9c4e",
+    "bundle": [
+      "skills/deep-review/reviewers/validator.md"
+    ]
+  },
+  "neutral_standard": {
+    "commit": "5e61f1a0494701f4844c04351235fa77714d9c4e",
+    "path": "skills/deep-review/protocol.md",
+    "paragraph_prefix": "A **structural hypothesis** concerns maintainability"
+  },
+  "evaluator_records": [
+    "skills/deep-review/protocol.md",
+    "skills/deep-review/harnesses/roles.toml",
+    "skills/deep-review/reviewers/validator.md"
+  ],
+  "label_classes": {
+    "fixed": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S08"
+    ],
+    "provisional": [
+      "S07",
+      "S09",
+      "S10",
+      "S12",
+      "S13"
+    ],
+    "auxiliary": [
+      "S11"
+    ]
+  },
+  "labels": {
+    "S01": {
+      "case": "M72",
+      "anchor": "mtg_copilot/archive_inspection.py:183",
+      "concern": "Validity of an inspection result is reconstructed from several mutable flags that different parsing paths write and that result() later recombines; some of those writes cannot survive the version-changed terminal result.",
+      "claimed_cost": "Understanding which validity result and issue location survive a session or build transition requires tracking flag lifetimes across consume_line, room handling, match finish and result()."
+    },
+    "S02": {
+      "case": "M72",
+      "anchor": "mtg_copilot/archive_inspection.py:127",
+      "concern": "A per-file three-part positional tuple signature is repeated in four places, and the intermediate _FoundMatch is converted one-to-one into _ParsedMatch although the file reference is already available where _FoundMatch is constructed.",
+      "claimed_cost": "Adding or inspecting per-file evidence requires coordinating the repeated tuple signatures and position-based unpacking, and tracing a representation conversion that carries no separate policy."
+    },
+    "S03": {
+      "case": "M72",
+      "anchor": "mtg_copilot/archive_inspection.py:127",
+      "concern": "After overlap merging, ArchiveScenario.line keeps the line of one occurrence without its file identity, while locations carries the (file_ref, line) pair of every occurrence.",
+      "claimed_cost": "A consumer of archive locations must determine which of two public location representations is meaningful after merging, or depend on undocumented occurrence order."
+    },
+    "S04": {
+      "case": "M72",
+      "anchor": "mtg_copilot/archive_inspection.py:71",
+      "concern": "A public replay_ready field is always false. It is exported through the public models and CLI output, although production_support already distinguishes supported decision classes and the inspector does not compute readiness.",
+      "claimed_cost": "Consumers must distinguish two overlapping support and readiness concepts, and later work that defines readiness must reconcile it with an already published boolean."
+    },
+    "S05": {
+      "case": "M91",
+      "anchor": "mtg_copilot/meta_context.py:264",
+      "concern": "The freshness rule is stated in several places: meta_context computes a window end and a maximum age, the metagame code checks day differences, and source qualification repeats the policy.",
+      "claimed_cost": "Changing the freshness boundary requires coordinated edits across context expiry, source selection and qualification; if they diverge, pin eligibility and availability drift apart."
+    },
+    "S06": {
+      "case": "M91",
+      "anchor": "mtg_copilot/meta_context.py:159",
+      "concern": "_unavailable_reason already obtains availability; _derive obtains it again and gates fresh_manifests behind a condition that is already implied after the catalog and legality checks.",
+      "claimed_cost": "Establishing what that conditional can change requires tracing three functions across two modules, and changing availability or disclosure logic repeats that reasoning."
+    },
+    "S07": {
+      "case": "M94",
+      "anchor": "mtg_copilot/spine.py:261",
+      "concern": "Match eligibility is decided in two places: spine revalidates artifacts and checks catalog identity, returning None without a reason, while meta_context_for_match checks profile, legality and temporal eligibility with domain reasons.",
+      "claimed_cost": "Explaining all eligibility outcomes or extending an eligibility rule requires tracing both owners plus retained-pin validation, and the domain boundary cannot describe damaged-artifact or catalog decisions."
+    },
+    "S08": {
+      "case": "M94",
+      "anchor": "mtg_copilot/recommendation.py:1012",
+      "concern": "Three builders convert a projection into a boolean, and defaulted helpers turn that boolean back into an uncertainty disclosure; omitting the flag is accepted by the helper signature and only rejected later at request validation.",
+      "claimed_cost": "Adding a builder requires coordinating the projection, an optional defaulted flag and the disclosure invariant, and the helper signature conceals that projection knowledge is required."
+    },
+    "S09": {
+      "case": "M102",
+      "anchor": "mtg_copilot/profile_bakeoff.py:670",
+      "concern": "_campaign_stop repeats the refusal order of record_attempt, and _MeasuredGenerator repeats the refusal-to-shortfall conversion.",
+      "claimed_cost": "Adding a refusal reason or changing precedence requires editing three places in step; if the copies drift, the same state can yield different shortfalls."
+    },
+    "S10": {
+      "case": "M102",
+      "anchor": "mtg_copilot/profile_bakeoff.py:685",
+      "concern": "Five helpers repeat price lookup and absent-input guards, and subscription support changes the inputs that all of them accept.",
+      "claimed_cost": "Changing price, currency or absent-price accounting requires coordinating all of the helpers while preserving the distinctions between absent input, an unpriced configuration and a legitimate zero cost."
+    },
+    "S11": {
+      "case": "M108",
+      "anchor": "mtg_copilot/profile_freeze.py:1062",
+      "concern": "Routine operational failures for stale, tampered or malformed freeze state surface at the public boundary as bare ValueError text, including Pydantic ValidationError.",
+      "claimed_cost": "Callers choosing a recovery must parse message text and distinguish several exception sources, and each new error extends an undocumented string protocol."
+    },
+    "S12": {
+      "case": "M108",
+      "anchor": "mtg_copilot/profile_freeze.py:1073",
+      "concern": "freeze_profiles and LoadedProfileFreeze repeat the checks on cases, ranking, status, packet and implementation in different orders, and loading verifies the review twice to avoid a KeyError.",
+      "claimed_cost": "Adding a freeze precondition requires editing both paths and preserving the review-before-packet order; otherwise accepted selections and manifests can diverge."
+    },
+    "S13": {
+      "case": "M108",
+      "anchor": "mtg_copilot/profile_freeze.py:362",
+      "concern": "Four internal flows call the public locked_reviews guard with next(iter(_packets)) as the reviewer only to pass its caller authorization; the adjudicator packet path calls it expecting an exception and then recurses through the packet.",
+      "claimed_cost": "Changing caller-specific behavior forces maintainers to account for internal flows whose reviewer is a placeholder rather than a real caller, and proving lock order requires traversing authorization and packet recursion."
+    }
+  },
+  "controls": {
+    "N1": {
+      "design": "overdue_members in loans/reports.py uses an explicit loop with a first-seen membership check, beside existing collection-expression helpers; both forms are local, keep the same invariants and have the same change surface.",
+      "must_not_become_a_finding": "Syntax, shorter code, function length or nesting alone."
+    },
+    "N2": {
+      "design": "ForecastClient in forecast/client.py is the one owner of provider payload-version translation and the ForecastUnavailable error policy, behind an injectable Transport that tests replace; removing it would make frost_warning and daily_summary each restate translation and error policy.",
+      "must_not_become_a_finding": "Layer, helper or dependency-injection presence, or a deletion preference that adds equal burden."
+    },
+    "N3": {
+      "design": "LedgerWriter in ledger/writer.py owns the durable file lifecycle (open, exclusive lock, flush, fsync, unlock, close on every path); pure functions in ledger/entries.py own formatting outside it.",
+      "must_not_become_a_finding": "A blanket functional-programming or deep-module preference, or class count."
+    },
+    "N4": {
+      "design": "EvidenceStatus with optional Document input in verification/evidence.py distinguishes missing, invalid and valid evidence, which the documented policy requires to lead to materially different next steps; the guards expose those constraints.",
+      "must_not_become_a_finding": "Optionality, branch or state count, or collapsing states in a way that changes behavior."
+    },
+    "N5": {
+      "design": "late_fee and cancellation_fee in fees/ are similar percentage, cap and rounding calculations with independent documented owners and reasons to change; a shared helper would need mode parameters or a hidden policy switch.",
+      "must_not_become_a_finding": "Textual duplication or abstraction extraction without shared knowledge."
+    }
+  },
+  "challenge_fixture": "C1",
+  "challenges": [
+    {
+      "id": "P1",
+      "fixture": "N1",
+      "kind": "preference",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "Explicit accumulation loop in overdue_members departs from the collection-expression style of its neighbours",
+        "File/line": "loans/reports.py:14",
+        "Potential severity": "medium",
+        "Source evidence": "overdue_members builds its result with an explicit for loop, a mutable list and a membership test, while active_loans and returned_late in the same module are single list comprehensions. Alternative: express it as a comprehension over dict.fromkeys(loan.member_id for loan in loans if loan.returned is None and loan.due < today), which is shorter and matches the module style.",
+        "Expected impact": "A reader of reports.py must switch between two idioms; the loop is longer than necessary and slows understanding of the rule, the task of reading the module's report rules.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Compare the loop and the comprehension for behavior and reading cost.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "P2",
+      "fixture": "N2",
+      "kind": "preference",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "ForecastClient and Transport add an unnecessary layer between callers and the provider",
+        "File/line": "forecast/client.py:12",
+        "Potential severity": "medium",
+        "Source evidence": "frost_warning and daily_summary reach the provider only through ForecastClient, which wraps an injected Transport protocol and an HttpTransport class. Alternative: delete ForecastClient and the Transport protocol and let each caller call urllib and read the payload fields directly, removing two abstractions and one indirection step.",
+        "Expected impact": "Understanding where a forecast comes from requires traversing caller, client, protocol and transport; the dependency-injection layer is indirection a maintainer must follow for every change.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Check whether removing the client forces callers to restate knowledge.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "P3",
+      "fixture": "N3",
+      "kind": "preference",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "Stateful LedgerWriter class where plain functions would do",
+        "File/line": "ledger/writer.py:7",
+        "Potential severity": "medium",
+        "Source evidence": "LedgerWriter keeps mutable state (_file) across __enter__, append and __exit__, while the rest of the ledger package is pure functions. Alternative: replace the class with a function append_lines(path, lines) so the package follows one functional style and has one fewer class.",
+        "Expected impact": "Reasoning about the writer requires tracking object state across three methods; a functional design would be easier to understand for the task of reviewing ledger writes.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Check whether the class state carries the lock and lifecycle obligations.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "P4",
+      "fixture": "N4",
+      "kind": "preference",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "Three-state EvidenceStatus and optional document add unnecessary states",
+        "File/line": "verification/evidence.py:8",
+        "Potential severity": "medium",
+        "Source evidence": "check_evidence accepts Document | None and returns one of three EvidenceStatus values, and next_step branches on all three. Alternative: treat a missing document as a failed check, return a boolean valid flag with a list of failures, and branch once in next_step.",
+        "Expected impact": "Every reader and caller must account for three states and an optional input, increasing branch count for the task of understanding the decision flow.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Check whether collapsing missing into invalid changes required behavior.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "P5",
+      "fixture": "N5",
+      "kind": "preference",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "Duplicated percentage, cap and rounding logic in two fee functions",
+        "File/line": "fees/late.py:11",
+        "Potential severity": "medium",
+        "Source evidence": "late_fee and cancellation_fee both multiply a price by a rate, cap the result with min and quantize to cents. Alternative: extract fee(amount, rate, cap, minimum=None, rounding=ROUND_HALF_UP) in fees/money.py and call it from both functions, removing the duplicated arithmetic.",
+        "Expected impact": "Changing how fees are computed requires editing two near-identical functions, a duplicated-knowledge cost on the task of changing fee arithmetic.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Check whether the two calculations share a policy or only a shape.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "X1",
+      "fixture": "C1",
+      "kind": "indirection-beside-duplicated-policy",
+      "expected": "Disproved",
+      "note": "The genuine concern at this code is the restated free-delivery minimum in delivery_charge. The validator must reject the alleged indirection and must not substitute that neighbouring concern.",
+      "hypothesis": {
+        "Title": "CarrierRates.quote is a pass-through step between delivery_charge and the rate table",
+        "File/line": "shop/checkout/cart.py:27",
+        "Potential severity": "medium",
+        "Source evidence": "delivery_charge obtains its price by calling rates.quote(cart.zone, cart.weight_kg), which looks the zone up in RATE_TABLE. Alternative: delete CarrierRates and have delivery_charge index RATE_TABLE[cart.zone] directly, removing a class and a call a reader must traverse.",
+        "Expected impact": "Understanding how a delivery charge is priced requires traversing an extra class and method that only forwards a table lookup, an unnecessary-indirection cost on the task of tracing delivery pricing.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Inspect CarrierRates.quote for knowledge beyond the table lookup.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "Y1",
+      "fixture": "C1",
+      "kind": "equal-burden-alternative",
+      "expected": "not Finding",
+      "hypothesis": {
+        "Title": "Remote-zone fallback inside CarrierRates.quote hides surcharge policy",
+        "File/line": "shop/carriers/rates.py:15",
+        "Potential severity": "medium",
+        "Source evidence": "quote silently falls back to the national rate plus REMOTE_SURCHARGE for unknown zones and adds HEAVY_SURCHARGE above 20 kg. Alternative: have quote return only the table rate and give each caller remote and heavy flags so that every caller decides and applies its own surcharges.",
+        "Expected impact": "Locating the surcharge policy requires reading inside quote; the task of changing a surcharge is burdened by the policy being hidden in the carrier class.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Compare where surcharge knowledge would live and how many callers must restate it.",
+        "Context references": "none"
+      }
+    },
+    {
+      "id": "Z1",
+      "fixture": "C1",
+      "kind": "supplementary-genuine-duplicated-policy",
+      "expected": "Finding",
+      "gating": false,
+      "hypothesis": {
+        "Title": "delivery_charge restates the free-delivery minimum owned by pricing.delivery",
+        "File/line": "shop/checkout/cart.py:25",
+        "Potential severity": "medium",
+        "Source evidence": "delivery_charge compares subtotal(cart) >= Decimal(\"50.00\") while shop/pricing/delivery.py owns FREE_DELIVERY_MINIMUM and qualifies_for_free_delivery, which delivery_banner already uses. Alternative: call qualifies_for_free_delivery(subtotal(cart)) in delivery_charge so the minimum has one owner; behavior is unchanged at the current value.",
+        "Expected impact": "Changing the free-delivery minimum, which the README says marketing does several times a year, requires finding and editing a second literal in checkout; if it is missed, the banner and the charged amount disagree. The mechanism is a duplicated policy value; the burdened task is changing the minimum coherently.",
+        "Falsification condition": "The identified task does not bear the cost, the structure is essential to the behavior or its constraints, the alternative would change behavior or only relocate the cost or add an equal or greater burden, or the concern is only a preference.",
+        "Suggested validation": "Search for every statement of the free-delivery minimum.",
+        "Context references": "none"
+      }
+    }
+  ]
+}
