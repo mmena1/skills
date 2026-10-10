@@ -72,33 +72,35 @@ export BENCH=docs/research/deep-review-structural-calibration/benchmark
    python3 $BENCH/calibrate.py adjudicate --evidence $EVIDENCE --model claude-opus-5-5 --effort high --workers 4
    ```
 
-6. Freeze and run the pilot (M91, M94, N1, N2; one repetition per arm; validator cap 12), then write the pilot gate receipt.
+6. Freeze the pilot (M91, M94, N1, N2; one repetition per arm; validator cap 12). Live execution is disabled by default. An operator must approve a bounded attempt before any model call:
 
    ```bash
    python3 $BENCH/calibrate.py freeze --evidence $EVIDENCE --phase pilot --seed 20261009-issue89 --model claude-opus-5-5 --effort high --workers 4
-   python3 $BENCH/calibrate.py run --evidence $EVIDENCE --phase pilot
-   python3 $BENCH/calibrate.py gate --evidence $EVIDENCE --phase pilot
+   python3 $BENCH/calibrate.py approve-live --evidence $EVIDENCE --phase pilot --attempt-id pilot-1 --max-sessions 40 --max-requests 500 --approved-by OPERATOR --reason "Approved bounded pilot execution"
+   python3 $BENCH/calibrate.py run --evidence $EVIDENCE --phase pilot --attempt-id pilot-1
+   python3 $BENCH/calibrate.py gate --evidence $EVIDENCE --phase pilot --attempt-id pilot-1
    ```
 
    If unique hypotheses exceed the cap, `run` stops with replay incomplete and refuses to continue until a prospective revision is recorded; it never drops hypotheses or reruns selectively:
 
    ```bash
-   python3 $BENCH/calibrate.py revise-budget --evidence $EVIDENCE --phase pilot --validator-cap 16 --reason "..."
+   python3 $BENCH/calibrate.py revise-budget --evidence $EVIDENCE --phase pilot --attempt-id pilot-1 --validator-cap 16 --reason "..."
    ```
 
-7. Only after `gate-pilot.json` says PASS, freeze the full schedule (all five cases and five controls, two arms, three repetitions: sixty scouts) with its validator cap, run it, and write the completion receipt:
+7. Only after a named attempt's `gate-pilot.json` says PASS, freeze the full schedule (all five cases and five controls, two arms, three repetitions: sixty scouts) with its validator cap. `--pilot-attempt-id` binds the frozen full plan to that exact receipt and hash. Then run it and write the completion receipt:
 
    ```bash
-   python3 $BENCH/calibrate.py freeze --evidence $EVIDENCE --phase full --seed 20261009-issue89-full --model claude-opus-5-5 --effort high --workers 4 --validator-cap 180
-   python3 $BENCH/calibrate.py run --evidence $EVIDENCE --phase full
-   python3 $BENCH/calibrate.py gate --evidence $EVIDENCE --phase full
+   python3 $BENCH/calibrate.py freeze --evidence $EVIDENCE --phase full --pilot-attempt-id pilot-1 --seed 20261009-issue89-full --model claude-opus-5-5 --effort high --workers 4 --validator-cap 180
+   python3 $BENCH/calibrate.py approve-live --evidence $EVIDENCE --phase full --attempt-id full-1 --max-sessions 300 --max-requests 3000 --approved-by OPERATOR --reason "Approved bounded full run"
+   python3 $BENCH/calibrate.py run --evidence $EVIDENCE --phase full --attempt-id full-1
+   python3 $BENCH/calibrate.py gate --evidence $EVIDENCE --phase full --attempt-id full-1
    ```
 
 8. Regenerate every score without model calls, then seal the evidence:
 
    ```bash
-   python3 $BENCH/calibrate.py score --evidence $EVIDENCE --phase pilot
-   python3 $BENCH/calibrate.py score --evidence $EVIDENCE --phase full
+   python3 $BENCH/calibrate.py score --evidence $EVIDENCE --phase pilot --attempt-id pilot-1
+   python3 $BENCH/calibrate.py score --evidence $EVIDENCE --phase full --attempt-id full-1
    python3 $BENCH/calibrate.py manifest --evidence $EVIDENCE
    ```
 
@@ -110,15 +112,17 @@ A command that cannot proceed exits non-zero with `STOP: <reason>`: a missing or
 
 | Status | Meaning |
 | --- | --- |
-| `completed` | Clean run; the only status whose output is scored. A completed `No hypotheses` is the semantic zero. |
+| `completed` | The session completed. The scorer still requires either an exact clean `No hypotheses` response or usable hypothesis fields. |
 | `confinement_failure` | A non-capsule tool, extra MCP server or remote tool reached a request. |
 | `leaked_context`, `unexpected_context` | An evaluator token, or context the session did not intend, reached a request. |
 | `model_mismatch`, `effort_mismatch` | Requested or served model or effort differed from the plan. An unavailable model surfaces here or as `api_error`; no substitute is tried. |
 | `budget_exhausted` | Request, cumulative output or peak context limit reached. |
+| `quota_limited` | HTTP 429 or a recognized account limit. Opens the shared batch circuit and does not retry. |
+| `global_limit_reached` | The approved aggregate session or request budget was exhausted. |
 | `timeout`, `api_error`, `launch_failure`, `truncation`, `missing_output` | Execution failures. |
 | `unusable_output` | Assigned at collection: neither hypotheses nor a clean zero, or no validator outcome. |
 
-Failures are excluded from successful-run recall and reported with paired completion and an operational intention-to-run lower bound. Scouts and validators are never rerun. Evaluator sessions (adjudicators, assessors, resolvers, auditors, classifier) get one prospective rerun after an execution failure.
+Failures are excluded from successful-run recall and reported with paired completion and an operational intention-to-run lower bound. Scouts and validators are never rerun. Evaluator sessions may get one prospective rerun after an execution failure, except quota and global-budget failures. Interrupted attempts are retained and never deleted to enable a rerun. Run, score and gate commands require an explicit attempt ID, and session paths are scoped beneath that attempt.
 
 ## Preregistered budgets
 
@@ -131,7 +135,7 @@ The research suggested 24,000 total tokens per scout and 12,000 per validator. A
 | Adjudicator, auditor | 15 min | 50 | 200,000 | 32,000 |
 | Assessor, resolver, classifier | 15 min | 4 | 200,000 | 32,000 |
 
-The proxy enforces the token and request limits by refusing the next request; the runner kills the process group at the wall limit. Tool output is truncated at 60,000 characters per call and search at 200 matches, identically for every role. The pilot validator cap is 12 unique static replays. The seven gating validator challenges and one supplementary challenge have their own budget. Static validation is the only adjudication: `Needs probe` is recorded as a transition and never executed.
+The proxy enforces per-session token and request limits by refusing the next request; the runner kills the process group at the wall limit. An approved attempt separately caps total sessions and forwarded model requests. Runs sharing an evidence root are serialized so concurrent processes cannot each spend the same local aggregate budget. HTTP 429 and recognized account limits open a shared circuit that blocks later requests and sessions. Actual observed usage is recorded separately from frozen estimates. Provider-side shared quotas cannot be measured or reserved, so these are local upper bounds and do not provide exact quota enforcement across other evidence roots or account activity. Tool output is truncated at 60,000 characters per call and search at 200 matches, identically for every role. The pilot validator cap is 12 unique static replays. The seven gating validator challenges and one supplementary challenge have their own budget. Static validation is the only adjudication: `Needs probe` is recorded as a transition and never executed.
 
 ## Evidence layout
 
@@ -140,13 +144,13 @@ The proxy enforces the token and request limits by refusing the next request; th
 | `inputs/corpus.git`, `inputs/fixture-source.git` | Evaluator depots. Never mounted. |
 | `inputs/preparation-1`, `inputs/preparation-2` | Two preparer outputs; only `capsules/<alias>/repository` is ever mounted, one per session. |
 | `inputs/treatments/` | Exported pinned contracts and the quoted neutral standard. |
-| `receipts/` | Preparation, treatments, isolation, labels, controls, challenges, plans, pools and opaque replay mappings, assessments, novelty audits, rejection reasons, budget revisions, gate and completion receipts, corrections, and superseded attempts. |
-| `sessions/<phase>/<role>/<name>/` | Per session: exact system and user prompts, MCP launch, full API request and response log, CLI event stream, stderr, tool access log, final text and `meta.json` (status, observed model, effort, tools, CLI build, usage, timing). |
-| `results/` | Machine-readable scores per phase. |
+| `receipts/<phase>/attempts/<attempt-id>/` | Attempt-scoped approval, replay, assessment, audit, rejection, usage, gate and completion records. Existing attempts are never overwritten. |
+| `sessions/<phase>/attempts/<attempt-id>/<role>/<name>/` | Per session: exact prompts, MCP launch, full API request and response log, CLI event stream, stderr, tool access log, final text and `meta.json` with status, observed settings and actual usage. |
+| `results/<phase>/attempts/<attempt-id>/` | Attempt-scoped machine-readable scores. |
 | `MANIFEST.sha256` | Integrity manifest of every evidence file. |
 
 ## Tests
 
-`test_benchmark.py` exercises the real interfaces offline with a fake upstream API and a fake CLI: confinement denials through the real jail and their fail-closed detection when a mount leaks, capsule tool denials, proxy refusals and budget exhaustion, execution failure versus clean zero, mismatched resolved settings, deterministic scheduling and preparation, label blindness of control capsules and prompts, parsing, deduplicated and grouped credits, provisional, novel and uncertain classification, N/A denominators, and the full pilot pipeline through cap exhaustion, a prospective revision, assessment, scoring and a passing gate. Tests needing bubblewrap or the treatment commits skip when those are unavailable (for example in a shallow CI checkout). Tested platform: Linux on WSL2 only.
+`test_benchmark.py` exercises the real interfaces offline with a fake upstream API and a fake CLI: confinement denials through the real jail and their fail-closed detection when a mount leaks, capsule tool denials, proxy refusals, aggregate budgets and HTTP 429 circuit breaking, execution failure versus clean zero, interruption and schema-only output parsing, mismatched resolved settings, deterministic scheduling and preparation, label blindness of control capsules and prompts, incomplete assessment accounting, deduplicated and grouped credits, provisional, novel and uncertain classification, N/A denominators, and the full pilot pipeline through cap exhaustion, a prospective revision, assessment, scoring and a passing gate. Tests needing bubblewrap or the treatment commits skip when those are unavailable (for example in a shallow CI checkout). Tested platform: Linux on WSL2 only.
 
 Paths not exercised: hosts without bubblewrap, other CLI versions or providers, runtime probes, and Codex or Devin execution.

@@ -8,6 +8,7 @@ prompt text recorded in its session directory. See README.md for the operator pr
 """
 
 import argparse
+from contextlib import contextmanager
 import concurrent.futures
 import datetime
 import hashlib
@@ -129,6 +130,37 @@ class Evidence:
         self.results = self.root / "results"
         self.corpus = self.inputs / "corpus.git"
         self.fixture_source = self.inputs / "fixture-source.git"
+        self.attempt_id = None
+
+    def phase_sessions(self, phase):
+        root = self.sessions / phase
+        return root / "attempts" / self.attempt_id if self.attempt_id else root
+
+    def set_attempt(self, attempt_id):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", attempt_id) or attempt_id in (".", ".."):
+            raise GateError("attempt-id must be a safe 1-64 character identifier")
+        self.attempt_id = attempt_id
+
+    def phase_receipts(self, phase):
+        root = self.receipts / phase
+        return root / "attempts" / self.attempt_id if self.attempt_id else root
+
+    def phase_result(self, phase, name):
+        root = self.results / phase
+        if self.attempt_id:
+            root = root / "attempts" / self.attempt_id
+        return root / name
+
+    def phase_receipt_history(self, phase, stem):
+        return sorted(self.phase_receipts(phase).glob(f"{stem}-[0-9][0-9][0-9][0-9].json"))
+
+    def latest_phase_receipt(self, phase, stem):
+        history = self.phase_receipt_history(phase, stem)
+        return history[-1] if history else self.phase_receipts(phase) / f"{stem}.json"
+
+    def next_phase_receipt(self, phase, stem):
+        history = self.phase_receipt_history(phase, stem)
+        return self.phase_receipts(phase) / f"{stem}-{len(history) + 1:04d}.json"
 
     def preparation(self, number=1):
         return self.inputs / f"preparation-{number}"
@@ -437,7 +469,7 @@ def cli_version(claude):
 # ---------------------------------------------------------------- evaluator sessions
 
 
-def evaluator_session(directory, kind, *, plan, system, user, capsule, evidence):
+def evaluator_session(directory, kind, *, plan, system, user, capsule, evidence, batch_guard=None):
     """Run an evaluator session with at most one prospective rerun after an execution failure."""
     attempts = []
     for attempt in (1, 2):
@@ -446,15 +478,21 @@ def evaluator_session(directory, kind, *, plan, system, user, capsule, evidence)
             meta = load(path / "meta.json")
         else:
             if path.exists():
-                shutil.rmtree(path)
-            meta = broker.run_session(path, model=plan["model"], effort=plan["effort"], budget=BUDGETS[kind],
-                                      system_prompt=system, user_prompt=user, capsule=capsule,
-                                      forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"])
+                raise GateError(f"{path} is an incomplete retained attempt; resume is read-only and will not replace it")
+            try:
+                meta = broker.run_session(path, model=plan["model"], effort=plan["effort"], budget=BUDGETS[kind],
+                                          system_prompt=system, user_prompt=user, capsule=capsule,
+                                          forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"],
+                                          batch_guard=batch_guard)
+            except broker.BatchLimitReached:
+                return None, [str(p) for p in attempts]
         attempts.append(path)
         if meta["status"] == "completed":
             value = scoring.extract_json((path / "result.txt").read_text(encoding="utf-8"))
             if value is not None:
                 return value, [str(p) for p in attempts]
+        if meta["status"] in ("quota_limited", "global_limit_reached"):
+            return None, [str(p) for p in attempts]
     return None, [str(p) for p in attempts]
 
 
@@ -466,12 +504,13 @@ def adjudicator_prompts(evidence, capsule, anchor, concern, claimed_cost):
     return system, user
 
 
-def resolve_pair(directory, kind, *, plan, evidence, capsule, instructions, packet, first, second, schema_key):
+def resolve_pair(directory, kind, *, plan, evidence, capsule, instructions, packet, first, second, schema_key,
+                 batch_guard=None):
     system = render("resolver-system.md", instructions=instructions)
     user = (packet + "\n\nAssessment 1:\n\n" + fence(json.dumps(first, indent=2), "json") +
             "\n\nAssessment 2:\n\n" + fence(json.dumps(second, indent=2), "json"))
     value, attempts = evaluator_session(directory, kind, plan=plan, system=system, user=user, capsule=capsule,
-                                        evidence=evidence)
+                                        evidence=evidence, batch_guard=batch_guard)
     return value, attempts
 
 
@@ -604,8 +643,15 @@ def command_freeze(args):
     for name, message in [("preparation", "prepare"), ("treatments", "prepare"), ("isolation", "isolation"),
                           ("labels", "adjudicate"), ("controls", "adjudicate")]:
         evidence.require(name, f"run {message} before freezing")
+    pilot_gate_path = None
     if args.phase == "full":
-        evidence.require("gate-pilot", "the pilot gate must PASS before the full schedule is frozen")
+        if not args.pilot_attempt_id:
+            raise GateError("the full schedule must name the passing --pilot-attempt-id")
+        pilot = Evidence(evidence.root)
+        pilot.set_attempt(args.pilot_attempt_id)
+        pilot_gate_path = pilot.phase_receipts("pilot") / "gate-pilot.json"
+        if not pilot_gate_path.exists() or load(pilot_gate_path).get("verdict") != "PASS":
+            raise GateError("the named pilot gate must PASS before the full schedule is frozen")
     phase = PHASES[args.phase]
     cap = args.validator_cap if args.validator_cap is not None else phase.get("validator_cap")
     if cap is None:
@@ -616,6 +662,10 @@ def command_freeze(args):
         "phase": args.phase, "frozen_at": now(), "seed": args.seed, "model": args.model, "effort": args.effort,
         "claude": args.claude, "cli_version": cli_version(args.claude), "workers": args.workers,
         "schedule": schedule, "first_arm_by_pair": first_arm, "budgets": BUDGETS, "validator_cap": cap,
+        "live_limits": {"permitted_sessions_by_default": 0, "permitted_requests_by_default": 0},
+        "usage_estimate": {"scout_sessions": len(schedule), "validator_sessions_at_cap": cap,
+                           "challenge_sessions": len(definitions["challenges"]) if args.phase == "pilot" else 0,
+                           "evaluator_sessions_upper_bound": 3 * len({item["case"] for item in schedule}) + 1},
         "challenge_budget": {"sessions": len(definitions["challenges"]), "per_session": BUDGETS["validator"]},
         "benchmark_revision": git("rev-parse", "HEAD", cwd=REPOSITORY).stdout.decode().strip(),
         "benchmark_dirty": bool(git("status", "--porcelain", "--", str(HERE), cwd=REPOSITORY).stdout.strip()),
@@ -636,7 +686,8 @@ def command_freeze(args):
         "probe_policy": "static validation only; Needs probe is recorded as a transition and never executed",
     }
     if args.phase == "full":
-        plan["pilot_gate_sha256"] = sha256_file(evidence.receipt("gate-pilot"))
+        plan["pilot_gate_attempt_id"] = args.pilot_attempt_id
+        plan["pilot_gate_sha256"] = sha256_file(pilot_gate_path)
     write_once(evidence.receipt(f"plan-{args.phase}"), plan)
     print(f"frozen {args.phase}: {len(schedule)} scouts, validator cap {cap}")
 
@@ -669,8 +720,8 @@ def validator_prompts(evidence, case, hypothesis_text, opaque):
     return capsule, system, user
 
 
-def run_scouts(evidence, plan, phase):
-    root = evidence.sessions / phase / "scouts"
+def run_scouts(evidence, plan, phase, batch_guard=None):
+    root = evidence.phase_sessions(phase) / "scouts"
 
     def job(item):
         directory = root / item["run"]
@@ -679,9 +730,13 @@ def run_scouts(evidence, plan, phase):
         if directory.exists():
             raise GateError(f"{directory} exists without meta.json: an interrupted attempt; record it, do not rerun")
         capsule, system, user = scout_prompts(evidence, plan, item["case"], item["arm"])
-        meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"], budget=plan["budgets"]["scout"],
-                                  system_prompt=system, user_prompt=user, capsule=capsule,
-                                  forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"])
+        try:
+            meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"], budget=plan["budgets"]["scout"],
+                                      system_prompt=system, user_prompt=user, capsule=capsule,
+                                      forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"],
+                                      batch_guard=batch_guard)
+        except broker.BatchLimitReached:
+            return {"status": "not_run", "failure_reasons": ["global_limit_reached"]}
         print(f"scout {item['run']}: {meta['status']} {meta['duration_seconds']}s")
         return meta
 
@@ -692,7 +747,7 @@ def run_scouts(evidence, plan, phase):
 def collect_runs(evidence, plan, phase):
     runs = []
     for item in sorted(plan["schedule"], key=lambda item: item["order"]):
-        directory = evidence.sessions / phase / "scouts" / item["run"]
+        directory = evidence.phase_sessions(phase) / "scouts" / item["run"]
         meta = load(directory / "meta.json") if (directory / "meta.json").exists() else None
         status = meta["status"] if meta else "not_run"
         parsed = {"kind": None, "hypotheses": [], "schema_violations": []}
@@ -708,9 +763,8 @@ def collect_runs(evidence, plan, phase):
 
 def build_pool(evidence, plan, phase, runs):
     """Opaque, treatment-blind hypothesis pool. The mapping stays evaluator-side."""
-    path = evidence.receipts / phase / "pool.json"
-    if path.exists():
-        return load(path)
+    path = evidence.phase_receipts(phase) / "pool.json"
+    retained = load(path) if path.exists() else None
     generator = random.Random(f"{plan['seed']}:{phase}:pool")
     entries = []
     for run in runs:
@@ -742,14 +796,19 @@ def build_pool(evidence, plan, phase, runs):
     value = {"created_at": now(), "pool": pool,
              "replays": {entry["replay"]: entry for entry in replays.values()},
              "replay_order": sorted(entry["replay"] for entry in replays.values())}
+    if retained is not None:
+        for key in ("pool", "replays", "replay_order"):
+            if retained.get(key) != value[key]:
+                raise GateError(f"retained {key} does not reconcile with deterministic replay from raw scout outputs")
+        return retained
     dump(path, value)
     return value
 
 
-def run_replay(evidence, plan, phase, pool):
+def run_replay(evidence, plan, phase, pool, batch_guard=None):
     cap = current_cap(evidence, plan, phase)
     order = pool["replay_order"]
-    root = evidence.sessions / phase / "validators"
+    root = evidence.phase_sessions(phase) / "validators"
     selected = order[:cap]
 
     def job(replay_id):
@@ -757,32 +816,45 @@ def run_replay(evidence, plan, phase, pool):
         directory = root / replay_id
         if (directory / "meta.json").exists():
             return
+        if directory.exists():
+            raise GateError(f"{directory} is an incomplete retained attempt; it will not be replaced")
         capsule, system, user = validator_prompts(evidence, entry["case"], entry["text"], replay_id)
-        meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"],
-                                  budget=plan["budgets"]["validator"], system_prompt=system, user_prompt=user,
-                                  capsule=capsule, forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"])
+        try:
+            meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"],
+                                      budget=plan["budgets"]["validator"], system_prompt=system, user_prompt=user,
+                                      capsule=capsule, forbidden=forbidden_tokens(evidence, capsule), claude=plan["claude"],
+                                      batch_guard=batch_guard)
+        except broker.BatchLimitReached:
+            return
         print(f"validator {replay_id}: {meta['status']} {meta['duration_seconds']}s")
 
     parallel(selected, job, plan["workers"])
+    validations = collect_validations(evidence, phase, pool)
+    dispositions_complete = all(validations.get(replay_id, {}).get("status") == "completed"
+                                and validations[replay_id].get("disposition") in scoring.OUTCOMES
+                                for replay_id in order)
+    completed = sum(1 for replay_id in order if replay_id in validations)
     status = {"cap": cap, "unique_hypotheses": len(order), "replayed": len(selected),
-              "unreplayed": order[cap:], "complete": len(order) <= cap, "at": now()}
-    dump(evidence.receipts / phase / "replay-status.json", status)
+              "replayed_sessions": completed, "unreplayed": order[cap:],
+              "complete": len(order) <= cap and completed == len(order) and dispositions_complete, "at": now()}
+    dump(evidence.next_phase_receipt(phase, "replay-status"), status)
     return status
 
 
 def current_cap(evidence, plan, phase):
     cap = plan["validator_cap"]
-    revisions = evidence.receipts / phase / "budget-revisions.json"
+    revisions = evidence.phase_receipts(phase) / "budget-revisions.jsonl"
     if revisions.exists():
-        for revision in load(revisions):
-            cap = revision["validator_cap"]
+        for line in revisions.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                cap = json.loads(line)["validator_cap"]
     return cap
 
 
 def collect_validations(evidence, phase, pool):
     validations = {}
     for replay_id in pool["replay_order"]:
-        directory = evidence.sessions / phase / "validators" / replay_id
+        directory = evidence.phase_sessions(phase) / "validators" / replay_id
         if not (directory / "meta.json").exists():
             continue
         meta = load(directory / "meta.json")
@@ -796,12 +868,12 @@ def collect_validations(evidence, phase, pool):
     return validations
 
 
-def run_challenges(evidence, plan):
-    path = evidence.receipt("challenges")
+def run_challenges(evidence, plan, batch_guard=None):
+    path = evidence.phase_receipts("pilot") / "challenges.json"
     if path.exists():
         return load(path)
     definitions = load(DEFINITIONS)
-    root = evidence.sessions / "challenges"
+    root = evidence.phase_sessions("pilot") / "challenges"
     generator = random.Random(f"{plan['seed']}:challenges")
     opaques = {challenge["id"]: f"R-{generator.getrandbits(32):08x}" for challenge in definitions["challenges"]}
 
@@ -814,10 +886,18 @@ def run_challenges(evidence, plan):
         if (directory / "meta.json").exists():
             meta = load(directory / "meta.json")
         else:
-            meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"],
-                                      budget=plan["challenge_budget"]["per_session"], system_prompt=system,
-                                      user_prompt=user, capsule=capsule, forbidden=forbidden_tokens(evidence, capsule),
-                                      claude=plan["claude"])
+            if directory.exists():
+                raise GateError(f"{directory} is an incomplete retained attempt; it will not be replaced")
+            try:
+                meta = broker.run_session(directory, model=plan["model"], effort=plan["effort"],
+                                          budget=plan["challenge_budget"]["per_session"], system_prompt=system,
+                                          user_prompt=user, capsule=capsule, forbidden=forbidden_tokens(evidence, capsule),
+                                          claude=plan["claude"], batch_guard=batch_guard)
+            except broker.BatchLimitReached:
+                return {"id": challenge["id"], "kind": challenge["kind"], "fixture": challenge["fixture"],
+                        "expected": challenge["expected"], "gating": challenge.get("gating", True),
+                        "status": "not_run", "disposition": None, "outcome": "execution failure",
+                        "session": str(directory)}
         disposition = scoring.parse_validator((directory / "result.txt").read_text(encoding="utf-8")) \
             if meta["status"] == "completed" else None
         expected = challenge["expected"]
@@ -842,13 +922,13 @@ def run_challenges(evidence, plan):
     return value
 
 
-def run_assessments(evidence, plan, phase, pool):
-    path = evidence.receipts / phase / "assessments.json"
+def run_assessments(evidence, plan, phase, pool, batch_guard=None):
+    path = evidence.phase_receipts(phase) / "assessments.json"
     if path.exists():
         return load(path)
     definitions = load(DEFINITIONS)
     instructions = (ROLES / "assessor-system.md").read_text(encoding="utf-8")
-    root = evidence.sessions / phase / "assessors"
+    root = evidence.phase_sessions(phase) / "assessors"
     cases = sorted({entry["case"] for entry in pool["pool"].values()})
 
     def job(case):
@@ -861,7 +941,8 @@ def run_assessments(evidence, plan, phase, pool):
         results = []
         for index in (1, 2):
             value, attempts = evaluator_session(root / f"{case}-{index}", "assessor", plan=plan,
-                                                system=instructions, user=user, capsule=None, evidence=evidence)
+                                                system=instructions, user=user, capsule=None, evidence=evidence,
+                                                batch_guard=batch_guard)
             results.append({"value": value, "sessions": attempts})
         by_id = [{a["id"]: a for a in (r["value"] or {}).get("assessments", [])} for r in results]
         final, disputed = {}, []
@@ -878,7 +959,8 @@ def run_assessments(evidence, plan, phase, pool):
             value, attempts = resolve_pair(root / f"{case}-resolver", "assessor", plan=plan, evidence=evidence,
                                            capsule=None, instructions=instructions, packet=packet,
                                            first=[by_id[0].get(pid) for pid in disputed],
-                                           second=[by_id[1].get(pid) for pid in disputed], schema_key="assessments")
+                                           second=[by_id[1].get(pid) for pid in disputed], schema_key="assessments",
+                                           batch_guard=batch_guard)
             resolver = {"value": value, "sessions": attempts, "disputed": disputed}
             resolved = {a["id"]: a for a in (value or {}).get("assessments", [])}
             for pid in disputed:
@@ -902,11 +984,11 @@ def comparable(assessment):
             sorted((m.get("label"), bool(m.get("independent_statement"))) for m in assessment.get("matches", [])))
 
 
-def run_novelty(evidence, plan, phase, pool, validations, assessments):
-    path = evidence.receipts / phase / "novelty.json"
+def run_novelty(evidence, plan, phase, pool, validations, assessments, batch_guard=None):
+    path = evidence.phase_receipts(phase) / "novelty.json"
     if path.exists():
         return load(path)
-    root = evidence.sessions / phase / "novelty"
+    root = evidence.phase_sessions(phase) / "novelty"
     targets = {}
     for pid, entry in pool["pool"].items():
         validation = validations.get(entry["replay"])
@@ -923,7 +1005,7 @@ def run_novelty(evidence, plan, phase, pool, validations, assessments):
             hypothesis.get("Title", "") + " " + hypothesis.get("Source evidence", ""),
             hypothesis.get("Expected impact", ""))
         value, attempts = evaluator_session(root / replay_id, "adjudicator", plan=plan, system=system, user=user,
-                                            capsule=capsule, evidence=evidence)
+                                            capsule=capsule, evidence=evidence, batch_guard=batch_guard)
         print(f"novelty {replay_id}: {(value or {}).get('decision')}")
         return replay_id, {"decision": (value or {}).get("decision", "failed"), "value": value, "sessions": attempts,
                            "case": entry["case"]}
@@ -933,8 +1015,8 @@ def run_novelty(evidence, plan, phase, pool, validations, assessments):
     return value
 
 
-def run_reasons(evidence, plan, phase, pool, validations):
-    path = evidence.receipts / phase / "reasons.json"
+def run_reasons(evidence, plan, phase, pool, validations, batch_guard=None):
+    path = evidence.phase_receipts(phase) / "reasons.json"
     if path.exists():
         return load(path)
     items = [(replay_id, v) for replay_id, v in sorted(validations.items())
@@ -944,51 +1026,144 @@ def run_reasons(evidence, plan, phase, pool, validations):
         return {}
     texts = "\n\n".join(f"Outcome {replay_id}:\n\n" + fence(
         (Path(v["session"]) / "result.txt").read_text(encoding="utf-8"), "markdown") for replay_id, v in items)
-    value, attempts = evaluator_session(evidence.sessions / phase / "reasons", "assessor", plan=plan,
+    value, attempts = evaluator_session(evidence.phase_sessions(phase) / "reasons", "assessor", plan=plan,
                                         system=(ROLES / "reason-system.md").read_text(encoding="utf-8"),
-                                        user=texts, capsule=None, evidence=evidence)
+                                        user=texts, capsule=None, evidence=evidence, batch_guard=batch_guard)
     result = {c["id"]: dict(c, sessions=attempts) for c in (value or {}).get("classifications", [])}
     dump(path, result)
     return result
 
 
+@contextmanager
+def live_run_lock(evidence):
+    """Serialize live batches sharing an evidence root across processes."""
+    evidence.root.mkdir(parents=True, exist_ok=True)
+    path = evidence.root / "live-run.lock"
+    handle = path.open("a+b")
+    locked = False
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                locked = True
+            except OSError as exc:
+                raise GateError("another live batch is already using this evidence root") from exc
+        else:
+            import fcntl
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+            except BlockingIOError as exc:
+                raise GateError("another live batch is already using this evidence root") from exc
+        yield
+    finally:
+        try:
+            if locked and os.name == "nt":
+                import msvcrt
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            elif locked:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
 def command_run(args):
     evidence = Evidence(args.evidence)
+    with live_run_lock(evidence):
+        return _command_run_locked(args)
+
+
+def _command_run_locked(args):
+    evidence = Evidence(args.evidence)
+    evidence.set_attempt(args.attempt_id)
     plan = load(evidence.receipt(f"plan-{args.phase}"))
+    verify_frozen_hashes(evidence, plan)
+    approval_path = evidence.phase_receipts(args.phase) / "live-approval.json"
+    if not approval_path.exists():
+        raise GateError("live calls are disabled by default; create an operator-approved live plan for this attempt")
+    approval = load(approval_path)
+    if approval.get("plan_sha256") != sha256_file(evidence.receipt(f"plan-{args.phase}")):
+        raise GateError("live approval does not match the frozen plan")
+    if approval.get("total_session_budget", 0) <= 0 or approval.get("total_request_budget", 0) <= 0:
+        raise GateError("live approval has no positive aggregate budget")
     evidence.require("isolation", "isolation must pass")
     if args.phase == "full":
-        evidence.require("gate-pilot", "the pilot gate must PASS")
-    revisions = evidence.receipts / args.phase / "budget-revisions.json"
-    replay_path = evidence.receipts / args.phase / "replay-status.json"
+        pilot = Evidence(evidence.root)
+        pilot.set_attempt(plan.get("pilot_gate_attempt_id", ""))
+        pilot_gate = pilot.phase_receipts("pilot") / "gate-pilot.json"
+        if not pilot_gate.exists() or load(pilot_gate).get("verdict") != "PASS":
+            raise GateError("the exact pilot attempt frozen into the full plan must still PASS")
+    revisions = evidence.phase_receipts(args.phase) / "budget-revisions.jsonl"
+    replay_path = evidence.latest_phase_receipt(args.phase, "replay-status")
     if replay_path.exists() and not load(replay_path)["complete"]:
         cap = current_cap(evidence, plan, args.phase)
         if not revisions.exists() or cap <= load(replay_path)["cap"]:
             raise GateError("replay is incomplete at the cap; record a prospective budget revision first")
-    run_scouts(evidence, plan, args.phase)
-    runs = collect_runs(evidence, plan, args.phase)
-    pool = build_pool(evidence, plan, args.phase, runs)
-    status = run_replay(evidence, plan, args.phase, pool)
-    if args.phase == "pilot":
-        run_challenges(evidence, plan)
-    if not status["complete"]:
-        print(f"INCOMPLETE: {len(status['unreplayed'])} unique hypotheses exceed the validator cap {status['cap']}. "
-              "Record a prospective budget revision before any further execution.")
-        return
-    validations = collect_validations(evidence, args.phase, pool)
-    assessments = run_assessments(evidence, plan, args.phase, pool)
-    run_novelty(evidence, plan, args.phase, pool, validations, assessments)
-    run_reasons(evidence, plan, args.phase, pool, validations)
-    command_score(args)
+    usage_root = evidence.phase_receipts(args.phase)
+    usage_root.mkdir(parents=True, exist_ok=True)
+    prior_usage = sorted(usage_root.glob("live-usage-[0-9][0-9][0-9][0-9].json"))
+    previous = load(prior_usage[-1])["actual"] if prior_usage else {}
+    guard = broker.BatchGuard(max_sessions=approval["total_session_budget"],
+                              max_requests=approval["total_request_budget"],
+                              initial_sessions=previous.get("sessions_started", 0),
+                              initial_requests=previous.get("requests_forwarded", 0),
+                              initial_usage=previous.get("actual_usage", {}))
+    usage_path = usage_root / f"live-usage-{len(prior_usage) + 1:04d}.json"
+    try:
+        run_scouts(evidence, plan, args.phase, guard)
+        if guard.snapshot()["circuit"]:
+            return
+        runs = collect_runs(evidence, plan, args.phase)
+        pool = build_pool(evidence, plan, args.phase, runs)
+        status = run_replay(evidence, plan, args.phase, pool, guard)
+        if args.phase == "pilot":
+            run_challenges(evidence, plan, guard)
+        if not status["complete"]:
+            print(f"INCOMPLETE: validator disposition coverage is incomplete at cap {status['cap']}; "
+                  "no scores or gate are written")
+            return
+        validations = collect_validations(evidence, args.phase, pool)
+        assessments = run_assessments(evidence, plan, args.phase, pool, guard)
+        if not assessments["complete"] or guard.snapshot()["circuit"]:
+            print("INCOMPLETE: assessment or batch execution stopped before completion")
+            return
+        run_novelty(evidence, plan, args.phase, pool, validations, assessments, guard)
+        if guard.snapshot()["circuit"]:
+            print("INCOMPLETE: batch circuit stopped execution during novelty auditing")
+            return
+        run_reasons(evidence, plan, args.phase, pool, validations, guard)
+        if guard.snapshot()["circuit"]:
+            print("INCOMPLETE: batch circuit stopped execution during rejection classification")
+            return
+        command_score(args)
+    finally:
+        snapshot = guard.snapshot()
+        dump(usage_path, {"phase": args.phase, "attempt_id": args.attempt_id, "at": now(),
+                          "estimated": plan["usage_estimate"], "approved_limits": {
+                              "sessions": approval["total_session_budget"],
+                              "requests": approval["total_request_budget"]},
+                          "actual": snapshot,
+                          "provider_quota_enforcement": "not exact; provider-side shared limits are not observable or reserved"})
 
 
 def command_revise_budget(args):
     evidence = Evidence(args.evidence)
-    path = evidence.receipts / args.phase / "budget-revisions.json"
-    revisions = load(path) if path.exists() else []
-    replay = evidence.receipts / args.phase / "replay-status.json"
-    revisions.append({"at": now(), "validator_cap": args.validator_cap, "reason": args.reason,
-                      "replay_status_before": load(replay) if replay.exists() else None})
-    dump(path, revisions)
+    evidence.set_attempt(args.attempt_id)
+    path = evidence.phase_receipts(args.phase) / "budget-revisions.jsonl"
+    replay = evidence.latest_phase_receipt(args.phase, "replay-status")
+    revision = {"at": now(), "validator_cap": args.validator_cap, "reason": args.reason,
+                "replay_status_before": load(replay) if replay.exists() else None}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as log:
+        log.write(json.dumps(revision, sort_keys=True) + "\n")
     print(f"recorded prospective validator cap {args.validator_cap} for {args.phase}")
 
 
@@ -998,24 +1173,27 @@ def command_revise_budget(args):
 def phase_data(evidence, phase):
     plan = load(evidence.receipt(f"plan-{phase}"))
     runs = collect_runs(evidence, plan, phase)
-    pool = load(evidence.receipts / phase / "pool.json")
+    pool = load(evidence.phase_receipts(phase) / "pool.json")
     validations = collect_validations(evidence, phase, pool)
-    assessments = load(evidence.receipts / phase / "assessments.json")
+    assessments = load(evidence.phase_receipts(phase) / "assessments.json")
     labels = load(evidence.receipt("labels"))["labels"]
     return {
         "definitions": load(DEFINITIONS), "frozen_labels": labels, "controls": list(CONTROLS),
         "runs": [{k: v for k, v in run.items() if k != "hypotheses"} for run in runs],
         "pool": pool["pool"], "validations": validations, "assessments": assessments["final"],
-        "novelty": load(evidence.receipts / phase / "novelty.json"),
-        "reasons": load(evidence.receipts / phase / "reasons.json"), "seed": plan["seed"],
+        "novelty": load(evidence.phase_receipts(phase) / "novelty.json"),
+        "reasons": load(evidence.phase_receipts(phase) / "reasons.json"), "seed": plan["seed"],
     }
 
 
 def command_score(args):
     evidence = Evidence(args.evidence)
+    evidence.set_attempt(args.attempt_id)
+    plan = load(evidence.receipt(f"plan-{args.phase}"))
+    verify_frozen_hashes(evidence, plan)
     result = scoring.score(phase_data(evidence, args.phase))
     result["scorer"] = {"version": scoring.SCORER_VERSION, "sha256": sha256_file(HERE / "scoring.py")}
-    dump(evidence.results / f"{args.phase}-scores.json", result)
+    write_once(evidence.phase_result(args.phase, f"{args.phase}-scores.json"), result)
     print(f"scored {args.phase}: macro {result['macro']}")
 
 
@@ -1025,6 +1203,57 @@ def settings_signature(meta):
                                            "cli")} | {"budget": meta["budget"]}
 
 
+def verify_frozen_hashes(evidence, plan):
+    """Fail closed if a frozen plan no longer identifies the code, prompts or frozen inputs."""
+    current = {"definitions": sha256_file(DEFINITIONS), "catalog": sha256_file(CATALOG),
+               "calibrate": sha256_file(Path(__file__)), "broker": sha256_file(HERE / "broker.py"),
+               "scoring": sha256_file(HERE / "scoring.py"),
+               "capsule_server": sha256_file(HERE / "capsule_server.py"),
+               "roles": {path.name: sha256_file(path) for path in sorted(ROLES.iterdir())}}
+    for name in ("labels", "controls", "preparation", "treatments", "isolation"):
+        receipt = evidence.receipt(name)
+        current[f"{name}_receipt"] = sha256_file(receipt) if receipt.exists() else None
+    if plan.get("phase") == "full":
+        pilot = Evidence(evidence.root)
+        attempt_id = plan.get("pilot_gate_attempt_id")
+        if attempt_id:
+            pilot.set_attempt(attempt_id)
+            receipt = pilot.phase_receipts("pilot") / "gate-pilot.json"
+        else:
+            receipt = evidence.receipts / "pilot" / "gate-pilot.json"
+        current["pilot_gate_receipt"] = sha256_file(receipt) if receipt.exists() else None
+    differences = {key: {"frozen": plan.get("hashes", {}).get(key), "current": value}
+                   for key, value in current.items()
+                   if key in plan.get("hashes", {}) and plan["hashes"].get(key) != value}
+    if plan.get("phase") == "full" and plan.get("pilot_gate_sha256") != current.get("pilot_gate_receipt"):
+        differences["pilot_gate_receipt"] = {"frozen": plan.get("pilot_gate_sha256"),
+                                              "current": current.get("pilot_gate_receipt")}
+    if differences:
+        raise GateError("frozen input hashes changed; do not process this plan: " + json.dumps(differences, sort_keys=True))
+
+
+def live_approval_path(evidence, phase, attempt_id):
+    return evidence.receipts / phase / "attempts" / attempt_id / "live-approval.json"
+
+
+def command_approve_live(args):
+    evidence = Evidence(args.evidence)
+    evidence.set_attempt(args.attempt_id)
+    plan = load(evidence.receipt(f"plan-{args.phase}"))
+    verify_frozen_hashes(evidence, plan)
+    if args.max_sessions <= 0 or args.max_requests <= 0:
+        raise GateError("live approval must grant a positive total session and request budget")
+    approval = {"phase": args.phase, "attempt_id": args.attempt_id,
+                "plan_sha256": sha256_file(evidence.receipt(f"plan-{args.phase}")),
+                "approved_by": args.approved_by, "reason": args.reason, "approved_at": now(),
+                "total_session_budget": args.max_sessions, "total_request_budget": args.max_requests,
+                "usage_estimate": plan["usage_estimate"],
+                "provider_quota_enforcement": "not exact; provider-side shared limits are not observable or reserved"}
+    write_once(evidence.phase_receipts(args.phase) / "live-approval.json", approval)
+    print(f"approved live execution plan for {args.phase}/{args.attempt_id}: "
+          f"{args.max_sessions} sessions, {args.max_requests} requests")
+
+
 def all_session_metas(evidence):
     return [(path.parent, load(path)) for path in sorted(evidence.sessions.rglob("meta.json"))]
 
@@ -1032,7 +1261,9 @@ def all_session_metas(evidence):
 def command_gate(args):
     evidence = Evidence(args.evidence)
     phase = args.phase
+    evidence.set_attempt(args.attempt_id)
     plan = load(evidence.receipt(f"plan-{phase}"))
+    verify_frozen_hashes(evidence, plan)
     checks = []
 
     def check(name, passed, detail):
@@ -1049,8 +1280,8 @@ def command_gate(args):
     needed = set(plan_cases(plan)) | ({CHALLENGE_FIXTURE} if phase == "pilot" else set())
     check("access-denials-exercised", all(isolation["capsules"].get(case, {}).get("pass") for case in needed)
           and all(c["pass"] for c in isolation["live"]), sorted(needed))
-    scouts = [load(evidence.sessions / phase / "scouts" / item["run"] / "meta.json")
-              if (evidence.sessions / phase / "scouts" / item["run"] / "meta.json").exists() else None
+    scouts = [load(evidence.phase_sessions(phase) / "scouts" / item["run"] / "meta.json")
+              if (evidence.phase_sessions(phase) / "scouts" / item["run"] / "meta.json").exists() else None
               for item in plan["schedule"]]
     started = min((m["started"] for m in scouts if m), default=None)
     frozen = [datetime.datetime.fromisoformat(load(evidence.receipt(n))["frozen_at"]).timestamp()
@@ -1073,27 +1304,57 @@ def command_gate(args):
           {"mismatched_pairs": mismatched, "signature_example": next(iter(by_pair.values()), [None])[0]})
     # Sessions whose results feed frozen decisions or this phase. Superseded attempts, shakedowns and the
     # deliberate isolation refusals feed nothing; they are retained and listed, not scanned as leaks.
-    scoped = [evidence.sessions / "adjudication", evidence.sessions / phase] + (
-        [evidence.sessions / "challenges"] if phase == "pilot" else [])
+    scoped = [evidence.sessions / "adjudication", evidence.phase_sessions(phase)]
     refused = [(str(path), meta["status"]) for path, meta in all_session_metas(evidence)
                if meta["status"] in ("leaked_context", "confinement_failure", "unexpected_context")]
     leaks = [path for path, _ in refused if any(Path(path).is_relative_to(root) for root in scoped)]
     check("no-leakage", not leaks, {"leaks": leaks, "retained_unscoped_refusals": [
         item for item in refused if item[0] not in leaks]})
-    replay = load(evidence.receipts / phase / "replay-status.json")
-    pool = load(evidence.receipts / phase / "pool.json")
+    replay = load(evidence.latest_phase_receipt(phase, "replay-status"))
+    pool = load(evidence.phase_receipts(phase) / "pool.json")
     validations = collect_validations(evidence, phase, pool)
     check("disposition-accounting-within-cap", replay["complete"] and replay["unique_hypotheses"] <= replay["cap"]
           and all(validations.get(r, {}).get("disposition") for r in pool["replay_order"]),
           {"cap": replay["cap"], "unique": replay["unique_hypotheses"],
            "dispositions": {r: validations.get(r, {}).get("disposition") for r in pool["replay_order"]}})
     if phase == "pilot":
-        challenges = load(evidence.receipt("challenges"))
+        challenges = load(evidence.phase_receipts(phase) / "challenges.json")
         check("validator-conformance", challenges["verdict"] == "PASS",
               {r["id"]: r["outcome"] for r in challenges["results"]})
-    assessments = load(evidence.receipts / phase / "assessments.json")
-    check("assessments-complete", assessments["complete"], f"{len(assessments['final'])}/{len(pool['pool'])}")
-    stored = load(evidence.results / f"{phase}-scores.json")
+    assessments = load(evidence.phase_receipts(phase) / "assessments.json")
+    expected_hypotheses = set(pool["pool"])
+    final_assessments = assessments.get("final", {})
+    matching_complete = set(final_assessments) == expected_hypotheses and all(
+        isinstance(final_assessments[pid].get("matches"), list)
+        and isinstance(final_assessments[pid].get("admission_qualified"), bool)
+        for pid in expected_hypotheses if pid in final_assessments)
+    check("assessments-complete", assessments.get("complete") and matching_complete,
+          {"assessed": len(final_assessments), "expected": len(expected_hypotheses),
+           "matching_complete": matching_complete})
+    expected_novelty = set()
+    expected_reasons = set()
+    for replay_id in pool["replay_order"]:
+        validation = validations.get(replay_id, {})
+        items = [entry for entry in pool["pool"].values() if entry["replay"] == replay_id]
+        if validation.get("status") == "completed" and validation.get("disposition") == "Finding":
+            if all(not final_assessments.get(pid, {}).get("matches") for pid in
+                   (pid for pid, entry in pool["pool"].items() if entry["replay"] == replay_id)):
+                expected_novelty.add(replay_id)
+        elif validation.get("status") == "completed" and validation.get("disposition") in scoring.OUTCOMES:
+            expected_reasons.add(replay_id)
+    novelty = load(evidence.phase_receipts(phase) / "novelty.json")
+    novelty_complete = set(novelty) == expected_novelty and all(
+        novelty[replay_id].get("decision") in ("eligible", "excluded", "uncertain")
+        for replay_id in expected_novelty)
+    check("novelty-audit-complete", novelty_complete,
+          {"audited": sorted(novelty), "expected": sorted(expected_novelty)})
+    reasons = load(evidence.phase_receipts(phase) / "reasons.json")
+    reasons_complete = set(reasons) == expected_reasons and all(
+        reasons[replay_id].get("reason") in scoring.REASONS and reasons[replay_id].get("explanation")
+        for replay_id in expected_reasons)
+    check("rejection-classification-complete", reasons_complete,
+          {"classified": sorted(reasons), "expected": sorted(expected_reasons)})
+    stored = load(evidence.phase_result(phase, f"{phase}-scores.json"))
     recomputed = scoring.score(phase_data(evidence, phase))
     recomputed["scorer"] = stored.get("scorer")
     emitted = sum(len(r["hypotheses"]) for r in runs if r["status"] == "completed")
@@ -1103,7 +1364,7 @@ def command_gate(args):
     name = f"gate-{phase}" if phase == "pilot" else "completion-full"
     receipt = {"verdict": verdict, "at": now(), "phase": phase, "checks": checks,
                "note": "Low recall or scout false positives do not fail this operational gate."}
-    dump(evidence.receipt(name), receipt)
+    write_once(evidence.phase_receipts(phase) / f"{name}.json", receipt)
     for item in checks:
         print(f"{'PASS' if item['pass'] else 'FAIL'} {item['check']}")
     print(f"{name}: {verdict}")
@@ -1145,11 +1406,22 @@ def main(argv=None):
     freeze.add_argument("--phase", choices=sorted(PHASES), required=True)
     freeze.add_argument("--seed", required=True)
     freeze.add_argument("--validator-cap", type=int)
+    freeze.add_argument("--pilot-attempt-id", help="passing pilot attempt required when freezing the full phase")
     for name in ("run", "score", "gate"):
         command = common(sub.add_parser(name))
         command.add_argument("--phase", choices=sorted(PHASES), required=True)
+        command.add_argument("--attempt-id", required=True,
+                             help="immutable phase-attempt namespace; select the same ID only to read retained outputs")
+    approve = common(sub.add_parser("approve-live", help="record an explicit, bounded operator approval for live calls"))
+    approve.add_argument("--phase", choices=sorted(PHASES), required=True)
+    approve.add_argument("--attempt-id", required=True)
+    approve.add_argument("--max-sessions", type=int, required=True)
+    approve.add_argument("--max-requests", type=int, required=True)
+    approve.add_argument("--approved-by", required=True)
+    approve.add_argument("--reason", required=True)
     revise = common(sub.add_parser("revise-budget", help="record a prospective validator cap revision"))
     revise.add_argument("--phase", choices=sorted(PHASES), required=True)
+    revise.add_argument("--attempt-id", required=True)
     revise.add_argument("--validator-cap", type=int, required=True)
     revise.add_argument("--reason", required=True)
     common(sub.add_parser("manifest", help="write the evidence integrity manifest"))
@@ -1158,6 +1430,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     handlers = {"prepare": command_prepare, "isolation": command_isolation, "adjudicate": command_adjudicate,
                 "freeze": command_freeze, "run": command_run, "score": command_score, "gate": command_gate,
+                "approve-live": command_approve_live,
                 "revise-budget": command_revise_budget, "manifest": command_manifest,
                 "note": command_note}
     handlers[args.command](args)

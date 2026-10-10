@@ -107,7 +107,7 @@ print(json.dumps({"type": "result", "subtype": "success", "is_error": mode == "e
 class FakeUpstream:
     """Serves streaming /v1/messages responses that echo the requested model."""
 
-    def __init__(self, output_tokens=50, input_tokens=100):
+    def __init__(self, output_tokens=50, input_tokens=100, status=200, error_type=None):
         upstream = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -118,6 +118,15 @@ class FakeUpstream:
 
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                if upstream.status != 200:
+                    payload = json.dumps({"type": "error", "error": {"type": upstream.error_type or "api_error",
+                                                                          "message": "retained fake failure"}}).encode()
+                    self.send_response(upstream.status)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                    return
                 events = [
                     {"type": "message_start", "message": {"model": body["model"], "usage": {
                         "input_tokens": upstream.input_tokens, "cache_read_input_tokens": 0,
@@ -134,6 +143,8 @@ class FakeUpstream:
 
         self.output_tokens = output_tokens
         self.input_tokens = input_tokens
+        self.status = status
+        self.error_type = error_type
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.address = ("http", "127.0.0.1", self.server.server_address[1])
@@ -342,6 +353,25 @@ class ProxyTests(unittest.TestCase):
             self.assertEqual(self.post(proxy), 403)
         self.assertIn("budget_exhausted", [v["kind"] for v in proxy.state["violations"]])
 
+    def test_http_429_opens_batch_circuit_and_blocks_retry_requests(self):
+        limited = FakeUpstream(status=429, error_type="rate_limit_error")
+        self.addCleanup(limited.close)
+        guard = broker.BatchGuard(max_sessions=4, max_requests=12)
+        with self.proxy(upstream=limited.address, batch_guard=guard) as proxy:
+            self.assertEqual(self.post(proxy), 429)
+            self.assertEqual(self.post(proxy), 403)
+        self.assertEqual(proxy.state["requests"], 1)
+        self.assertEqual(guard.snapshot()["requests_forwarded"], 1)
+        self.assertEqual(guard.snapshot()["circuit"]["kind"], "quota_limited")
+        self.assertFalse(guard.start_session())
+
+    def test_account_limit_payload_opens_batch_circuit_without_429(self):
+        limited = FakeUpstream(status=200, error_type="usage_limit_reached")
+        self.addCleanup(limited.close)
+        self.assertEqual(broker.Proxy.quota_error(
+            json.dumps({"error": {"type": "usage_limit_reached", "message": "daily quota"}}), 200),
+            "usage_limit_reached daily quota")
+
 
 class ExecutionTests(Workspace):
     def run_case(self, **arguments):
@@ -449,6 +479,7 @@ class PilotPipelineTests(unittest.TestCase):
         self.upstream = FakeUpstream()
         self.addCleanup(self.upstream.close)
         self.evidence = calibrate.Evidence(root / "evidence")
+        self.attempt_id = "offline-test"
         calibrate.prepare(self.evidence, [], "pipeline-seed", snapshots=[])
         capsules = {case: {"pass": True} for case in ("N1", "N2", "C1")}
         calibrate.dump(self.evidence.receipt("isolation"), {"verdict": "PASS", "capsules": capsules, "live": []})
@@ -478,29 +509,45 @@ class PilotPipelineTests(unittest.TestCase):
         with mock.patch.object(broker, "run_session", with_mode):
             self.cli("freeze", "--phase", "pilot", "--seed", "s", "--model", "model-x", "--effort", "high",
                      "--claude", str(self.fake), "--workers", "2")
-            self.cli("run", "--phase", "pilot")
-            replay = calibrate.load(self.evidence.receipts / "pilot/replay-status.json")
+            plan = calibrate.load(self.evidence.receipt("plan-pilot"))
+            self.assertEqual(plan["live_limits"], {"permitted_sessions_by_default": 0,
+                                                  "permitted_requests_by_default": 0})
+            with self.assertRaises(SystemExit):
+                self.cli("run", "--phase", "pilot", "--attempt-id", self.attempt_id)
+            self.assertFalse((self.evidence.sessions / "pilot/attempts" / self.attempt_id).exists())
+            self.cli("approve-live", "--phase", "pilot", "--attempt-id", self.attempt_id,
+                     "--max-sessions", "100", "--max-requests", "1000", "--approved-by", "offline-test",
+                     "--reason", "fake backend only")
+            self.cli("run", "--phase", "pilot", "--attempt-id", self.attempt_id)
+            receipt_root = self.evidence.receipts / "pilot/attempts" / self.attempt_id
+            session_root = self.evidence.sessions / "pilot/attempts" / self.attempt_id
+            replay = calibrate.load(receipt_root / "replay-status-0001.json")
             self.assertFalse(replay["complete"])
             self.assertEqual((replay["unique_hypotheses"], replay["replayed"]), (2, 1))
-            self.assertFalse((self.evidence.receipts / "pilot/assessments.json").exists())
+            self.assertFalse((receipt_root / "assessments.json").exists())
             with self.assertRaises(SystemExit):
-                self.cli("run", "--phase", "pilot")
-            self.cli("revise-budget", "--phase", "pilot", "--validator-cap", "4", "--reason", "prospective test revision")
-            self.cli("run", "--phase", "pilot")
-            self.cli("gate", "--phase", "pilot")
-        gate = calibrate.load(self.evidence.receipt("gate-pilot"))
+                self.cli("run", "--phase", "pilot", "--attempt-id", self.attempt_id)
+            self.cli("revise-budget", "--phase", "pilot", "--attempt-id", self.attempt_id,
+                     "--validator-cap", "4", "--reason", "prospective test revision")
+            self.cli("run", "--phase", "pilot", "--attempt-id", self.attempt_id)
+            self.cli("gate", "--phase", "pilot", "--attempt-id", self.attempt_id)
+        gate = calibrate.load(receipt_root / "gate-pilot.json")
         self.assertEqual(gate["verdict"], "PASS", [c for c in gate["checks"] if not c["pass"]])
-        scores = calibrate.load(self.evidence.results / "pilot-scores.json")
+        scores = calibrate.load(self.evidence.results / "pilot/attempts" / self.attempt_id / "pilot-scores.json")
         self.assertEqual(scores["admission"]["A"]["raw_emissions"], 2)
         self.assertEqual(scores["controls"]["B"]["control_admission_rate"], 1.0)
         self.assertEqual(scores["controls"]["B"]["validated_findings"], 0)
-        challenges = calibrate.load(self.evidence.receipt("challenges"))
+        challenges = calibrate.load(receipt_root / "challenges.json")
+        usage = calibrate.load(receipt_root / "live-usage-0002.json")
+        self.assertIn("actual", usage)
+        self.assertIn("estimated", usage)
+        self.assertIn("provider-side shared limits are not observable", usage["provider_quota_enforcement"])
         self.assertEqual(challenges["verdict"], "PASS")
         self.assertEqual({r["id"]: r["outcome"] for r in challenges["results"]}["Z1"], "deviation")
-        pool = calibrate.load(self.evidence.receipts / "pilot/pool.json")
+        pool = calibrate.load(receipt_root / "pool.json")
         for entry in pool["replays"].values():
             self.assertNotIn("structural-H1", entry["text"])
-        for directory in (self.evidence.sessions / "pilot/validators").iterdir():
+        for directory in (session_root / "validators").iterdir():
             prompt = (directory / "user.txt").read_text() + (directory / "system.txt").read_text()
             for secret in ("pilot-N", "-A", "-B", "arm", "treatment", "N1", "N2"):
                 self.assertNotIn(secret, prompt)
@@ -513,13 +560,25 @@ class GateTests(unittest.TestCase):
             for name in ("preparation", "treatments", "isolation", "labels", "controls"):
                 calibrate.dump(evidence.receipt(name), {"verdict": "PASS", "frozen_at": calibrate.now()})
             arguments = ["freeze", "--evidence", str(evidence.root), "--phase", "full", "--seed", "s",
-                         "--model", "m", "--effort", "high", "--validator-cap", "10"]
+                         "--model", "m", "--effort", "high", "--validator-cap", "10",
+                         "--pilot-attempt-id", "pilot-a"]
             with self.assertRaises(SystemExit) as stopped:
                 calibrate.main(arguments)
             self.assertIn("pilot gate", str(stopped.exception))
-            calibrate.dump(evidence.receipt("gate-pilot"), {"verdict": "FAIL"})
+            calibrate.dump(evidence.receipt("gate-pilot"), {"verdict": "PASS"})
+            pilot = calibrate.Evidence(evidence.root)
+            pilot.set_attempt("pilot-a")
+            calibrate.dump(pilot.phase_receipts("pilot") / "gate-pilot.json", {"verdict": "FAIL"})
             with self.assertRaises(SystemExit):
                 calibrate.main(arguments)
+            calibrate.dump(pilot.phase_receipts("pilot") / "gate-pilot.json", {"verdict": "PASS"})
+            calibrate.main(arguments)
+            plan = calibrate.load(evidence.receipt("plan-full"))
+            self.assertEqual(plan["pilot_gate_attempt_id"], "pilot-a")
+            calibrate.verify_frozen_hashes(evidence, plan)
+            calibrate.dump(pilot.phase_receipts("pilot") / "gate-pilot.json", {"verdict": "FAIL"})
+            with self.assertRaisesRegex(calibrate.GateError, "pilot_gate_receipt"):
+                calibrate.verify_frozen_hashes(evidence, plan)
 
     def test_evidence_inside_repository_is_rejected(self):
         with self.assertRaises(SystemExit):
@@ -535,12 +594,17 @@ class ParsingTests(unittest.TestCase):
     def test_scout_output_kinds(self):
         self.assertEqual(scoring.parse_scout("No hypotheses")["kind"], "zero")
         self.assertEqual(scoring.parse_scout("**No hypotheses.**")["kind"], "zero")
+        self.assertEqual(scoring.parse_scout("No hypotheses. I could not finish the review.")["kind"], "unusable")
+        self.assertEqual(scoring.parse_scout("Interrupted after writing: No hypotheses")["kind"], "unusable")
         self.assertEqual(scoring.parse_scout("I looked around.")["kind"], "unusable")
         self.assertEqual(scoring.parse_scout("")["kind"], "unusable")
         parsed = scoring.parse_scout(hypothesis_block("structural-H1") + "\n\n### Hypothesis structural-H2\n- **Title:** x")
         self.assertEqual(parsed["kind"], "hypotheses")
         self.assertEqual(parsed["hypotheses"][0]["missing"], [])
         self.assertIn("Source evidence", parsed["hypotheses"][1]["missing"])
+        schema_only = scoring.parse_scout("### Hypothesis H1\n- **Origin:** structural")
+        self.assertEqual(schema_only["kind"], "unusable")
+        self.assertIn("no complete hypothesis schema", schema_only["schema_violations"])
         replay = scoring.replay_text(parsed["hypotheses"][0], "R-1")
         self.assertTrue(replay.startswith("### Hypothesis R-1\n"))
         self.assertNotIn("structural-H1", replay)
@@ -550,11 +614,14 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(scoring.parse_validator("### Needs probe\n- x"), "Needs probe")
         self.assertEqual(scoring.parse_validator("**Finding**\n- **Evidence:** x"), "Finding")
         self.assertEqual(scoring.parse_validator("**Finding: one owner is split, low cost.**\n- x"), "Finding")
+        self.assertEqual(scoring.parse_validator("Disproved: the alternative changes behavior.\n- x"), "Disproved")
+        self.assertEqual(scoring.parse_validator("**Finding**: evidence supports the concern.\n- x"), "Finding")
         self.assertEqual(scoring.parse_validator("Checked it.\n\n### Disproved\n- x"), "Disproved")
         self.assertIsNone(scoring.parse_validator("**Findings** are below"))
         self.assertIsNone(scoring.parse_validator("**Finding**\n...\n**Disproved**"))
         self.assertIsNone(scoring.parse_validator("### Finding\n...\n### Disproved\n..."))
         self.assertIsNone(scoring.parse_validator("I think it is fine."))
+        self.assertIsNone(scoring.parse_validator("The word Finding appears in this explanation."))
 
     def test_extract_json(self):
         self.assertEqual(scoring.extract_json('text\n```json\n{"a": 1}\n```'), {"a": 1})
@@ -647,6 +714,61 @@ class ScoringTests(unittest.TestCase):
     def test_one_credit_sensitivity_is_conservative(self):
         self.assertEqual(len(scoring.one_credit([{"S1", "S2"}])), 1)
         self.assertEqual(len(scoring.one_credit([{"S1", "S2"}, {"S1"}])), 2)
+
+    def test_incomplete_assessment_is_not_scored_as_zero_recall(self):
+        data = self.data()
+        del data["assessments"]["h1"]
+        result = scoring.score(data)
+        row = next(row for row in result["runs"] if row["run"] == "M1-A")
+        self.assertEqual(row["assessment_status"], "incomplete")
+        self.assertIsNone(row["eligible_scout_recall"])
+        self.assertIsNone(row["eligible_validated_recall"])
+        self.assertIsNone(row["admission_qualified"])
+
+
+class RecoveryTests(unittest.TestCase):
+    def test_incomplete_evaluator_attempt_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "assessment"
+            partial = root / "attempt-1"
+            partial.mkdir(parents=True)
+            marker = partial / "stdout.jsonl"
+            marker.write_text("retained interrupted output")
+            evidence = calibrate.Evidence(Path(temporary) / "evidence")
+            with self.assertRaises(calibrate.GateError):
+                calibrate.evaluator_session(root, "assessor", plan={"model": "m", "effort": "high", "claude": "x"},
+                                            system="s", user="u", capsule=None, evidence=evidence)
+            self.assertEqual(marker.read_text(), "retained interrupted output")
+
+    def test_attempt_ids_cannot_escape_the_evidence_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = calibrate.Evidence(Path(temporary) / "evidence")
+            with self.assertRaises(calibrate.GateError):
+                evidence.set_attempt("../pilot-2")
+
+    def test_only_one_live_batch_can_use_an_evidence_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = calibrate.Evidence(Path(temporary) / "evidence")
+            with calibrate.live_run_lock(evidence):
+                with self.assertRaisesRegex(calibrate.GateError, "another live batch"):
+                    with calibrate.live_run_lock(evidence):
+                        self.fail("concurrent batch acquired the aggregate budget")
+            with calibrate.live_run_lock(evidence):
+                pass
+
+    def test_existing_deterministic_pool_reconciles_before_reuse(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = calibrate.Evidence(Path(temporary) / "evidence")
+            evidence.set_attempt("pilot-a")
+            hypothesis = scoring.parse_scout(hypothesis_block("H1"))["hypotheses"][0]
+            run = {"run": "pilot-M91-r1-A", "case": "M91", "status": "completed",
+                   "hypotheses": [hypothesis]}
+            plan = {"seed": "stable"}
+            first = calibrate.build_pool(evidence, plan, "pilot", [run])
+            self.assertEqual(calibrate.build_pool(evidence, plan, "pilot", [run]), first)
+            changed = dict(hypothesis, raw=hypothesis["raw"] + "\nextra evidence")
+            with self.assertRaises(calibrate.GateError):
+                calibrate.build_pool(evidence, plan, "pilot", [dict(run, hypotheses=[changed])])
 
 
 if __name__ == "__main__":

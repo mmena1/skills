@@ -105,11 +105,65 @@ class McpClient:
         self.process.wait(timeout=10)
 
 
+class BatchLimitReached(RuntimeError):
+    """The approved batch budget or account-level circuit no longer permits a session."""
+
+
+class BatchGuard:
+    """Aggregate limits and usage accounting shared by every session in one run attempt."""
+
+    def __init__(self, *, max_sessions, max_requests, initial_sessions=0, initial_requests=0,
+                 initial_usage=None):
+        self.max_sessions = max_sessions
+        self.max_requests = max_requests
+        self.lock = threading.Lock()
+        self.sessions_started = initial_sessions
+        self.requests_forwarded = initial_requests
+        self.usage = {"input_tokens": 0, "cache_creation_input_tokens": 0,
+                      "cache_read_input_tokens": 0, "output_tokens": 0}
+        self.usage.update(initial_usage or {})
+        self.circuit = None
+
+    def start_session(self):
+        with self.lock:
+            if self.circuit:
+                return False
+            if self.sessions_started >= self.max_sessions:
+                self.circuit = {"kind": "global_limit_reached", "detail": "approved session budget exhausted"}
+                return False
+            self.sessions_started += 1
+            return True
+
+    def forward_request(self):
+        with self.lock:
+            if self.circuit or self.requests_forwarded >= self.max_requests:
+                if self.circuit is None:
+                    self.circuit = {"kind": "global_limit_reached", "detail": "approved request budget exhausted"}
+                return False
+            self.requests_forwarded += 1
+            return True
+
+    def record_usage(self, usage):
+        with self.lock:
+            for key in self.usage:
+                self.usage[key] += usage.get(key, 0) or 0
+
+    def trip(self, kind, detail):
+        with self.lock:
+            if self.circuit is None:
+                self.circuit = {"kind": kind, "detail": detail}
+
+    def snapshot(self):
+        with self.lock:
+            return {"sessions_started": self.sessions_started, "requests_forwarded": self.requests_forwarded,
+                    "actual_usage": dict(self.usage), "circuit": self.circuit}
+
+
 class Proxy:
     """Recording, budget-enforcing pass-through to the Anthropic API for one session."""
 
     def __init__(self, log_path, *, model, effort, budget, allowed_tools, forbidden=(),
-                 upstream=("https", "api.anthropic.com", 443)):
+                 upstream=("https", "api.anthropic.com", 443), batch_guard=None):
         self.log_path = Path(log_path)
         self.model = model
         self.effort = effort
@@ -117,6 +171,7 @@ class Proxy:
         self.allowed_tools = set(allowed_tools)
         self.forbidden = [token for token in forbidden if token]
         self.upstream = upstream
+        self.batch_guard = batch_guard
         self.lock = threading.Lock()
         self.state = {"requests": 0, "output_tokens": 0, "peak_context_tokens": 0, "input_tokens": 0,
                       "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0,
@@ -236,6 +291,9 @@ class Proxy:
             problems.append(("unexpected_endpoint", f"{handler.command} {path}"))
         elif is_message:
             problems = self.check(body or {})
+            if not problems and self.batch_guard and not self.batch_guard.forward_request():
+                circuit = self.batch_guard.snapshot()["circuit"]
+                problems.append((circuit["kind"], circuit["detail"]))
         with self.lock:
             self.state["endpoints"].append(f"{handler.command} {path.split('?')[0]}")
         if problems:
@@ -267,6 +325,10 @@ class Proxy:
         try:
             connection.request(handler.command, path, body=raw or None, headers=headers)
             response = connection.getresponse()
+            if is_message and response.status == 429 and self.batch_guard:
+                detail = self.quota_error("", response.status)
+                self.batch_guard.trip("quota_limited", detail)
+                self.violate("quota_limited", detail)
         except OSError as error:
             self.violate("api_error", f"upstream connection failed: {error}")
             handler.send_response(502)
@@ -306,7 +368,29 @@ class Proxy:
         record.update(status=response.status, response_headers=dict(response.getheaders()), response=text)
         if is_message:
             record["usage"] = self.account(text, response.status)
+            if self.batch_guard:
+                self.batch_guard.record_usage(record["usage"])
+                limiting = self.quota_error(text, response.status)
+                if limiting:
+                    self.batch_guard.trip("quota_limited", limiting)
+                    self.violate("quota_limited", limiting)
         self.write(record)
+
+    @staticmethod
+    def quota_error(text, status):
+        """Recognize provider account limits while leaving unrelated failures as ordinary API errors."""
+        markers = ("rate_limit_error", "rate_limit_exceeded", "usage_limit_reached", "account_limit",
+                   "insufficient_quota", "billing_hard_limit_reached", "organization_rate_limit_exceeded",
+                   "monthly_limit_exceeded", "quota_exceeded", "quota_limit")
+        try:
+            error = (json.loads(text).get("error") or {})
+            detail = " ".join(" ".join(str(error.get(key, "")).split())
+                              for key in ("type", "code", "message") if error.get(key)).strip()
+            if any(marker in detail.lower() for marker in markers):
+                return detail[:300] or "provider quota limit"
+        except (ValueError, AttributeError):
+            detail = ""
+        return (detail[:300] or "upstream HTTP 429") if status == 429 else None
 
     def account(self, text, status):
         usage = {"input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0,
@@ -360,12 +444,14 @@ class Proxy:
             log.write(json.dumps(record) + "\n")
 
 
-FAILURE_ORDER = ("confinement_failure", "leaked_context", "unexpected_context", "model_mismatch", "effort_mismatch",
-                 "budget_exhausted", "timeout", "api_error", "launch_failure", "truncation", "missing_output")
+FAILURE_ORDER = ("quota_limited", "global_limit_reached", "confinement_failure", "leaked_context",
+                 "unexpected_context", "model_mismatch", "effort_mismatch", "budget_exhausted", "timeout",
+                 "api_error", "launch_failure", "truncation", "missing_output")
 VIOLATION_STATUS = {"confinement": "confinement_failure", "leaked_context": "leaked_context",
                     "unexpected_context": "unexpected_context", "model_mismatch": "model_mismatch",
                     "effort_mismatch": "effort_mismatch", "budget_exhausted": "budget_exhausted",
-                    "api_error": "api_error"}
+                    "api_error": "api_error", "quota_limited": "quota_limited",
+                    "global_limit_reached": "global_limit_reached"}
 
 
 def classify(*, timed_out, launch_error, violations, result, init, capsule, final_stop_reason):
@@ -407,9 +493,11 @@ def classify(*, timed_out, launch_error, violations, result, init, capsule, fina
 
 
 def run_session(session_dir, *, model, effort, budget, system_prompt, user_prompt, capsule=None,
-                forbidden=(), claude="claude", upstream=None, extra_env=None):
+                forbidden=(), claude="claude", upstream=None, extra_env=None, batch_guard=None):
     """Run one fresh, isolated CLI session. Writes raw evidence to session_dir; returns meta."""
     session_dir = Path(session_dir)
+    if batch_guard and not batch_guard.start_session():
+        raise BatchLimitReached("batch circuit is open or approved session budget is exhausted")
     session_dir.mkdir(parents=True, exist_ok=False)
     session_id = str(uuid.uuid4())
     (session_dir / "system.txt").write_text(system_prompt, encoding="utf-8")
@@ -433,7 +521,7 @@ def run_session(session_dir, *, model, effort, budget, system_prompt, user_promp
     launch_error = None
     with Proxy(session_dir / "api.jsonl", model=model, effort=effort, budget=budget,
                allowed_tools=ALLOWED_TOOLS if capsule else (), forbidden=forbidden,
-               upstream=upstream or UPSTREAM) as proxy:
+               upstream=upstream or UPSTREAM, batch_guard=batch_guard) as proxy:
         proxy.expected_texts = [system_prompt, user_prompt, user_prompt.rstrip("\n")]
         environment = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.environ.get("HOME", ""),
@@ -497,6 +585,7 @@ def run_session(session_dir, *, model, effort, budget, system_prompt, user_promp
         "requested_effort": effort, "observed_settings": settings, "usage": {k: state[k] for k in (
             "requests", "output_tokens", "peak_context_tokens", "input_tokens", "cache_creation_input_tokens",
             "cache_read_input_tokens")},
+        "batch_usage": batch_guard.snapshot() if batch_guard else None,
         "cost_usd_reported": (result or {}).get("total_cost_usd"), "violations": state["violations"],
         "refused_requests": state["refused"], "endpoints": sorted(set(state["endpoints"])),
         "cli_reported_tools": (init or {}).get("tools"), "cli_mcp_servers": (init or {}).get("mcp_servers"),

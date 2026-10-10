@@ -18,8 +18,15 @@ FIELD = re.compile(r"^[ \t]*[-*][ \t]*\*\*(?P<name>[^*]+?):?\*\*:?[ \t]*(?P<valu
 ZERO = re.compile(r"[*_`\s]*No hypotheses\.?[*_`\s]*", re.IGNORECASE)
 OUTCOMES = ("Finding", "Disproved", "Unresolved", "Needs probe")
 # An outcome label opens a line as a heading or a bold label, optionally followed by a colon and prose.
-OUTCOME_HEADING = re.compile(r"^(?:#{1,4}[ \t]*|\*\*)(Finding|Disproved|Unresolved|Needs probe)(?:\*\*|:|[ \t]*$)",
-                             re.MULTILINE)
+OUTCOME_LINE = re.compile(
+    r"^(?:"
+    r"#{1,4}[ \t]*(?P<heading>Finding|Disproved|Unresolved|Needs probe)[ \t]*|"
+    r"\*\*(?P<bold>Finding|Disproved|Unresolved|Needs probe)\*\*(?:[ \t]*:[ \t]*\S.*)?|"
+    r"\*\*(?P<colon>Finding|Disproved|Unresolved|Needs probe):[ \t]*[^*]+\*?\*?[ \t]*|"
+    r"(?P<plain>Finding|Disproved|Unresolved|Needs probe):[ \t]+\S.*|"
+    r"Outcome:[ \t]*(?P<outcome>Finding|Disproved|Unresolved|Needs probe)[ \t]*"
+    r")$"
+)
 REASONS = ("absent_task_or_cost", "unchanged_or_legacy_scope", "essential_structure", "behavior_change",
            "relocated_or_equal_burden", "preference", "insufficient_evidence", "other")
 
@@ -31,8 +38,6 @@ def parse_scout(text):
     if not headings:
         if ZERO.fullmatch(stripped):
             return {"kind": "zero", "hypotheses": [], "schema_violations": []}
-        if re.search(r"\bNo hypotheses\b", stripped, re.IGNORECASE) and "### " not in stripped:
-            return {"kind": "zero", "hypotheses": [], "schema_violations": ["prose around No hypotheses"]}
         return {"kind": "unusable", "hypotheses": [], "schema_violations": ["no hypothesis blocks and no clean zero"]}
     violations = []
     if stripped[:headings[0].start()].strip():
@@ -56,6 +61,9 @@ def parse_scout(text):
         if missing:
             violations.append(f"{match.group(1)}: missing {', '.join(missing)}")
         hypotheses.append({"local_id": match.group(1), "fields": fields, "missing": missing, "raw": block})
+    if hypotheses and not any(not hypothesis["missing"] for hypothesis in hypotheses):
+        return {"kind": "unusable", "hypotheses": hypotheses,
+                "schema_violations": violations + ["no complete hypothesis schema"]}
     return {"kind": "hypotheses", "hypotheses": hypotheses, "schema_violations": violations}
 
 
@@ -71,7 +79,11 @@ def replay_key(hypothesis):
 
 
 def parse_validator(text):
-    found = {match.group(1) for match in OUTCOME_HEADING.finditer(text or "")}
+    found = set()
+    for line in (text or "").splitlines():
+        match = OUTCOME_LINE.fullmatch(line.strip())
+        if match:
+            found.add(next(value for value in match.groupdict().values() if value))
     if len(found) == 1:
         return found.pop()
     return None
@@ -178,12 +190,19 @@ def score(data):
         row.update(eligible=case_sets["eligible"], provisional=case_sets["provisional"])
         completed = run["status"] == "completed"
         hypotheses = [pid for pid in pool if pool[pid]["run"] == run["run"]]
+        assessment_complete = all(
+            pid in assessments and "admission_qualified" in assessments[pid]
+            and isinstance(assessments[pid].get("matches"), list)
+            for pid in hypotheses
+        )
         row["emitted"] = len(hypotheses) if completed else None
         row["clean_zero"] = completed and run["parse_kind"] == "zero"
+        row["assessment_status"] = "complete" if completed and assessment_complete else (
+            "incomplete" if completed else "not_applicable")
         row["schema_violations"] = len(run.get("schema_violations", [])) if completed else None
         row["partial_hypotheses"] = sum(1 for pid in hypotheses if pool[pid]["missing"]) if completed else None
         qualified = [pid for pid in hypotheses if assessments.get(pid, {}).get("admission_qualified")]
-        row["admission_qualified"] = len(qualified) if completed else None
+        row["admission_qualified"] = len(qualified) if completed and assessment_complete else None
         for scope in ("eligible", "provisional", "auxiliary"):
             allowed = set(case_sets[scope])
             scout, validated, grouped, single = set(), set(), [], []
@@ -197,16 +216,19 @@ def score(data):
                     single.append(set(labels))
                 if labels and disposition(pid) == "Finding":
                     validated.update(labels)
-            row[f"{scope}_scout_matched"] = sorted(scout) if completed else None
-            row[f"{scope}_validated_matched"] = sorted(validated) if completed else None
+            row[f"{scope}_scout_matched"] = sorted(scout) if completed and assessment_complete else None
+            row[f"{scope}_validated_matched"] = sorted(validated) if completed and assessment_complete else None
             if scope == "eligible":
                 row["grouped_credits"] = grouped
-                row["one_credit_matched"] = sorted(one_credit(single)) if completed else None
+                row["one_credit_matched"] = sorted(one_credit(single)) if completed and assessment_complete else None
             denominator = len(allowed)
-            row[f"{scope}_scout_recall"] = (len(scout) / denominator if denominator else "N/A") if completed else None
-            row[f"{scope}_validated_recall"] = (len(validated) / denominator if denominator else "N/A") if completed else None
+            row[f"{scope}_scout_recall"] = (len(scout) / denominator if denominator else "N/A") \
+                if completed and assessment_complete else None
+            row[f"{scope}_validated_recall"] = (len(validated) / denominator if denominator else "N/A") \
+                if completed and assessment_complete else None
         row["one_credit_recall"] = (len(row["one_credit_matched"]) / len(case_sets["eligible"])
-                                    if completed and case_sets["eligible"] else ("N/A" if completed else None))
+                                    if completed and assessment_complete and case_sets["eligible"] else
+                                    ("N/A" if completed and assessment_complete else None))
         row["dispositions"] = {outcome: sum(1 for pid in hypotheses if disposition(pid) == outcome)
                                for outcome in OUTCOMES} if completed else None
         row["unvalidated"] = sum(1 for pid in hypotheses if disposition(pid) is None) if completed else None
@@ -231,13 +253,17 @@ def score(data):
                           if r["case"] == case and r["arm"] == arm and r["status"] == "completed"]
                 if not entry["eligible" if measure.startswith(("eligible", "one")) else "provisional"]:
                     entry[f"{measure}_{arm}"] = "N/A"
+                elif any(r["case"] == case and r["arm"] == arm and r["status"] == "completed"
+                         and r["assessment_status"] != "complete" for r in run_rows):
+                    entry[f"{measure}_{arm}"] = None
                 else:
                     entry[f"{measure}_{arm}"] = mean(values)
         paired = []
         repetitions = sorted({r["repetition"] for r in run_rows if r["case"] == case})
         for repetition in repetitions:
             pair = {r["arm"]: r for r in run_rows if r["case"] == case and r["repetition"] == repetition}
-            complete = all(pair.get(arm, {}).get("status") == "completed" for arm in ("A", "B"))
+            complete = all(pair.get(arm, {}).get("status") == "completed"
+                           and pair.get(arm, {}).get("assessment_status") == "complete" for arm in ("A", "B"))
             item = {"repetition": repetition, "complete_pair": complete}
             for measure in ("eligible_scout_recall", "eligible_validated_recall"):
                 a = numeric(pair.get("A", {}).get(measure))
@@ -262,7 +288,8 @@ def score(data):
             for kind in ("scout", "validated"):
                 key = f"{scope}_{kind}_matched" if scope != "excluded" else None
                 item[f"{kind}_{arm}"] = [
-                    (None if r["status"] != "completed" or key is None else label in (r[key] or []))
+                    (None if r["status"] != "completed" or r["assessment_status"] != "complete" or key is None
+                     else label in (r[key] or []))
                     for r in sorted(arm_runs, key=lambda r: r["repetition"])]
         concern_rows.append(item)
 
@@ -270,19 +297,26 @@ def score(data):
     for measure in ("eligible_scout_recall", "eligible_validated_recall", "one_credit_recall"):
         for arm in arms:
             values = [numeric(c[f"{measure}_{arm}"]) for c in case_rows if not c["control"]]
-            macro[f"{measure}_{arm}"] = mean(values)
+            eligible_cases = [c for c in case_rows if not c["control"] and c["eligible"]]
+            macro[f"{measure}_{arm}"] = (None if any(c[f"{measure}_{arm}"] is None for c in eligible_cases)
+                                          else mean(values))
         macro[f"{measure}_cases_with_eligible_labels"] = sum(
             1 for c in case_rows if not c["control"] and c["eligible"])
     itt = {}
     for arm in arms:
         recovered = opportunities = 0
+        complete_assessments = True
         for row in run_rows:
             if row["arm"] != arm or row["control"]:
                 continue
             opportunities += len(row["eligible"])
-            recovered += len(row["eligible_scout_matched"] or [])
-        itt[arm] = {"recovered": recovered, "opportunities": opportunities,
-                    "operational_lower_bound": round(recovered / opportunities, 4) if opportunities else "N/A"}
+            if row["status"] == "completed" and row["assessment_status"] != "complete":
+                complete_assessments = False
+            elif row["eligible_scout_matched"] is not None:
+                recovered += len(row["eligible_scout_matched"])
+        itt[arm] = {"recovered": recovered if complete_assessments else None, "opportunities": opportunities,
+                    "operational_lower_bound": round(recovered / opportunities, 4)
+                    if opportunities and complete_assessments else ("N/A" if not opportunities else None)}
 
     failures = {}
     for row in run_rows:
@@ -293,17 +327,24 @@ def score(data):
         pairs.setdefault((row["case"], row["repetition"]), {})[row["arm"]] = row["status"]
     paired_completion = {
         "pairs": len(pairs),
-        "complete": sum(1 for p in pairs.values() if all(p.get(a) == "completed" for a in ("A", "B"))),
+        "complete": sum(1 for key, pair in pairs.items()
+                         if all(pair.get(a) == "completed" for a in ("A", "B"))
+                         and all(next((r["assessment_status"] for r in run_rows
+                                       if r["case"] == key[0] and r["repetition"] == key[1]
+                                       and r["arm"] == a), None) == "complete" for a in ("A", "B"))),
     }
 
     admission = {}
     for arm in arms:
         arm_rows = [r for r in run_rows if r["arm"] == arm and r["status"] == "completed"]
         emitted = sum(r["emitted"] for r in arm_rows)
-        qualified = sum(r["admission_qualified"] for r in arm_rows)
+        assessment_complete = all(r["assessment_status"] == "complete" for r in arm_rows)
+        qualified = sum(r["admission_qualified"] for r in arm_rows) if assessment_complete else None
         admission[arm] = {
             "successful_runs": len(arm_rows), "raw_emissions": emitted, "admission_qualified": qualified,
-            "admission_qualified_fraction": round(qualified / emitted, 4) if emitted else "N/A",
+            "assessment_status": "complete" if assessment_complete else "incomplete",
+            "admission_qualified_fraction": round(qualified / emitted, 4)
+            if assessment_complete and emitted else ("N/A" if assessment_complete else None),
             "partial_hypotheses": sum(r["partial_hypotheses"] for r in arm_rows),
             "schema_violations": sum(r["schema_violations"] for r in arm_rows),
             "clean_zero_runs": sum(1 for r in arm_rows if r["clean_zero"]),
@@ -324,7 +365,10 @@ def score(data):
         run = next(r for r in runs if r["run"] == entry["run"])
         if run["status"] != "completed":
             continue
-        matches = assessments.get(pid, {}).get("matches", [])
+        assessment = assessments.get(pid)
+        if assessment is None or "admission_qualified" not in assessment or not isinstance(assessment.get("matches"), list):
+            continue
+        matches = assessment["matches"]
         known = {m["label"] for m in matches}
         outcome = disposition(pid)
         if run["case"] in controls:
@@ -350,15 +394,19 @@ def score(data):
     for arm in arms:
         control_rows = [r for r in run_rows if r["arm"] == arm and r["control"] and r["status"] == "completed"]
         emitted = sum(r["emitted"] for r in control_rows)
-        qualified = sum(r["admission_qualified"] for r in control_rows)
+        assessment_complete = all(r["assessment_status"] == "complete" for r in control_rows)
+        qualified = sum(r["admission_qualified"] for r in control_rows) if assessment_complete else None
         findings = sum(r["dispositions"]["Finding"] for r in control_rows)
         audits = [novelty.get(pool[pid]["replay"], {}).get("decision") for pid in pool
                   if any(pool[pid]["run"] == r["run"] for r in control_rows) and disposition(pid) == "Finding"]
         controls_summary[arm] = {
             "successful_control_runs": len(control_rows), "emitted": emitted, "admission_qualified": qualified,
-            "runs_with_admission": sum(1 for r in control_rows if r["admission_qualified"]),
+            "assessment_status": "complete" if assessment_complete else "incomplete",
+            "runs_with_admission": sum(1 for r in control_rows if r["admission_qualified"])
+            if assessment_complete else None,
             "control_admission_rate": round(sum(1 for r in control_rows if r["admission_qualified"]) /
-                                            len(control_rows), 4) if control_rows else "N/A",
+                                            len(control_rows), 4) if control_rows and assessment_complete
+            else ("N/A" if not control_rows else None),
             "validated_findings": findings,
             "control_validated_finding_rate": round(sum(1 for r in control_rows if r["dispositions"]["Finding"]) /
                                                     len(control_rows), 4) if control_rows else "N/A",
