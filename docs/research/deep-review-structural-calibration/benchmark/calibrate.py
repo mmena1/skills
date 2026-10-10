@@ -1071,10 +1071,15 @@ def command_gate(args):
             mismatched.append(list(pair))
     check("resolved-paired-settings", not mismatched and len(by_pair) == len(plan["schedule"]) // 2,
           {"mismatched_pairs": mismatched, "signature_example": next(iter(by_pair.values()), [None])[0]})
-    leaks = [str(path) for path, meta in all_session_metas(evidence)
-             if meta["status"] in ("leaked_context", "confinement_failure", "unexpected_context")
-             and "isolation" not in path.parts]
-    check("no-leakage", not leaks, leaks)
+    # Sessions whose results feed frozen decisions or this phase. Superseded attempts, shakedowns and the
+    # deliberate isolation refusals feed nothing; they are retained and listed, not scanned as leaks.
+    scoped = [evidence.sessions / "adjudication", evidence.sessions / phase] + (
+        [evidence.sessions / "challenges"] if phase == "pilot" else [])
+    refused = [(str(path), meta["status"]) for path, meta in all_session_metas(evidence)
+               if meta["status"] in ("leaked_context", "confinement_failure", "unexpected_context")]
+    leaks = [path for path, _ in refused if any(Path(path).is_relative_to(root) for root in scoped)]
+    check("no-leakage", not leaks, {"leaks": leaks, "retained_unscoped_refusals": [
+        item for item in refused if item[0] not in leaks]})
     replay = load(evidence.receipts / phase / "replay-status.json")
     pool = load(evidence.receipts / phase / "pool.json")
     validations = collect_validations(evidence, phase, pool)

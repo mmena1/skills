@@ -10,14 +10,15 @@ import json
 import random
 import re
 
-SCORER_VERSION = "1"
+SCORER_VERSION = "2"
 FIELDS = ("Origin", "Title", "File/line", "Potential severity", "Source evidence", "Expected impact",
           "Falsification condition", "Suggested validation", "Context references")
 HEADING = re.compile(r"^#{2,4}[ \t]*Hypothesis[ \t]+(\S+)[ \t]*$", re.MULTILINE)
 FIELD = re.compile(r"^[ \t]*[-*][ \t]*\*\*(?P<name>[^*]+?):?\*\*:?[ \t]*(?P<value>.*)$")
 ZERO = re.compile(r"[*_`\s]*No hypotheses\.?[*_`\s]*", re.IGNORECASE)
 OUTCOMES = ("Finding", "Disproved", "Unresolved", "Needs probe")
-OUTCOME_HEADING = re.compile(r"^(?:#{1,4}[ \t]*|\*\*)(Finding|Disproved|Unresolved|Needs probe)(?:\*\*)?[ \t]*$",
+# An outcome label opens a line as a heading or a bold label, optionally followed by a colon and prose.
+OUTCOME_HEADING = re.compile(r"^(?:#{1,4}[ \t]*|\*\*)(Finding|Disproved|Unresolved|Needs probe)(?:\*\*|:|[ \t]*$)",
                              re.MULTILINE)
 REASONS = ("absent_task_or_cost", "unchanged_or_legacy_scope", "essential_structure", "behavior_change",
            "relocated_or_equal_burden", "preference", "insufficient_evidence", "other")

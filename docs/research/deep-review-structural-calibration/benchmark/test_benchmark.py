@@ -548,6 +548,11 @@ class ParsingTests(unittest.TestCase):
     def test_validator_outcome(self):
         self.assertEqual(scoring.parse_validator("### Disproved\n- **Evidence:** x"), "Disproved")
         self.assertEqual(scoring.parse_validator("### Needs probe\n- x"), "Needs probe")
+        self.assertEqual(scoring.parse_validator("**Finding**\n- **Evidence:** x"), "Finding")
+        self.assertEqual(scoring.parse_validator("**Finding: one owner is split, low cost.**\n- x"), "Finding")
+        self.assertEqual(scoring.parse_validator("Checked it.\n\n### Disproved\n- x"), "Disproved")
+        self.assertIsNone(scoring.parse_validator("**Findings** are below"))
+        self.assertIsNone(scoring.parse_validator("**Finding**\n...\n**Disproved**"))
         self.assertIsNone(scoring.parse_validator("### Finding\n...\n### Disproved\n..."))
         self.assertIsNone(scoring.parse_validator("I think it is fine."))
 
