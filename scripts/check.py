@@ -146,14 +146,14 @@ TRUSTED_APPROVAL_PERMISSIONS = {"write", "admin"}
 HELD_TRIAGE_STATES = {"needs-triage", "needs-info", "ready-for-human", "wontfix"}
 USER_INVOKED_SKILLS = {
     "deep-review", "design-review", "evaluate-model", "grill-me",
-    "grill-with-docs", "handoff-doc", "implement", "implementation-review",
+    "grill-with-docs", "handoff-doc", "implement",
     "improve-codebase-architecture", "reconcile", "setup-skills", "teach",
     "to-questionnaire", "to-spec", "to-tickets", "triage", "wait-what",
     "wayfinder", "write-pr",
 }
 MODEL_INVOKED_SKILLS = {
     "codebase-design", "diagnosing-bugs", "domain-modeling", "grilling",
-    "prototype", "research", "tdd", "wizard",
+    "implementation-review", "prototype", "research", "tdd", "wizard",
     "writing-for-agents",
 }
 # Current pinned models and limits for the deep-review adapters.
@@ -717,7 +717,7 @@ def validate_implementation_authority_contract() -> None:
         (implement, "the issue plus its resolved Agent Brief"),
         (implement, RETIRED_STANDALONE_RECORD),
         (implement, "re-run `/setup-skills`"),
-        (implement, "Explicitly compose the `implementation-review` workflow"),
+        (implement, "Compose the `implementation-review` skill natively"),
         (implement, "read `implementation-review/SKILL.md` from the active skill root"),
         (reconcile, "same Agent Brief resolver as `/implement`"),
         (reconcile, "never creates or edits Agent Brief authority"),
@@ -899,6 +899,53 @@ def validate_implementation_authority_contract() -> None:
     retired_tracker = "## Implementation workflow\n\n```markdown\n" + retired_record + "\n```\n"
     if not tracker_defines_retired_record(retired_tracker) or tracker_defines_retired_record(tracker):
         fail("retired standalone record detection disagrees with the tracker contracts")
+
+
+def validate_implementation_review_routing_contract() -> None:
+    """Keep fixed-baseline conformance routing distinct from explicit deep review."""
+    implementation_review = (ROOT / "skills/implementation-review/SKILL.md").read_text(encoding="utf-8")
+    implement = (ROOT / "skills/implement/SKILL.md").read_text(encoding="utf-8")
+    deep_review = (ROOT / "skills/deep-review/SKILL.md").read_text(encoding="utf-8")
+    deep_review_metadata = (ROOT / "skills/deep-review/agents/openai.yaml").read_text(encoding="utf-8")
+
+    description = parse_frontmatter(ROOT / "skills/implementation-review/SKILL.md")[0]["description"]
+    for required in (
+        "fixed baseline",
+        "originating issue/spec requirements",
+        "repository standards",
+        "implementation-conformance review",
+        "generic PR reviews",
+        "broad defect-discovery tasks must not select this skill",
+        "Deep-review remains explicit-only",
+    ):
+        if required not in description:
+            fail(f"implementation-review description is missing routing purpose {required!r}")
+    for required in (
+        "explicit implementation-conformance review",
+        "Do not select it for generic PR review requests or broad defect-discovery tasks",
+        "Use the fixed point supplied by the invoking workflow, if present",
+        "Otherwise, use the fixed point explicitly provided by the user",
+        "When composed by `/implement`, the fixed point is `BASELINE`",
+        "Ask the user for a fixed point only when neither the caller nor the user provided one",
+    ):
+        if required not in implementation_review:
+            fail(f"implementation-review invocation contract is missing {required!r}")
+
+    review_step = implement.partition("## 5. Commit, review, and converge")[2].partition("## 6.")[0]
+    native_compose = review_step.find("Compose the `implementation-review` skill natively")
+    compatibility_fallback = review_step.find("On a harness that cannot compose installed skills")
+    if not 0 <= native_compose < compatibility_fallback:
+        fail("/implement must prefer native implementation-review composition and retain only a harness-compatibility fallback")
+    if "fixed baseline" not in description or "BASELINE" not in review_step or "originating source bundle" not in review_step:
+        fail("/implement post-commit review must pass BASELINE and its originating source bundle to implementation-review")
+
+    deep_fields, _ = parse_frontmatter(ROOT / "skills/deep-review/SKILL.md")
+    if deep_fields.get("disable-model-invocation") != "true" or "triggers" not in deep_fields:
+        fail("deep-review must remain explicitly user-invoked")
+    if "allow_implicit_invocation: false" not in deep_review_metadata:
+        fail("deep-review Codex metadata must remain explicit-only")
+    if "implementation-review" in deep_review:
+        fail("deep-review must not compose implementation-review as part of explicit deep-review routing")
 
 
 def validate_implementation_working_copy_contract() -> None:
@@ -1901,6 +1948,7 @@ def main() -> int:
         skill_names = validate_layout_and_skills()
         validate_repository_references(skill_names)
         validate_implementation_authority_contract()
+        validate_implementation_review_routing_contract()
         validate_implementation_working_copy_contract()
         validate_standalone_authority_modes()
         validate_tracker_capability_contract()

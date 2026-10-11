@@ -1,9 +1,6 @@
 ---
 name: implementation-review
-description: Review a diff since a fixed point against repository standards and its originating issue or spec.
-disable-model-invocation: true
-triggers:
-  - user
+description: Verify a committed implementation diff from a fixed baseline against its originating issue/spec requirements and repository standards. Use only for implementation-conformance review; generic PR reviews and broad defect-discovery tasks must not select this skill. Deep-review remains explicit-only.
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -13,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-Run this workflow only when the user explicitly invokes it or an already-invoked workflow explicitly composes it with a fixed point and source. Never select it spontaneously.
+Run this workflow for explicit implementation-conformance review or when an already-invoked workflow composes it with a fixed point and source. Do not select it for generic PR review requests or broad defect-discovery tasks. Those requests must not trigger implementation-review; deep-review remains explicit-only.
 
 The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-skills`.
 
@@ -21,7 +18,7 @@ The issue tracker should have been provided to you. If `docs/agents/issue-tracke
 
 ### 1. Pin the fixed point
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+Use the fixed point supplied by the invoking workflow, if present. Otherwise, use the fixed point explicitly provided by the user. When composed by `/implement`, the fixed point is `BASELINE`. Ask the user for a fixed point only when neither the caller nor the user provided one.
 
 Run the diff once in the parent and keep the output: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also capture the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
