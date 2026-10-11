@@ -923,6 +923,10 @@ def validate_implementation_review_routing_contract() -> None:
     for required in (
         "explicit implementation-conformance review",
         "Do not select it for generic PR review requests or broad defect-discovery tasks",
+        "Use the fixed point supplied by the invoking workflow, if present",
+        "Otherwise, use the fixed point explicitly provided by the user",
+        "When composed by `/implement`, the fixed point is `BASELINE`",
+        "Ask the user for a fixed point only when neither the caller nor the user provided one",
     ):
         if required not in implementation_review:
             fail(f"implementation-review invocation contract is missing {required!r}")

@@ -18,7 +18,7 @@ The issue tracker should have been provided to you. If `docs/agents/issue-tracke
 
 ### 1. Pin the fixed point
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+Use the fixed point supplied by the invoking workflow, if present. Otherwise, use the fixed point explicitly provided by the user. When composed by `/implement`, the fixed point is `BASELINE`. Ask the user for a fixed point only when neither the caller nor the user provided one.
 
 Run the diff once in the parent and keep the output: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also capture the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
