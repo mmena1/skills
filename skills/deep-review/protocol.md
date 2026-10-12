@@ -34,7 +34,7 @@ Classify the target as production source, tests, docs, config/build, or other. R
 Obtain a non-empty confirmed set. Before analysis, verify the invocation-specific runtime contract:
 
 - the exact selected scout count is known;
-- enough simultaneous scout capacity exists for the complete set;
+- the harness mechanism declares one of two scout capacity gates and its gate is satisfied: strict preflight confirms enough simultaneous slots for the complete set before analysis when a reliable capacity observation exists; launch-time admission attempts the complete set concurrently when the mechanism declares that no reliable available-slot observation exists, and handles any refusal as an incomplete run;
 - the native scout agent for every selected lens is installed: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`, each embedding the common scout contract and exactly its own lens;
 - the static and writable validator agents are installed;
 - an independent validator can launch when hypotheses survive;
@@ -46,7 +46,7 @@ Read-only and writable describe role behavior contracts; their enforcement follo
 
 Scouts and static validators create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.
 
-If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. If `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Never launch a partial set, run sequentially, use bounded waves, or change global harness concurrency policy.
+If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. Under strict preflight, if `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Under launch-time admission, attempt every selected scout in the same concurrent wave without querying, guessing, assuming, estimating, inferring, or recording a numeric available capacity. If any launch is refused, do not retry it or launch a replacement, reduce or substitute the set, or fall back to sequential scouting or bounded waves. Let already-started scouts finish and preserve their evidence in run state and report, launch no validator or probe, mark the run incomplete, block PASS, `No findings`, and publication, and still run cleanup. Never launch a deliberately partial set or change global harness concurrency policy.
 
 ## Capture context and create one worktree
 

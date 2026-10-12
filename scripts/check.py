@@ -2724,6 +2724,53 @@ def validate_deep_review_audience_contract(skill: Path) -> None:
                 fail(f"the audience check accepted a removed {relative} publication rule")
 
 
+def deep_review_scenario_problems(documents: dict[str, str]) -> list[str]:
+    """Keep the protocol, receipt template, and runtime matrix scenario names aligned."""
+    matrix_lines = documents["runtime-acceptance.md"].splitlines()
+    matrix_header = "| Scenario | Devin expected result | Claude Code expected result | Codex expected result |"
+    try:
+        header_index = matrix_lines.index(matrix_header)
+    except ValueError:
+        matrix_scenarios = []
+    else:
+        matrix_scenarios = []
+        for line in matrix_lines[header_index + 1:]:
+            if not line.startswith("|"):
+                break
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+                continue
+            if len(cells) != 4:
+                return ["skills/deep-review/runtime-acceptance.md: malformed runtime acceptance scenario table"]
+            matrix_scenarios.append(cells[0])
+
+    protocol_scenarios = [
+        line[2:].split(": whether ", 1)[0]
+        for line in documents["protocol.md"].splitlines()
+        if line.startswith("- ") and ": whether " in line
+    ]
+    receipt_scenarios = []
+    for line in documents["references/output-template.md"].splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) == 3 and cells[1] == "PASS / FAIL / NOT EXERCISED":
+            receipt_scenarios.append(cells[0])
+    scenario_lists = {
+        "protocol.md": protocol_scenarios,
+        "references/output-template.md": receipt_scenarios,
+        "runtime-acceptance.md": matrix_scenarios,
+    }
+    scenarios = {
+        relative: [name.strip().lower() for name in names]
+        for relative, names in scenario_lists.items()
+    }
+    expected_scenarios = scenarios["references/output-template.md"]
+    return [
+        f"skills/deep-review/{relative}: runtime acceptance scenarios differ from references/output-template.md"
+        for relative, found in scenarios.items()
+        if not found or found != expected_scenarios
+    ]
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
@@ -2747,19 +2794,26 @@ def validate_deep_review() -> None:
     for path in [skill / "SKILL.md", *shared]:
         if "codebase-design" in path.read_text(encoding="utf-8"):
             fail(f"{path.relative_to(ROOT).as_posix()}: deep-review must not depend on or defer adjudication to codebase-design")
-    scenario_lists = {
-        "protocol.md": r"(?m)^- ([^:\n]+): whether ",
-        "references/output-template.md": r"(?m)^\| ([^|\n]+?) \| PASS / FAIL / NOT EXERCISED \|",
-        "runtime-acceptance.md": r"(?m)^\| ([^|\n]+?) \| [^\n]* \| Same \|$",
+    scenario_sources = ("protocol.md", "references/output-template.md", "runtime-acceptance.md")
+    scenario_documents = {
+        relative: (skill / relative).read_text(encoding="utf-8")
+        for relative in scenario_sources
     }
-    scenarios = {
-        relative: [name.strip().lower() for name in re.findall(pattern, (skill / relative).read_text(encoding="utf-8"))]
-        for relative, pattern in scenario_lists.items()
+    problems = deep_review_scenario_problems(scenario_documents)
+    if problems:
+        fail(problems[0])
+    scenario_mutations = {
+        "protocol.md": ("- zero hypotheses: whether", "- divergent scenario: whether"),
+        "references/output-template.md": ("| Zero hypotheses |", "| Divergent scenario |"),
+        "runtime-acceptance.md": ("| Zero hypotheses |", "| Divergent scenario |"),
     }
-    expected_scenarios = scenarios["references/output-template.md"]
-    for relative, found in scenarios.items():
-        if not found or found != expected_scenarios:
-            fail(f"skills/deep-review/{relative}: runtime acceptance scenarios differ from references/output-template.md")
+    for relative, (original, replacement) in scenario_mutations.items():
+        mutated_scenarios = dict(scenario_documents)
+        mutated_scenarios[relative] = scenario_documents[relative].replace(original, replacement, 1)
+        if mutated_scenarios[relative] == scenario_documents[relative]:
+            fail(f"the runtime scenario check self-test could not mutate {relative}")
+        if not deep_review_scenario_problems(mutated_scenarios):
+            fail(f"the runtime scenario check accepted divergent scenario names in {relative}")
 
     contents = {path.read_text(encoding="utf-8"): path for path in shared}
     generated = skill / "harnesses"
