@@ -147,13 +147,15 @@ TRUSTED_APPROVAL_PERMISSIONS = {"write", "admin"}
 HELD_TRIAGE_STATES = {"needs-triage", "needs-info", "ready-for-human", "wontfix"}
 # The local-context convention (ADR-0002). The skill must state each command verbatim
 # so the documented resolution and the model below cannot drift.
-LOCAL_ROOT_DECLARATION = "git config --local --type=path --get skills.localRoot"
-LOCAL_ROOT_GIT_DIR = "git rev-parse --path-format=absolute --git-dir"
-LOCAL_ROOT_COMMON_DIR = "git rev-parse --path-format=absolute --git-common-dir"
-LOCAL_ROOT_TOPLEVEL = "git rev-parse --show-toplevel"
-READ_ONLY_LOCAL_CONTEXT_FILES = {
-    "AGENTS.md", "CLAUDE.md", "GLOSSARY.md", "GLOSSARY-MAP.md", "CONTEXT.md", "CONTEXT-MAP.md",
-}
+LOCAL_ROOT_DECLARATION = ("git", "config", "--local", "--type=path", "--get", "skills.localRoot")
+LOCAL_ROOT_GIT_DIR = ("git", "rev-parse", "--path-format=absolute", "--git-dir")
+LOCAL_ROOT_COMMON_DIR = ("git", "rev-parse", "--path-format=absolute", "--git-common-dir")
+LOCAL_ROOT_TOPLEVEL = ("git", "rev-parse", "--show-toplevel")
+LOCAL_ROOT_COMMANDS = (LOCAL_ROOT_DECLARATION, LOCAL_ROOT_GIT_DIR, LOCAL_ROOT_COMMON_DIR, LOCAL_ROOT_TOPLEVEL)
+# Root files the skill names; per-context glossaries and ADR directories are matched by shape.
+READ_ONLY_ROOT_FILES = ("AGENTS.md", "CLAUDE.md", "GLOSSARY.md", "GLOSSARY-MAP.md")
+LEGACY_READ_ONLY_ROOT_FILES = ("CONTEXT.md", "CONTEXT-MAP.md")
+GLOSSARY_FILE_NAMES = {"GLOSSARY.md", "CONTEXT.md"}
 USER_INVOKED_SKILLS = {
     "deep-review", "design-review", "evaluate-model", "grill-me",
     "grill-with-docs", "handoff-doc", "implement",
@@ -1472,107 +1474,96 @@ def validate_reconciliation_contract() -> None:
             fail("expanded reconciliation migration lost a custom readiness state or user note")
 
 
-class LocalContextMissing(RuntimeError):
-    """Required local context could not be resolved; the message says what and where."""
+class LocalContextUnresolved(RuntimeError):
+    """Local context or tracker state did not resolve; the message says what and where it looked."""
 
 
-def git_output(working_copy: Path, command: str) -> subprocess.CompletedProcess:
-    arguments = command.split()
-    if arguments[0] != "git":
-        raise ValueError(command)
+def shell_words(command: tuple[str, ...]) -> str:
+    return " ".join(command)
+
+
+def git_output(working_copy: Path, command: tuple[str, ...], env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["git", "-C", str(working_copy), *arguments[1:]], capture_output=True, text=True, check=False,
+        ["git", "-C", str(working_copy), *command[1:]], capture_output=True, text=True, check=False, env=env,
     )
 
 
-def git_value(working_copy: Path, command: str) -> str:
-    result = git_output(working_copy, command)
+def git_value(working_copy: Path, command: tuple[str, ...], env: dict[str, str] | None) -> str:
+    result = git_output(working_copy, command, env)
     if result.returncode != 0:
-        raise LocalContextMissing(f"`{command}` failed in {working_copy}: {result.stderr.strip()}")
+        raise LocalContextUnresolved(f"`{shell_words(command)}` failed in {working_copy}: {result.stderr.strip()}")
     return result.stdout.strip()
 
 
-def resolve_local_root(working_copy: Path) -> Path:
+def resolve_local_root(working_copy: Path, env: dict[str, str] | None = None) -> Path:
     """Model the `local-context` skill: the one local root every working copy resolves to."""
-    declared = git_output(working_copy, LOCAL_ROOT_DECLARATION)
+    declared = git_output(working_copy, LOCAL_ROOT_DECLARATION, env)
     if declared.returncode == 0:
         value = declared.stdout.strip()
         root = Path(value)
         if not root.is_absolute():
-            raise LocalContextMissing(f"skills.localRoot {value!r} is not an absolute path")
+            raise LocalContextUnresolved(f"skills.localRoot {value!r} is not an absolute path")
         if not root.is_dir():
-            raise LocalContextMissing(f"skills.localRoot {value!r} is not an existing directory")
+            raise LocalContextUnresolved(f"skills.localRoot {value!r} is not an existing directory")
         return root
     if declared.returncode != 1:
-        raise LocalContextMissing(f"`{LOCAL_ROOT_DECLARATION}` failed in {working_copy}: {declared.stderr.strip()}")
-    git_dir = Path(git_value(working_copy, LOCAL_ROOT_GIT_DIR)).resolve()
-    common_dir = Path(git_value(working_copy, LOCAL_ROOT_COMMON_DIR)).resolve()
+        raise LocalContextUnresolved(
+            f"`{shell_words(LOCAL_ROOT_DECLARATION)}` failed in {working_copy}: {declared.stderr.strip()}"
+        )
+    git_dir = Path(git_value(working_copy, LOCAL_ROOT_GIT_DIR, env)).resolve()
+    common_dir = Path(git_value(working_copy, LOCAL_ROOT_COMMON_DIR, env)).resolve()
     if git_dir == common_dir:
-        return Path(git_value(working_copy, LOCAL_ROOT_TOPLEVEL))
-    raise LocalContextMissing(
+        return Path(git_value(working_copy, LOCAL_ROOT_TOPLEVEL, env))
+    raise LocalContextUnresolved(
         f"{working_copy} is a linked worktree and the repository declares no skills.localRoot "
-        f"(ran `{LOCAL_ROOT_DECLARATION}`)"
+        f"(ran `{shell_words(LOCAL_ROOT_DECLARATION)}`)"
     )
 
 
 def is_read_only_local_context(relative: str) -> bool:
     parts = Path(relative).parts
-    if relative in READ_ONLY_LOCAL_CONTEXT_FILES:
+    if relative in READ_ONLY_ROOT_FILES + LEGACY_READ_ONLY_ROOT_FILES:
         return True
     if parts[:2] == ("docs", "agents") and len(parts) > 2:
         return True
-    if parts[-1] in {"GLOSSARY.md", "CONTEXT.md"}:
+    if parts[-1] in GLOSSARY_FILE_NAMES:
         return True
     return any(parts[index:index + 2] == ("docs", "adr") for index in range(len(parts) - 2))
 
 
-def resolve_read_only_context(working_copy: Path, relative: str, *, required: bool) -> Path | None:
+def resolve_read_only_context(
+    working_copy: Path, relative: str, *, required: bool, env: dict[str, str] | None = None,
+) -> Path | None:
     """The working copy's file wins; an absent one is read in place under the local root."""
     if not is_read_only_local_context(relative):
-        raise LocalContextMissing(f"{relative} is not classified read-only local context")
-    local = Path(git_value(working_copy, LOCAL_ROOT_TOPLEVEL)) / relative
+        raise LocalContextUnresolved(f"{relative} is not classified read-only local context")
+    local = Path(git_value(working_copy, LOCAL_ROOT_TOPLEVEL, env)) / relative
     if local.exists():
         return local
     try:
-        candidate = resolve_local_root(working_copy) / relative
-    except LocalContextMissing as missing:
+        candidate = resolve_local_root(working_copy, env) / relative
+    except LocalContextUnresolved as missing:
         if required:
-            raise LocalContextMissing(f"{relative} is missing; looked in {local}; {missing}") from None
+            raise LocalContextUnresolved(f"{relative} is missing; looked in {local}; {missing}") from None
         return None
     if candidate.exists():
         return candidate
     if required:
-        raise LocalContextMissing(f"{relative} is missing; looked in {local} and {candidate}")
+        raise LocalContextUnresolved(f"{relative} is missing; looked in {local} and {candidate}")
     return None
 
 
-def resolve_local_tracker(working_copy: Path) -> Path:
-    """Mutable shared workflow state lives only under the local root."""
-    return resolve_local_root(working_copy) / ".scratch"
-
-
-@contextlib.contextmanager
-def isolated_git_environment(global_config: Path):
-    saved = {key: os.environ.get(key) for key in ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM")}
-    os.environ["GIT_CONFIG_GLOBAL"] = str(global_config)
-    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
-    try:
-        yield
-    finally:
-        for key, value in saved.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
+def resolve_local_tracker(working_copy: Path, env: dict[str, str] | None = None) -> Path:
+    """Mutable shared workflow state lives only under the local root, and an absent tracker is never empty."""
+    root = resolve_local_root(working_copy, env)
+    tracker = root / ".scratch"
+    if not tracker.is_dir():
+        raise LocalContextUnresolved(f"no tracker state at {tracker} (local root {root})")
+    return tracker
 
 
 def validate_local_context_resolution() -> None:
     """Two linked worktrees observe one tracker; a single checkout behaves as before."""
-
-    def git(working_copy: Path, *arguments: str) -> None:
-        result = subprocess.run(["git", "-C", str(working_copy), *arguments], capture_output=True, text=True)
-        if result.returncode != 0:
-            fail(f"local-context fixture: git {' '.join(arguments)} failed: {result.stderr.strip()}")
 
     def write(path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1586,13 +1577,13 @@ def validate_local_context_resolution() -> None:
         path = tracker / "feature/issues" / ticket
         path.write_text(re.sub(r"(?m)^Status: .+$", f"Status: {value}", path.read_text(encoding="utf-8")), encoding="utf-8")
 
-    def expect_missing(label: str, action, *needles: str) -> None:
+    def expect_unresolved(label: str, action, *needles: str) -> None:
         try:
             action()
-        except LocalContextMissing as missing:
+        except LocalContextUnresolved as unresolved:
             for needle in needles:
-                if needle not in str(missing):
-                    fail(f"local-context: {label} did not report {needle!r}: {missing}")
+                if needle not in str(unresolved):
+                    fail(f"local-context: {label} did not report {needle!r}: {unresolved}")
             return
         fail(f"local-context: {label} did not fail closed")
 
@@ -1601,94 +1592,120 @@ def validate_local_context_resolution() -> None:
         global_config = base / "global.gitconfig"
         # A global declaration must never apply: only the repository's own config counts.
         write(global_config, f"[user]\n\tname = Check\n\temail = check@example.invalid\n[skills]\n\tlocalRoot = {base}\n")
-        with isolated_git_environment(global_config):
-            checkout = base / "checkout"
-            checkout.mkdir()
-            git(checkout, "init", "-q", "-b", "main")
-            write(checkout / "AGENTS.md", "tracked instructions\n")
-            write(checkout / ".gitignore", ".scratch/\ndocs/agents/\n.env\n")
-            git(checkout, "add", "AGENTS.md", ".gitignore")
-            git(checkout, "commit", "-q", "-m", "init")
-            write(checkout / "docs/agents/issue-tracker.md", "local tracker contract\n")
-            write(checkout / ".scratch/feature/spec.md", "Approved\n")
-            write(checkout / ".scratch/feature/issues/01-first.md", "Status: ready-for-agent\n")
-            write(checkout / ".env", "SECRET=1\n")
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": str(global_config), "GIT_CONFIG_NOSYSTEM": "1"}
 
-            # A single ordinary checkout needs no configuration and keeps `.scratch/` where it was.
-            if resolve_local_root(checkout) != checkout or resolve_local_tracker(checkout) != checkout / ".scratch":
-                fail("local-context: a single checkout no longer resolves its own .scratch/")
-            if status(resolve_local_tracker(checkout), "01-first.md") != "ready-for-agent":
-                fail("local-context: a single checkout cannot read its tracker")
-            contract = resolve_read_only_context(checkout, "docs/agents/issue-tracker.md", required=True)
-            if contract != checkout / "docs/agents/issue-tracker.md":
-                fail("local-context: a single checkout cannot read its local-only tracker contract")
-            expect_missing("an environment file", lambda: resolve_read_only_context(checkout, ".env", required=False), "not classified")
+        def git(working_copy: Path, *arguments: str) -> None:
+            result = git_output(working_copy, ("git", *arguments), env)
+            if result.returncode != 0:
+                fail(f"local-context fixture: git {' '.join(arguments)} failed: {result.stderr.strip()}")
 
-            # Undeclared linked worktrees fail closed instead of forking or finding a primary checkout.
-            first, second = base / "worktree-a", base / "worktree-b"
-            git(checkout, "worktree", "add", "-q", "-b", "a", str(first))
-            git(checkout, "worktree", "add", "-q", "-b", "b", str(second))
-            expect_missing("an undeclared linked worktree", lambda: resolve_local_tracker(first), "linked worktree", "skills.localRoot")
-            expect_missing(
-                "a required contract in an undeclared linked worktree",
-                lambda: resolve_read_only_context(first, "docs/agents/issue-tracker.md", required=True),
-                "docs/agents/issue-tracker.md", str(first / "docs/agents/issue-tracker.md"), "skills.localRoot",
-            )
-            if resolve_read_only_context(first, "GLOSSARY.md", required=False) is not None:
-                fail("local-context: absent optional context must still be skipped silently")
-            if resolve_read_only_context(first, "AGENTS.md", required=True) != first / "AGENTS.md":
-                fail("local-context: tracked context must come from the working copy")
-            if resolve_local_root(checkout) != checkout:
-                fail("local-context: adding worktrees changed the original checkout's behavior")
+        def root(working_copy: Path) -> Path:
+            return resolve_local_root(working_copy, env)
 
-            # Migrate: move the local-only context to a dedicated root outside every working copy,
-            # then declare it once from any worktree.
-            shared = base / "local-root"
-            (shared / "docs").mkdir(parents=True)
-            shutil.move(str(checkout / ".scratch"), str(shared / ".scratch"))
-            shutil.move(str(checkout / "docs/agents"), str(shared / "docs/agents"))
-            git(first, "config", "--local", "skills.localRoot", str(shared))
-            for working_copy in (checkout, first, second):
-                if resolve_local_tracker(working_copy) != shared / ".scratch":
-                    fail(f"local-context: {working_copy.name} does not resolve the declared tracker")
-            if resolve_read_only_context(second, "docs/agents/issue-tracker.md", required=True) != shared / "docs/agents/issue-tracker.md":
-                fail("local-context: a linked worktree cannot read the declared local-only contract")
+        def tracker(working_copy: Path) -> Path:
+            return resolve_local_tracker(working_copy, env)
 
-            # A claim, a resolution, and a frontier promotion made in one worktree are seen in the other.
-            set_status(resolve_local_tracker(first), "01-first.md", "claimed")
-            if status(resolve_local_tracker(second), "01-first.md") != "claimed":
-                fail("local-context: a claim in one worktree is invisible to another")
-            write(resolve_local_tracker(second) / "feature/issues/02-second.md", "Blocked by: 01\nStatus: planned\n")
-            set_status(resolve_local_tracker(second), "01-first.md", "resolved")
-            set_status(resolve_local_tracker(second), "02-second.md", "ready-for-agent")
-            if (status(resolve_local_tracker(first), "01-first.md"), status(resolve_local_tracker(first), "02-second.md")) != (
-                "resolved", "ready-for-agent",
-            ):
-                fail("local-context: a resolution or frontier promotion in one worktree is invisible to another")
-            write(second / ".scratch/feature/issues/01-first.md", "Status: ready-for-agent\n")
-            if status(resolve_local_tracker(second), "01-first.md") != "resolved":
-                fail("local-context: a stray per-worktree .scratch/ copy shadowed the shared tracker")
-            if (first / ".scratch").exists() or (first / "docs/agents").exists():
-                fail("local-context: resolution copied local context into a working copy")
+        def context(working_copy: Path, relative: str, *, required: bool) -> Path | None:
+            return resolve_read_only_context(working_copy, relative, required=required, env=env)
 
-            # Invalid declarations fail closed rather than falling back to the working copy.
-            git(first, "config", "--local", "skills.localRoot", "relative/root")
-            expect_missing("a relative declaration", lambda: resolve_local_tracker(checkout), "not an absolute path")
-            git(first, "config", "--local", "skills.localRoot", str(base / "absent"))
-            expect_missing("a missing declared directory", lambda: resolve_local_tracker(second), "not an existing directory")
+        checkout = base / "checkout"
+        checkout.mkdir()
+        git(checkout, "init", "-q", "-b", "main")
+        write(checkout / "AGENTS.md", "tracked instructions\n")
+        write(checkout / ".gitignore", ".scratch/\ndocs/agents/\n.env\n")
+        git(checkout, "add", "AGENTS.md", ".gitignore")
+        git(checkout, "commit", "-q", "-m", "init")
+        write(checkout / "docs/agents/issue-tracker.md", "local tracker contract\n")
+        write(checkout / ".scratch/feature/spec.md", "Approved\n")
+        write(checkout / ".scratch/feature/issues/01-first.md", "Status: ready-for-agent\n")
+        write(checkout / ".env", "SECRET=1\n")
 
-            # No primary worktree at all: worktrees of a bare repository share one declared root.
-            hub = base / "hub.git"
-            git(base, "clone", "-q", "--bare", str(checkout), str(hub))
-            left, right = base / "left", base / "right"
-            git(hub, "worktree", "add", "-q", str(left), "main")
-            git(hub, "worktree", "add", "-q", "-b", "right", str(right))
-            expect_missing("an undeclared worktree of a bare repository", lambda: resolve_local_tracker(left), "skills.localRoot")
-            git(right, "config", "--local", "skills.localRoot", str(shared))
-            if {resolve_local_tracker(left), resolve_local_tracker(right)} != {shared / ".scratch"}:
-                fail("local-context: worktrees of a bare repository do not share the declared tracker")
-            if status(resolve_local_tracker(left), "01-first.md") != "resolved":
-                fail("local-context: a bare repository's worktree cannot read the shared tracker")
+        # A single ordinary checkout needs no configuration and keeps `.scratch/` where it was.
+        if root(checkout) != checkout or tracker(checkout) != checkout / ".scratch":
+            fail("local-context: a single checkout no longer resolves its own .scratch/")
+        if status(tracker(checkout), "01-first.md") != "ready-for-agent":
+            fail("local-context: a single checkout cannot read its tracker")
+        if context(checkout, "docs/agents/issue-tracker.md", required=True) != checkout / "docs/agents/issue-tracker.md":
+            fail("local-context: a single checkout cannot read its local-only tracker contract")
+        expect_unresolved("an environment file", lambda: context(checkout, ".env", required=False), "not classified")
+
+        # A separate clone is its own ordinary checkout: it never joins or forks the tracker silently.
+        clone = base / "clone"
+        git(base, "clone", "-q", str(checkout), str(clone))
+        expect_unresolved("a clone without tracker state", lambda: tracker(clone), str(clone / ".scratch"))
+
+        # Undeclared linked worktrees fail closed instead of forking or finding a primary checkout.
+        first, second = base / "worktree-a", base / "worktree-b"
+        git(checkout, "worktree", "add", "-q", "-b", "a", str(first))
+        git(checkout, "worktree", "add", "-q", "-b", "b", str(second))
+        expect_unresolved("an undeclared linked worktree", lambda: tracker(first), "linked worktree", "skills.localRoot")
+        expect_unresolved(
+            "a required contract in an undeclared linked worktree",
+            lambda: context(first, "docs/agents/issue-tracker.md", required=True),
+            "docs/agents/issue-tracker.md", str(first / "docs/agents/issue-tracker.md"), "skills.localRoot",
+        )
+        if context(first, "GLOSSARY.md", required=False) is not None:
+            fail("local-context: absent optional context must still be skipped silently")
+        if context(first, "AGENTS.md", required=True) != first / "AGENTS.md":
+            fail("local-context: tracked context must come from the working copy")
+        if root(checkout) != checkout:
+            fail("local-context: adding worktrees changed the original checkout's behavior")
+
+        # Migrate: move the local-only context to a dedicated root outside every working copy,
+        # then declare it once from any worktree.
+        shared = base / "local-root"
+        (shared / "docs").mkdir(parents=True)
+        shutil.move(str(checkout / ".scratch"), str(shared / ".scratch"))
+        shutil.move(str(checkout / "docs/agents"), str(shared / "docs/agents"))
+        git(first, "config", "--local", "skills.localRoot", str(shared))
+        for working_copy in (checkout, first, second):
+            if tracker(working_copy) != shared / ".scratch":
+                fail(f"local-context: {working_copy.name} does not resolve the declared tracker")
+        if context(second, "docs/agents/issue-tracker.md", required=True) != shared / "docs/agents/issue-tracker.md":
+            fail("local-context: a linked worktree cannot read the declared local-only contract")
+
+        # A claim, a resolution, and a frontier promotion made in one worktree are seen in the other.
+        set_status(tracker(first), "01-first.md", "claimed")
+        if status(tracker(second), "01-first.md") != "claimed":
+            fail("local-context: a claim in one worktree is invisible to another")
+        write(tracker(second) / "feature/issues/02-second.md", "Blocked by: 01\nStatus: planned\n")
+        set_status(tracker(second), "01-first.md", "resolved")
+        set_status(tracker(second), "02-second.md", "ready-for-agent")
+        if (status(tracker(first), "01-first.md"), status(tracker(first), "02-second.md")) != ("resolved", "ready-for-agent"):
+            fail("local-context: a resolution or frontier promotion in one worktree is invisible to another")
+        write(second / ".scratch/feature/issues/01-first.md", "Status: ready-for-agent\n")
+        if status(tracker(second), "01-first.md") != "resolved":
+            fail("local-context: a stray per-worktree .scratch/ copy shadowed the shared tracker")
+        if (first / ".scratch").exists() or (first / "docs/agents").exists():
+            fail("local-context: resolution copied local context into a working copy")
+
+        # A clone joins the shared tracker only by declaring the same local root.
+        git(clone, "config", "--local", "skills.localRoot", str(shared))
+        if status(tracker(clone), "02-second.md") != "ready-for-agent":
+            fail("local-context: a clone that declares the local root does not share the tracker")
+
+        # Invalid declarations and an absent tracker fail closed rather than falling back to the working copy.
+        git(first, "config", "--local", "skills.localRoot", "relative/root")
+        expect_unresolved("a relative declaration", lambda: tracker(checkout), "not an absolute path")
+        git(first, "config", "--local", "skills.localRoot", str(base / "absent"))
+        expect_unresolved("a missing declared directory", lambda: tracker(second), "not an existing directory")
+        empty = base / "empty-root"
+        empty.mkdir()
+        git(first, "config", "--local", "skills.localRoot", str(empty))
+        expect_unresolved("an absent tracker under the local root", lambda: tracker(second), str(empty / ".scratch"))
+
+        # No primary worktree at all: worktrees of a bare repository share one declared root.
+        hub = base / "hub.git"
+        git(base, "clone", "-q", "--bare", str(checkout), str(hub))
+        left, right = base / "left", base / "right"
+        git(hub, "worktree", "add", "-q", str(left), "main")
+        git(hub, "worktree", "add", "-q", "-b", "right", str(right))
+        expect_unresolved("an undeclared worktree of a bare repository", lambda: tracker(left), "skills.localRoot")
+        git(right, "config", "--local", "skills.localRoot", str(shared))
+        if {tracker(left), tracker(right)} != {shared / ".scratch"}:
+            fail("local-context: worktrees of a bare repository do not share the declared tracker")
+        if status(tracker(left), "01-first.md") != "resolved":
+            fail("local-context: a bare repository's worktree cannot read the shared tracker")
 
 
 def validate_local_context_contract() -> None:
@@ -1699,16 +1716,17 @@ def validate_local_context_contract() -> None:
 
     skill = read("skills/local-context/SKILL.md")
     for required in (
-        LOCAL_ROOT_DECLARATION, LOCAL_ROOT_GIT_DIR, LOCAL_ROOT_COMMON_DIR, LOCAL_ROOT_TOPLEVEL,
+        *(shell_words(command) for command in LOCAL_ROOT_COMMANDS),
         "Read-only local context", "Mutable shared workflow state",
         "Never search for a main worktree",
         "stop and report",
+        "Never treat an absent tracker as empty",
         "never copy or link",
         "secrets, environment files, credentials, caches, build output",
     ):
         if required not in skill:
             fail(f"skills/local-context/SKILL.md: convention is missing {required!r}")
-    for name in sorted(READ_ONLY_LOCAL_CONTEXT_FILES - {"CONTEXT.md", "CONTEXT-MAP.md"}):
+    for name in READ_ONLY_ROOT_FILES:
         if f"`{name}`" not in skill:
             fail(f"skills/local-context/SKILL.md: read-only local context does not classify {name}")
 
@@ -1720,7 +1738,8 @@ def validate_local_context_contract() -> None:
     appliers = (
         "skills/setup-skills/SKILL.md", "skills/setup-skills/issue-tracker-local.md", "skills/setup-skills/domain.md",
         "skills/implement/SKILL.md", "skills/reconcile/SKILL.md", "skills/to-tickets/SKILL.md",
-        "skills/implementation-review/SKILL.md", "skills/write-pr/SKILL.md",
+        "skills/implementation-review/SKILL.md", "skills/write-pr/SKILL.md", "skills/wayfinder/SKILL.md",
+        "skills/triage/SKILL.md", "skills/to-spec/SKILL.md",
     )
     for relative in appliers:
         if "`local-context`" not in read(relative):
