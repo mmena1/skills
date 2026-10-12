@@ -101,6 +101,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 - [`diagnosing-bugs`](./skills/diagnosing-bugs/SKILL.md): A diagnosis loop for hard bugs and performance regressions.
 - [`domain-modeling`](./skills/domain-modeling/SKILL.md): Build and sharpen project terminology, glossaries, and ADRs.
 - [`grilling`](./skills/grilling/SKILL.md): The reusable decision-tree interview discipline.
+- [`local-context`](./skills/local-context/SKILL.md): Resolve local-only repository context and the local tracker from any working copy or linked worktree.
 - [`prototype`](./skills/prototype/SKILL.md): Build throwaway code that answers a design question.
 - [`research`](./skills/research/SKILL.md): Investigate a question against primary sources and capture cited findings.
 - [`tdd`](./skills/tdd/SKILL.md): Test-driven development through a red-green-refactor loop.

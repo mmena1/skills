@@ -23,9 +23,9 @@ This workflow handles pull-request preparation and handoff, not implementation o
 
 ## Required repository contract
 
-Before analyzing the branch, read the repository's `AGENTS.md` files and referenced workflow documents. A repository must contain `docs/agents/issue-tracker.md`.
+Before analyzing the branch, read the repository's `AGENTS.md` files and referenced workflow documents. A repository must contain `docs/agents/issue-tracker.md`. Apply the `local-context` skill to find it and local tracker state when they are local-only.
 
-If `docs/agents/issue-tracker.md` is missing, stop and tell the user to run `setup-skills` before continuing. Do not infer where issues or specifications live when the repository contract is absent.
+If `docs/agents/issue-tracker.md` is missing from both the working copy and the local root, stop, report where `local-context` looked, and tell the user to run `setup-skills` before continuing. Do not infer where issues or specifications live when the repository contract is absent.
 
 Read `docs/agents/issue-tracker.md` and follow its instructions for locating the issue, specification, or task that explains the branch, including tracker-defined PR/merge linkage, closure, and handoff requirements. Read the repository's PR template when one exists. Repository-specific rules may override every default in this skill, including the primary remote, base branch, verification commands, and pull-request creation command.
 

@@ -46,7 +46,8 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root, and the legacy `CONTEXT.md` and `CONTEXT-MAP.md` they replace (including per-context legacy files that a map points to)
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: does this skill's prior output already exist?
-- `.scratch/`: a sign that a local-markdown issue tracker convention is already in use
+- `.scratch/`: a sign that a local-markdown issue tracker convention is already in use. Apply the `local-context` skill to find it: from a linked worktree it lives under the declared local root, not in the working copy.
+- Local context: `git worktree list`, the `skills.localRoot` declaration the `local-context` skill reads, and which classified read-only local context (instruction files and local instruction overrides such as `AGENTS.local.md`, `docs/agents/`, glossaries, ADRs) is local-only. A file is local-only when `git check-ignore -q -- <path>` succeeds. Report classified files that are untracked but not ignored: linked worktrees cannot resolve them until they are ignored, for example in `.git/info/exclude`, which every worktree shares. Offer that exclusion and write it only after confirmation. Decides whether Section D runs.
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.
 - Monorepo signals: a `pnpm-workspace.yaml`, a `workspaces` field in `package.json`, or a populated `packages/*` with its own `src/`. These are present only in a genuinely large multi-package repo; their absence means single-context, which is almost every repo.
 
@@ -65,7 +66,7 @@ An older contract that refreshes only the trigger's normal scope is missing affe
 
 Summarise what's present and what's missing. Then take the sections in order. One section, one answer, then the next.
 
-Lead each section with the recommended answer so the user can accept it in a word. Give a one-line explainer only when the choice genuinely branches; skip the section entirely when exploration already settled it (Section B when `triage` isn't installed, Section C when there's no monorepo).
+Lead each section with the recommended answer so the user can accept it in a word. Give a one-line explainer only when the choice genuinely branches; skip the section entirely when exploration already settled it (Section B when `triage` isn't installed, Section C when there's no monorepo, Section D when the repository needs no local root declaration).
 
 **Section A: Issue tracker.**
 
@@ -100,6 +101,10 @@ Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSS
 - Update every reference in the files this skill wrote (the `## Agent skills` block and `docs/agents/domain.md`) to the new names, leaving the rest of those files unchanged. Report other references to the legacy names that this skill did not write, such as prose in other docs, without editing them.
 - If the user declines, change nothing. The skills still read the legacy files.
 
+**Section D: Local root.** Skip this section when the repository has no linked worktrees, or when it keeps no local-markdown tracker and no local-only classified context: a single checkout keeps working with no configuration. Also skip it when a valid local root is already declared.
+
+Otherwise, apply the `local-context` skill and recommend declaring a local root with `git config --local skills.localRoot <absolute-path>`, so every worktree observes one tracker and reads the same local-only context. Recommend a dedicated directory outside every working copy; the alternative is the existing checkout that already holds the context, which then must stay in place. Without a declaration, linked worktrees stop and report the missing local root instead of forking state. For a dedicated directory, list each path to move (the `.scratch/` directory and each local-only classified file, never other ignored content) and its destination. Move only after confirmation, never copy, and leave any stray per-worktree `.scratch/` copy for the user to reconcile.
+
 ### 3. Confirm and edit
 
 Show the user a draft of:
@@ -107,6 +112,7 @@ Show the user a draft of:
 - The `## Agent skills` block to add to the selected existing instruction file, or to `AGENTS.md` when none exists (see step 4 for selection rules)
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md` (the last only when `triage` is installed)
 - Any glossary migration renames and reference updates, as a list of old and new paths
+- Any local root declaration from Section D, with the moves it needs
 
 Let them edit before writing.
 
@@ -123,7 +129,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus any stale standalone authority wording: the retired standalone record's authority and `/reconcile` wording, an incomplete Agent Brief rule, an undeclared mode, or the losing side of an ambiguous one. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
+In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus any stale standalone authority wording: the retired standalone record's authority and `/reconcile` wording, an incomplete Agent Brief rule, an undeclared mode, or the losing side of an ambiguous one. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists, and so is a confirmed local root declaration (Section D), limited to the declaration and the moves it lists.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -172,6 +178,8 @@ Validate the expanded reconciliation behavior as well as capability presence: di
 If any capability is still missing, report the setup or migration as incomplete and name each remaining missing capability. Never report it as complete while a gap remains.
 
 When the file was already up to date and no edit was made, the exploration check is this validation.
+
+After a local root declaration, resolve the local root again from the working copy with the `local-context` skill and confirm that it names the declared directory and that the local tracker and every moved file are there. Report a declaration that fails to resolve as incomplete.
 
 ### 6. Done
 

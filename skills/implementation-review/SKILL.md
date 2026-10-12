@@ -12,7 +12,7 @@ Both axes run as **parallel sub-agents** so they don't pollute each other's cont
 
 Run this workflow for explicit implementation-conformance review or when an already-invoked workflow composes it with a fixed point and source. Do not select it for generic PR review requests or broad defect-discovery tasks. Those requests must not trigger implementation-review; deep-review remains explicit-only.
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-skills`.
+The issue tracker should have been provided to you. Apply the `local-context` skill to find `docs/agents/issue-tracker.md` and local tracker state when they are local-only. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-skills`, including where `local-context` looked.
 
 ## Process
 
@@ -31,7 +31,7 @@ Look for the originating spec, in this order:
 1. A source bundle supplied by the caller. For an implementation ticket, this is the ticket for scope and acceptance criteria plus its approved parent or spec for architecture and settled decisions.
 2. Issue references in the commit messages, fetched via the workflow in `docs/agents/issue-tracker.md`.
 3. A path the user passed as an argument.
-4. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+4. A spec file under `docs/`, `specs/`, or the local tracker's `.scratch/` (resolved with `local-context`) matching the branch name or feature.
 5. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
 When the source bundle contains both a ticket and parent, preserve their roles. The ticket controls scope; the approved parent controls architecture. Report contradictions instead of silently choosing one.

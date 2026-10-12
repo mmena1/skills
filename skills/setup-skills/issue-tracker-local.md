@@ -1,6 +1,10 @@
 # Issue tracker: Local Markdown
 
-Issues and specs for this repo live as markdown files in `.scratch/`.
+Issues and specs for this repo live as markdown files in `.scratch/` under the local root.
+
+## Tracker location
+
+Apply the `local-context` skill to resolve the local root from the working copy you run in. The tracker's one authoritative location is `.scratch/` under the local root: in an ordinary checkout with no declared `skills.localRoot`, that is the checkout's own `.scratch/`, as before; with a declaration, every working copy of this repository reads and writes the same directory. Every `.scratch/` path below means that directory. Follow `local-context` for stray per-worktree copies and for stopping when the local root or the tracker state you need does not resolve.
 
 ## Conventions
 
