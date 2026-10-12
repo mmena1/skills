@@ -1753,6 +1753,38 @@ def validate_local_context_resolution() -> None:
         if context(first, "AGENTS.local.md", required=False) is not None:
             fail("local-context: an undeclared worktree must skip an absent optional instruction override")
 
+        # The reviewer's reproduction, verbatim on the other branch: ignore AGENTS.md, force-add and commit
+        # it, then delete it. The declared checkout also keeps AGENTS.md tracked while ignoring it, so
+        # check-ignore succeeds on both sides and only the local root's tracking decides.
+        git(checkout, "config", "--local", "skills.localRoot", str(checkout))
+        write(checkout / ".gitignore", ".scratch/\ndocs/agents/\n.env\nAGENTS.md\n")
+        git(checkout, "commit", "-q", "-am", "ignore AGENTS.md while it stays tracked")
+        write(second / ".gitignore", ".scratch/\ndocs/agents/\n.env\nAGENTS.md\n")
+        write(second / "AGENTS.md", "branch instructions\n")
+        git(second, "add", "-f", "AGENTS.md", ".gitignore")
+        git(second, "commit", "-q", "-m", "force-add ignored instructions")
+        git(second, "rm", "-q", "AGENTS.md")
+        git(second, "commit", "-q", "-m", "delete the force-added instructions")
+        git(second, "check-ignore", "-q", "--", "AGENTS.md")
+        if context(second, "AGENTS.md", required=False) is not None:
+            fail("local-context: a force-added file the branch deleted was read back from the local root")
+        expect_unresolved(
+            "a required force-added file the branch deleted", lambda: context(second, "AGENTS.md", required=True),
+            str(second / "AGENTS.md"), "is tracked there",
+        )
+
+        # Moving a file from tracked to local-only is still supported: once the local root's checkout
+        # untracks and ignores it, every worktree reads it there.
+        write(checkout / "CLAUDE.md", "instructions about to become local-only\n")
+        git(checkout, "add", "CLAUDE.md")
+        git(checkout, "commit", "-q", "-m", "track CLAUDE.md")
+        git(checkout, "rm", "-q", "--cached", "CLAUDE.md")
+        write(checkout / ".git/info/exclude", "AGENTS.local.md\nCLAUDE.md\n")
+        git(checkout, "commit", "-q", "-m", "keep CLAUDE.md local-only")
+        for working_copy in (first, second):
+            if context(working_copy, "CLAUDE.md", required=True) != checkout / "CLAUDE.md":
+                fail(f"local-context: {working_copy.name} cannot read a file moved from tracked to local-only")
+
         # No primary worktree at all: worktrees of a bare repository share one declared root.
         hub = base / "hub.git"
         git(base, "clone", "-q", "--bare", str(checkout), str(hub))
