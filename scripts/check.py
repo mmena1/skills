@@ -153,8 +153,11 @@ LOCAL_ROOT_COMMON_DIR = ("git", "rev-parse", "--path-format=absolute", "--git-co
 LOCAL_ROOT_TOPLEVEL = ("git", "rev-parse", "--show-toplevel")
 # Followed by the repository-relative path; succeeds only when the working copy's Git ignores it.
 LOCAL_ONLY_CHECK = ("git", "check-ignore", "-q", "--")
+# Run in the local root, followed by the path; succeeds when the local root's own Git tracks it.
+LOCAL_ROOT_TRACKED_CHECK = ("git", "ls-files", "--error-unmatch", "--")
 LOCAL_ROOT_COMMANDS = (
     LOCAL_ROOT_DECLARATION, LOCAL_ROOT_GIT_DIR, LOCAL_ROOT_COMMON_DIR, LOCAL_ROOT_TOPLEVEL, LOCAL_ONLY_CHECK,
+    LOCAL_ROOT_TRACKED_CHECK,
 )
 # Root files the skill names; per-context glossaries and ADR directories are matched by shape.
 READ_ONLY_ROOT_FILES = (
@@ -1558,7 +1561,12 @@ def resolve_read_only_context(
             raise LocalContextUnresolved(f"{relative} is missing; looked in {local}; {missing}") from None
         return None
     if candidate.exists():
-        return candidate
+        # A copy the local root's own checkout tracks is that branch's file, not local-only context.
+        if git_output(candidate.parent, (*LOCAL_ROOT_TRACKED_CHECK, candidate.name), env).returncode != 0:
+            return candidate
+        if required:
+            raise LocalContextUnresolved(f"{relative} is missing; looked in {local}, and {candidate} is tracked there")
+        return None
     if required:
         raise LocalContextUnresolved(f"{relative} is missing; looked in {local} and {candidate}")
     return None
@@ -1731,6 +1739,13 @@ def validate_local_context_resolution() -> None:
         )
         if context(second, "AGENTS.md", required=True) != second / "AGENTS.md":
             fail("local-context: a branch that still tracks AGENTS.md must read its own copy")
+        # Ignoring a path does not make a tracked-history deletion local-only: the branch now ignores
+        # AGENTS.md, but the local root's checkout still tracks it, so its copy is another branch's file.
+        write(first / ".gitignore", ".scratch/\ndocs/agents/\n.env\nAGENTS.md\n")
+        git(first, "commit", "-q", "-am", "ignore the deleted instructions")
+        git(first, "check-ignore", "-q", "--", "AGENTS.md")
+        if context(first, "AGENTS.md", required=False) is not None:
+            fail("local-context: an ignored path the branch deleted was read back from a checkout that tracks it")
         for working_copy in (first, second):
             if context(working_copy, "AGENTS.local.md", required=True) != checkout / "AGENTS.local.md":
                 fail(f"local-context: {working_copy.name} cannot read the ignored local instruction override")
