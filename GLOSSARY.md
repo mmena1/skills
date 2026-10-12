@@ -27,7 +27,7 @@ The one directory per repository that holds its local-only context: the declared
 _Avoid_: primary checkout, main worktree (the convention never depends on one)
 
 **Read-only local context**:
-Untracked or ignored repository context that skills read but do not change during a run: instruction files, `docs/agents/` configuration, glossaries, and ADRs. Read from the working copy first, then in place under the **Local root**.
+Ignored repository context that skills read but do not change during a run: instruction files and their local overrides such as `AGENTS.local.md`, `docs/agents/` configuration, glossaries, and ADRs.
 
 **Mutable shared workflow state**:
 Untracked repository state that skills change and every worker must observe: the local-markdown **Issue tracker** under `.scratch/`. It lives only under the **Local root**, never in per-worktree copies.

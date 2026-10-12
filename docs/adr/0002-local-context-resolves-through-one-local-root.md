@@ -6,7 +6,7 @@ Skills read repository context that may not be committed (ignored instruction fi
 
 Local-only context is classified into two kinds, and nothing else Git ignores is in scope:
 
-- **Read-only local context**: root instruction files, `docs/agents/`, glossary files, and ADR directories. A skill reads each from the working copy first and, when absent, from the same repository-relative path under the local root, in place.
+- **Read-only local context**: root instruction files and their local overrides (`AGENTS.local.md`, `CLAUDE.local.md`), `docs/agents/`, glossary files, and ADR directories. A skill reads each from the working copy first. Only a file the working copy's Git ignores (`git check-ignore -q -- <path>`) is local-only; when it is absent, the skill reads the same repository-relative path under the local root, in place. A classified file that Git does not ignore is tracked content: when a branch deleted it, it stays absent rather than being read back from a local root that may hold another branch's copy.
 - **Mutable shared workflow state**: the local-markdown tracker. Its only authoritative location is `.scratch/` under the local root, read and written in place from every working copy.
 
 The **local root** is resolved from the working copy alone:

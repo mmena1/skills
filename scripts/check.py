@@ -151,9 +151,15 @@ LOCAL_ROOT_DECLARATION = ("git", "config", "--local", "--type=path", "--get", "s
 LOCAL_ROOT_GIT_DIR = ("git", "rev-parse", "--path-format=absolute", "--git-dir")
 LOCAL_ROOT_COMMON_DIR = ("git", "rev-parse", "--path-format=absolute", "--git-common-dir")
 LOCAL_ROOT_TOPLEVEL = ("git", "rev-parse", "--show-toplevel")
-LOCAL_ROOT_COMMANDS = (LOCAL_ROOT_DECLARATION, LOCAL_ROOT_GIT_DIR, LOCAL_ROOT_COMMON_DIR, LOCAL_ROOT_TOPLEVEL)
+# Followed by the repository-relative path; succeeds only when the working copy's Git ignores it.
+LOCAL_ONLY_CHECK = ("git", "check-ignore", "-q", "--")
+LOCAL_ROOT_COMMANDS = (
+    LOCAL_ROOT_DECLARATION, LOCAL_ROOT_GIT_DIR, LOCAL_ROOT_COMMON_DIR, LOCAL_ROOT_TOPLEVEL, LOCAL_ONLY_CHECK,
+)
 # Root files the skill names; per-context glossaries and ADR directories are matched by shape.
-READ_ONLY_ROOT_FILES = ("AGENTS.md", "CLAUDE.md", "GLOSSARY.md", "GLOSSARY-MAP.md")
+READ_ONLY_ROOT_FILES = (
+    "AGENTS.md", "CLAUDE.md", "AGENTS.local.md", "CLAUDE.local.md", "GLOSSARY.md", "GLOSSARY-MAP.md",
+)
 LEGACY_READ_ONLY_ROOT_FILES = ("CONTEXT.md", "CONTEXT-MAP.md")
 GLOSSARY_FILE_NAMES = {"GLOSSARY.md", "CONTEXT.md"}
 USER_INVOKED_SKILLS = {
@@ -1534,12 +1540,17 @@ def is_read_only_local_context(relative: str) -> bool:
 def resolve_read_only_context(
     working_copy: Path, relative: str, *, required: bool, env: dict[str, str] | None = None,
 ) -> Path | None:
-    """The working copy's file wins; an absent one is read in place under the local root."""
+    """The working copy's file wins; an absent ignored one is read in place under the local root."""
     if not is_read_only_local_context(relative):
         raise LocalContextUnresolved(f"{relative} is not classified read-only local context")
     local = Path(git_value(working_copy, LOCAL_ROOT_TOPLEVEL, env)) / relative
     if local.exists():
         return local
+    if git_output(working_copy, (*LOCAL_ONLY_CHECK, relative), env).returncode != 0:
+        # Not ignored, so not local-only: the branch lacks it, and the local root must not supply it.
+        if required:
+            raise LocalContextUnresolved(f"{relative} is missing; looked in {local}, and Git does not ignore it")
+        return None
     try:
         candidate = resolve_local_root(working_copy, env) / relative
     except LocalContextUnresolved as missing:
@@ -1704,6 +1715,29 @@ def validate_local_context_resolution() -> None:
         git(first, "config", "--local", "skills.localRoot", str(empty))
         expect_unresolved("an absent tracker under the local root", lambda: tracker(second), str(empty / ".scratch"))
 
+        # Only ignored content is local-only. With an existing checkout as the declared root, a branch
+        # that deletes tracked AGENTS.md must not read it back, while an ignored local instruction
+        # override (excluded through the shared .git/info/exclude) resolves from every worktree.
+        write(checkout / ".git/info/exclude", "AGENTS.local.md\n")
+        write(checkout / "AGENTS.local.md", "local instruction override\n")
+        git(first, "config", "--local", "skills.localRoot", str(checkout))
+        git(first, "rm", "-q", "AGENTS.md")
+        git(first, "commit", "-q", "-m", "drop instructions on this branch")
+        if context(first, "AGENTS.md", required=False) is not None:
+            fail("local-context: a tracked file the branch deleted was read back from the local root")
+        expect_unresolved(
+            "a required tracked file the branch deleted", lambda: context(first, "AGENTS.md", required=True),
+            str(first / "AGENTS.md"), "does not ignore",
+        )
+        if context(second, "AGENTS.md", required=True) != second / "AGENTS.md":
+            fail("local-context: a branch that still tracks AGENTS.md must read its own copy")
+        for working_copy in (first, second):
+            if context(working_copy, "AGENTS.local.md", required=True) != checkout / "AGENTS.local.md":
+                fail(f"local-context: {working_copy.name} cannot read the ignored local instruction override")
+        git(first, "config", "--local", "--unset", "skills.localRoot")
+        if context(first, "AGENTS.local.md", required=False) is not None:
+            fail("local-context: an undeclared worktree must skip an absent optional instruction override")
+
         # No primary worktree at all: worktrees of a bare repository share one declared root.
         hub = base / "hub.git"
         git(base, "clone", "-q", "--bare", str(checkout), str(hub))
@@ -1727,7 +1761,7 @@ def validate_local_context_contract() -> None:
     skill = read("skills/local-context/SKILL.md")
     for required in (
         *(shell_words(command) for command in LOCAL_ROOT_COMMANDS),
-        "Read-only local context", "Mutable shared workflow state",
+        "Read-only local context", "Mutable shared workflow state", "local instruction overrides",
         "Never search for a main worktree",
         "stop and report",
         "stop and report the missing path and the local root it resolved to",

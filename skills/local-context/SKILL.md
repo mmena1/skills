@@ -1,6 +1,6 @@
 ---
 name: local-context
-description: Resolve a repository's local-only context and local-markdown tracker state from any working copy, including linked Git worktrees and harness-created isolated working copies. Use when a skill needs untracked or ignored repository instruction files, `docs/agents/` configuration, glossaries, or ADRs, or the `.scratch/` tracker, when such context is missing from the working copy, or when declaring where a repository's local context lives.
+description: Resolve a repository's local-only context and local-markdown tracker state from any working copy, including linked Git worktrees and harness-created isolated working copies. Use when a skill needs ignored repository instruction files or local instruction overrides such as `AGENTS.local.md`, `docs/agents/` configuration, glossaries, or ADRs, or the `.scratch/` tracker, when such context is missing from the working copy, or when declaring where a repository's local context lives.
 ---
 
 # Local Context
@@ -11,7 +11,7 @@ Context that Git does not track exists only where someone created it. A linked w
 
 Only the context classified here is in scope. Never read through this convention, copy, link, or expose anything else Git ignores: secrets, environment files, credentials, caches, build output, or any other ignored content.
 
-- **Read-only local context**: content skills read but do not change during a run. It is the repository instruction files `AGENTS.md` and `CLAUDE.md` at the root, the `docs/agents/` configuration, the glossary files `GLOSSARY.md` and `GLOSSARY-MAP.md` with the per-context glossaries a map names (or their legacy `CONTEXT.md` and `CONTEXT-MAP.md` names), and the ADR directories `docs/adr/` and `src/<context>/docs/adr/`.
+- **Read-only local context**: content skills read but do not change during a run. It is the repository instruction files `AGENTS.md` and `CLAUDE.md` at the root and their local instruction overrides `AGENTS.local.md` and `CLAUDE.local.md`, the `docs/agents/` configuration, the glossary files `GLOSSARY.md` and `GLOSSARY-MAP.md` with the per-context glossaries a map names (or their legacy `CONTEXT.md` and `CONTEXT-MAP.md` names), and the ADR directories `docs/adr/` and `src/<context>/docs/adr/`.
 - **Mutable shared workflow state**: content skills change and every worker must observe. It is the local-markdown issue tracker under `.scratch/`: specs, tickets, statuses, claims, maps, and the frontier.
 
 ## Resolve the local root
@@ -28,9 +28,9 @@ Only the repository config counts. A declaration in global or system config, or 
 
 ## Read read-only local context
 
-Read each classified file from the working copy first. A file present there always wins, because it belongs to the commit under work. When it is absent there and a local root exists, read the same repository-relative path under the local root, in place: never copy or link it into the working copy.
+Read each classified file from the working copy first. A file present there always wins, because it belongs to the commit under work. A classified file is local-only only when the working copy's Git ignores it: `git check-ignore -q -- <path>` succeeds, through `.gitignore` or the `.git/info/exclude` file every worktree shares. When a local-only file is absent from the working copy and a local root exists, read the same repository-relative path under the local root, in place: never copy or link it into the working copy. A classified file Git does not ignore is tracked content, so when the working copy lacks it, for example because the branch deleted it, it is absent: never read it from the local root, which may hold another branch's copy.
 
-When a skill requires a classified file, such as `docs/agents/issue-tracker.md` for a tracker-driven run, and neither location holds it, stop and report the missing path, each location checked, and, in an undeclared linked worktree, that the repository declares no `skills.localRoot`. Absent optional context keeps its existing behavior: for example, missing domain docs are still skipped silently.
+When a skill requires a classified file, such as `docs/agents/issue-tracker.md` for a tracker-driven run, and no allowed location holds it, stop and report the missing path, each location checked, and, in an undeclared linked worktree, that the repository declares no `skills.localRoot`. Absent optional context keeps its existing behavior: for example, missing domain docs are still skipped silently.
 
 ## Use mutable shared workflow state
 
