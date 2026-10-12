@@ -10,6 +10,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 Prefer these names. A repository that has not migrated may still hold the legacy `CONTEXT.md` and `CONTEXT-MAP.md` (same content, same roles): read those when the `GLOSSARY` files are absent. Do not keep both; `/setup-skills` offers a content-preserving rename.
 
+When one of these files is untracked or ignored, it is read-only local context: apply the `local-context` skill so a linked worktree reads it from the repository's local root instead of skipping it.
+
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
 ## File structure

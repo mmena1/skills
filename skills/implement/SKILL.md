@@ -16,7 +16,7 @@ This skill consumes the working copy it is started in, which may have a detached
 
 ## 1. Resolve the work and its authority
 
-Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `GLOSSARY.md` (or the legacy `CONTEXT.md` when it is absent), and ADRs governing the area.
+Read the repository instructions first. Then read `docs/agents/issue-tracker.md`, `docs/agents/domain.md` when present, the applicable `GLOSSARY.md` (or the legacy `CONTEXT.md` when it is absent), and ADRs governing the area. Apply the `local-context` skill to find any of these that are local-only, and to locate local tracker state, from the working copy you were started in; when it reports required context or tracker state missing, stop with its report before any tracker or worktree write.
 
 For a ticket-driven run, require `docs/agents/issue-tracker.md` to define all six implementation operations: implementation-ready state, direct parent or spec lookup, blocker checks, claim, resolve, and frontier promotion. If the file is missing or predates this contract, stop and tell the user to re-run `/setup-skills` to migrate it. Do not infer missing tracker behavior. The tracker's standalone authority mode matters only for a parentless ticket, as below; a parent-backed ticket never depends on it, even when that configuration is stale.
 

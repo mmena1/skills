@@ -22,6 +22,16 @@ A canonical state-machine label applied to an **Issue** during triage, such as `
 The strict PR-gate review workflow owned by the `deep-review` skill: parallel read-only scouts propose hypotheses and independent validators adjudicate them. Its own vocabulary (Hypothesis, Finding, Unresolved, review run, publication boundary, and so on) lives in that skill's glossary, not here.
 _Avoid_: implementation review (that is the lighter `implementation-review` skill)
 
+**Local root**:
+The one directory per repository that holds its local-only context: the declared `skills.localRoot`, or an ordinary checkout's own top level when nothing is declared. An undeclared linked worktree has none. The `local-context` skill and ADR-0002 define how it resolves.
+_Avoid_: primary checkout, main worktree (the convention never depends on one)
+
+**Read-only local context**:
+Untracked or ignored repository context that skills read but do not change during a run: instruction files, `docs/agents/` configuration, glossaries, and ADRs. Read from the working copy first, then in place under the **Local root**.
+
+**Mutable shared workflow state**:
+Untracked repository state that skills change and every worker must observe: the local-markdown **Issue tracker** under `.scratch/`. It lives only under the **Local root**, never in per-worktree copies.
+
 **Native reviewer agent**:
 A harness-specific agent definition that a skill ships so the harness can launch a named role with a pinned model and supported tool list. Codex native agents inherit the parent's effective sandbox and approval policy; read-only behavior relies on reviewer instructions within that inherited policy. Only skills whose protocol requires distinct roles ship them.
 
@@ -30,3 +40,4 @@ A harness-specific agent definition that a skill ships so the harness can launch
 - An **Issue tracker** holds many **Issues**.
 - An **Issue** carries one **Triage role** at a time.
 - A **Decision ticket** is an **Issue** and a child of a `wayfinder:map`.
+- A repository has at most one **Local root**, which holds its **Read-only local context** and **Mutable shared workflow state** for every worktree.
