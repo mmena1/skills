@@ -1488,7 +1488,7 @@ def git_output(working_copy: Path, command: tuple[str, ...], env: dict[str, str]
     )
 
 
-def git_value(working_copy: Path, command: tuple[str, ...], env: dict[str, str] | None) -> str:
+def git_value(working_copy: Path, command: tuple[str, ...], env: dict[str, str] | None = None) -> str:
     result = git_output(working_copy, command, env)
     if result.returncode != 0:
         raise LocalContextUnresolved(f"`{shell_words(command)}` failed in {working_copy}: {result.stderr.strip()}")
@@ -1639,6 +1639,10 @@ def validate_local_context_resolution() -> None:
         git(checkout, "worktree", "add", "-q", "-b", "a", str(first))
         git(checkout, "worktree", "add", "-q", "-b", "b", str(second))
         expect_unresolved("an undeclared linked worktree", lambda: tracker(first), "linked worktree", "skills.localRoot")
+        # A harness that copies ignored files into a new worktree does not create a usable fork.
+        shutil.copytree(checkout / ".scratch", second / ".scratch")
+        expect_unresolved("a worktree holding a copied .scratch/", lambda: tracker(second), "linked worktree")
+        shutil.rmtree(second / ".scratch")
         expect_unresolved(
             "a required contract in an undeclared linked worktree",
             lambda: context(first, "docs/agents/issue-tracker.md", required=True),
@@ -1678,6 +1682,12 @@ def validate_local_context_resolution() -> None:
             fail("local-context: a stray per-worktree .scratch/ copy shadowed the shared tracker")
         if (first / ".scratch").exists() or (first / "docs/agents").exists():
             fail("local-context: resolution copied local context into a working copy")
+
+        # Once declared, a whole-directory copy carries the declaration and shares the tracker.
+        copy = base / "copy"
+        shutil.copytree(checkout, copy)
+        if status(tracker(copy), "02-second.md") != "ready-for-agent":
+            fail("local-context: a copied working directory does not share the declared tracker")
 
         # A clone joins the shared tracker only by declaring the same local root.
         git(clone, "config", "--local", "skills.localRoot", str(shared))
@@ -1720,7 +1730,7 @@ def validate_local_context_contract() -> None:
         "Read-only local context", "Mutable shared workflow state",
         "Never search for a main worktree",
         "stop and report",
-        "Never treat an absent tracker as empty",
+        "stop and report the missing path and the local root it resolved to",
         "never copy or link",
         "secrets, environment files, credentials, caches, build output",
     ):

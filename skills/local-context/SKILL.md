@@ -5,7 +5,7 @@ description: Resolve a repository's local-only context and local-markdown tracke
 
 # Local Context
 
-Context that Git does not track exists only where someone created it. A linked worktree or other isolated working copy does not contain it, and a copy of mutable state forks it. This convention says which local-only context skills use, where it lives, and how a skill finds it from any working copy. It never assumes or searches for a primary checkout or main worktree, and it does not depend on any harness's worktree layout. A harness-created working copy shares the local root when it is a linked worktree, when it is a copy that carries the repository's `.git` and so its config, or when its own repository config declares the same local root. A separate clone without a declaration is a different repository as far as Git can tell, so it resolves as an ordinary checkout of its own and never silently joins or forks another tracker: the rules below stop it when it needs tracker state it does not have.
+Context that Git does not track exists only where someone created it. A linked worktree or other isolated working copy does not contain it, and a copy of mutable state forks it. This convention says which local-only context skills use, where it lives, and how a skill finds it from any working copy. It never assumes or searches for a primary checkout or main worktree, and it does not depend on any harness's worktree layout.
 
 ## Classification
 
@@ -22,6 +22,8 @@ The **local root** is the one directory per repository that holds its local-only
 2. **Ordinary checkout**: when nothing is declared, compare `git rev-parse --path-format=absolute --git-dir` with `git rev-parse --path-format=absolute --git-common-dir`. When they name the same directory, the working copy is an ordinary checkout and the local root is `git rev-parse --show-toplevel`. This is the behavior that predates the convention, so a single checkout needs no configuration.
 3. **Undeclared linked worktree**: otherwise there is no local root. Never search for a main worktree, guess sibling directories, or treat the working copy's own top level as the local root.
 
+Once a local root is declared, a harness-created working copy shares it when it is a linked worktree, a directory copy that carries the repository's `.git` and so its config, or a clone whose own repository config declares the same root. Before any declaration, a linked worktree has no local root, but a directory copy or a clone is an ordinary checkout of its own: Git cannot tell a copy from the original, so the copy uses its own top level, including any `.scratch/` copied into it. Declare a local root before anything copies whole working directories.
+
 Only the repository config counts. A declaration in global or system config, or in per-worktree config written with `git config --worktree`, is not a local root. Outside a Git repository, the project directory is the local root, as before.
 
 ## Read read-only local context
@@ -35,7 +37,7 @@ When a skill requires a classified file, such as `docs/agents/issue-tracker.md` 
 The local-markdown tracker's one authoritative location is `.scratch/` under the local root. Every `.scratch/` path in a tracker contract means that directory. Read and write tracker files there, in place, from whichever working copy the skill runs in, so a claim, status change, or frontier promotion made from one worktree is what every other worktree reads.
 
 - Use a working copy's own `.scratch/` only when that working copy is the local root. Never create, copy, or link `.scratch/` into a working copy. Report any other `.scratch/` in the working copy as a stray copy and ignore it.
-- When a run needs existing tracker state (a spec, ticket, map, or frontier) and `.scratch/` or the referenced file is absent under the local root, stop and report the missing path and the local root it resolved to. Never treat an absent tracker as empty.
+- When a run needs existing tracker state (a spec, ticket, map, or frontier) and `.scratch/` or the referenced file is absent under the local root, stop and report the missing path and the local root it resolved to, as for any missing required context.
 - Before creating `.scratch/` itself because it does not exist under the local root yet, report the local root and that a new tracker will start there, so a working copy that resolved as its own local root never starts a second tracker unnoticed.
 - With no local root, local tracker state is unavailable. A skill that needs it must stop and report that the working copy is a linked worktree whose repository declares no `skills.localRoot`, naming the commands it ran. Never start a new tracker in the working copy.
 

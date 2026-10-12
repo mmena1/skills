@@ -10,7 +10,7 @@ triggers:
 
 Break a plan, spec, or conversation into a set of **tickets**: tracer-bullet vertical slices, each declaring the tickets that **block** it.
 
-The issue tracker and triage label vocabulary should have been provided to you; when they are local-only, apply the `local-context` skill to find them and the local tracker from any working copy. Require `docs/agents/issue-tracker.md` to define implementation-ready and planned states, canonical blocker checks, and frontier promotion. If the file is missing or predates that contract, tell the user to run `/setup-skills` to configure or migrate it, then stop.
+The issue tracker and triage label vocabulary should have been provided to you. When they are local-only, apply the `local-context` skill to find them and the local tracker from any working copy. Require `docs/agents/issue-tracker.md` to define implementation-ready and planned states, canonical blocker checks, and frontier promotion. If the file is missing or predates that contract, tell the user to run `/setup-skills` to configure or migrate it, then stop.
 
 ## Process
 
