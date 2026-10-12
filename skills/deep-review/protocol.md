@@ -128,7 +128,7 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - surviving hypotheses: whether every canonical hypothesis received independent static adjudication;
 - capacity-bounded static validation: whether hypotheses exceeding available validator slots were queued in canonical ID order, launched as slots freed, and completed without capacity alone making the run incomplete;
 - multiple selected scouts: whether the complete selected set was dispatched before waiting for any scout to complete;
-- insufficient scout capacity: whether analysis stopped before any partial launch;
+- insufficient scout capacity: whether strict preflight stopped before any scout launched, or launch-time refusal stopped the run as incomplete; for launch-time refusal, whether any scouts started, those scouts finished with their evidence preserved, and no retry, reduction, or substitution occurred;
 - validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe;
 - scout failure: whether running scouts finished, the run became incomplete, and publication/PASS were blocked;
 - validator partial failure: whether completed outcomes survived, queued static hypotheses were still attempted, and writable probing was blocked;
