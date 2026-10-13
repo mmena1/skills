@@ -1696,10 +1696,124 @@ def validate_deep_review_access_contract(skill: Path) -> None:
                 fail(f"the access check accepted a role-specific Codex sandbox for {mechanism}")
 
 
+DEEP_REVIEW_PUBLICATION_RULES = {
+    "references/pr-review-comments.md": (
+        "Resolve the audience before drafting approval candidates",
+        "Use the user's explicit selection",
+        "without an extra confirmation step",
+        "Never infer the audience from the PR author's identity",
+        "Read the selected guide before drafting",
+        "Audience changes wording only: preserve outcomes (including Findings and Unresolved), evidence, severity, "
+        "action classification, overlap dispositions, publication eligibility, approval requirements, and payload validation.",
+        "these publication rules take precedence where they differ",
+        "A later audience change requires redrafting and the same validation and per-comment approval",
+        "Draft inline comments only for Findings and user-selected Unresolved items",
+        "An Unresolved item is posted only after explicit per-item approval and must be a question",
+        "Carry the required outcome and the material constraints from the Finding's recommendation",
+        "`fix-now`: ask",
+        "Require a decision-complete question",
+        "`follow-up`: make the future work's required outcome and scope clear",
+        "Get per-comment approval with scope and anchor",
+        "Validate each payload mechanically against the current head",
+        "path, side, changed-line/range eligibility, and complete range fields",
+        "Also validate semantic representativeness",
+        "re-fetch complete PR discussion and re-check overlap",
+        "Remove newly overlapping open concerns",
+        "route any changed comment body or anchor through validation and per-comment approval again",
+        "Stop if closed, merged, or changed",
+        "comment-audience-scenarios.md",
+    ),
+    "references/pr-review-overlap.md": (
+        "Keep the original outcome and action",
+        "Suppress any new comment for the item",
+        "an Unresolved item keeps its uncertainty",
+        "the open overlap controls suppression",
+        "newly eligible items and any changed body or anchor return through exact payload validation and per-comment approval",
+    ),
+    "protocol.md": (
+        "Preserve independent outcomes, severity, evidence, and action classification",
+        "Take that remedy classification from the validator's Recommendation",
+        "Every Unresolved outcome is separate and always `discuss`",
+    ),
+    "references/review-tone-agent.md": (
+        "`pr-review-comments.md`", "`pr-review-overlap.md`", "take precedence",
+        "State the required outcome and every material constraint from the recommendation",
+        "verification expectations when the existing evidence or recommendation establishes them",
+        "**`fix-now`**: directly request the required outcome",
+        "**`discuss`**: ask a decision-complete question",
+        "judgment calls as questions rather than issuing implementation directives",
+        "informative, non-blocking tone",
+        "uncertainty never becomes an implementation directive",
+    ),
+}
+
+
+def deep_review_audience_problems(documents: dict[str, str]) -> list[str]:
+    """Check the publication instruction interface, not generated comment wording."""
+    publication = documents["references/pr-review-comments.md"]
+    rows = re.findall(
+        r"(?m)^\| (unspecified|`human`|`agent`) \| `(human|agent)` \| `([^`]+)` \|$",
+        publication,
+    )
+    expected = [
+        ("unspecified", "human", "review-tone.md"),
+        ("`human`", "human", "review-tone.md"),
+        ("`agent`", "agent", "review-tone-agent.md"),
+    ]
+    problems = []
+    if rows != expected:
+        problems.append("deep-review publication must route omitted, human, and agent selections to their tone guides")
+    selection_position = publication.find("Resolve the audience before drafting approval candidates")
+    draft_position = publication.find("Draft inline comments only for Findings")
+    if selection_position < 0 or draft_position < 0 or selection_position >= draft_position:
+        problems.append("deep-review must resolve audience before drafting comments")
+    if "references/review-tone-agent.md" not in documents:
+        problems.append("deep-review lacks a separate agent tone guide")
+    for relative, rules in DEEP_REVIEW_PUBLICATION_RULES.items():
+        for rule in rules:
+            if rule not in documents.get(relative, ""):
+                problems.append(f"deep-review/{relative}: missing publication contract {rule!r}")
+    # Tone guides refer to safeguards; they do not own an alternative policy.
+    agent_tone = documents.get("references/review-tone-agent.md", "")
+    for operational_rule in ("headRefOid", "gh api", "per-comment approval", "payload validation",
+                             "Already reported", "20 changed lines"):
+        if operational_rule in agent_tone:
+            problems.append(f"agent tone guide duplicates operational policy {operational_rule!r}")
+    return problems
+
+
+def validate_deep_review_audience_contract(skill: Path) -> None:
+    documents = {path.relative_to(skill).as_posix(): path.read_text(encoding="utf-8")
+                 for path in (skill / "references").glob("*.md")}
+    documents["protocol.md"] = (skill / "protocol.md").read_text(encoding="utf-8")
+    problems = deep_review_audience_problems(documents)
+    if problems:
+        fail(problems[0])
+    # Mutation checks make each routing case observable, including explicit human.
+    for selection, audience, guide in (
+        ("unspecified", "human", "review-tone.md"),
+        ("`human`", "human", "review-tone.md"),
+        ("`agent`", "agent", "review-tone-agent.md"),
+    ):
+        row = f"| {selection} | `{audience}` | `{guide}` |"
+        for replacement in ("", row.replace(f"`{guide}`", "`missing-tone.md`"),
+                            row.replace(f"| `{audience}` |", "| `other` |")):
+            mutated = {**documents, "references/pr-review-comments.md":
+                       documents["references/pr-review-comments.md"].replace(row, replacement)}
+            if not deep_review_audience_problems(mutated):
+                fail(f"the audience check accepted an invalid {selection} route")
+    for relative, rules in DEEP_REVIEW_PUBLICATION_RULES.items():
+        for rule in rules:
+            mutated = {**documents, relative: documents[relative].replace(rule, "")}
+            if not deep_review_audience_problems(mutated):
+                fail(f"the audience check accepted a removed {relative} publication rule")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
     validate_deep_review_access_contract(skill)
+    validate_deep_review_audience_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}
     catalog = deep_review_catalog((skill / "protocol.md").read_text(encoding="utf-8"))
     contract = reviewer_text(skill / "reviewers" / "SCOUT.md")
