@@ -74,8 +74,8 @@ additional procedure. Ordinary regression tests that are not forced by a tempora
 mutation keep the workflow above unchanged.
 
 1. Before changing anything, name the exact target content and the expected change.
-   Save the target's original content or the exact reversible change so the temporary
-   mutation can be restored without discarding unrelated edits.
+   Capture the target's pre-mutation content and the exact reversible change so the
+   temporary mutation can be restored without discarding unrelated edits.
 2. After applying the mutation, inspect the target itself and compare it with the saved
    original. Confirm that the named content changed as expected. A test failure, an
    empty diff, or a diff that only shows unrelated changes is not evidence that the
