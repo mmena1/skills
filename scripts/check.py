@@ -143,7 +143,8 @@ TRACKER_GATE = re.compile(
 )
 # The optional GitHub tracker operation that lets one /implement run treat an open
 # blocker implemented and intact on the current branch as satisfied. It is never a
-# required capability, so a tracker without it stays current and keeps today's gate.
+# required capability, so a tracker without it stays current and keeps the default
+# gate: every blocker must be closed.
 BRANCH_SATISFIED_OPERATION = "- **Branch-satisfied blockers (optional)**:"
 BRANCH_SATISFIED_CONTRACT = (
     "a fact local to that run",
@@ -154,12 +155,13 @@ BRANCH_SATISFIED_CONTRACT = (
     "Ancestry is necessary evidence, not sufficient.",
     "`This reverts commit <sha>` trailer or by an equivalent inverse patch",
     "a stop or failure record after its latest successful record",
-    "neither recorded commits of a ticket in the same chain on this branch nor confirmed by the user",
+    "when a record names no commits",
+    "neither recorded commits of an issue in the same chain on this branch nor confirmed by the user",
     "an open blocker its own record does not name as branch-satisfied",
     "any lookup or permission check fails",
     "Report the failed condition and the commits involved.",
     "substitutes only for the blockers it validates",
-    "as `/reconcile` would classify the ticket if those blockers were closed",
+    "as `/reconcile` would classify the issue if those blockers were closed",
     "never more broadly",
     "equally to parent-backed and standalone dependents",
     "never closes, resolves, relabels, or otherwise mutates the blocker",
@@ -483,6 +485,14 @@ def resolve_agent_brief(issue: dict) -> str | None:
     return None
 
 
+def reconcile_ready(subject: dict, open_blockers: list, held_labels: set = HELD_TRIAGE_STATES) -> bool:
+    """/reconcile's readiness classification for an issue in a validated authority scope."""
+    return (
+        subject["state"] == "OPEN" and not subject.get("assignees") and not open_blockers
+        and not held_labels & set(subject.get("labels", ()))
+    )
+
+
 def standalone_frontier_numbers(issues: list[dict]) -> list[int]:
     """Project readiness across parentless issues that carry a trusted Agent Brief.
 
@@ -493,11 +503,8 @@ def standalone_frontier_numbers(issues: list[dict]) -> list[int]:
     for issue in issues:
         if issue["parent"] is not None or resolve_agent_brief(issue) is None:
             continue
-        if HELD_TRIAGE_STATES & set(issue.get("labels", ())):
-            continue
-        if issue["state"] != "OPEN" or issue["assignees"] or issue["open_blockers"]:
-            continue
-        ready.append(issue["number"])
+        if reconcile_ready(issue, issue["open_blockers"]):
+            ready.append(issue["number"])
     return sorted(ready)
 
 
@@ -552,12 +559,18 @@ def resolve_issue_authority(*, tracker: str, parent: str | None, issue: dict, re
     return None
 
 
+def branch_satisfied_operation(tracker: str) -> str | None:
+    """The optional operation's bullet and its sub-bullets in the implementation workflow, if defined."""
+    section = re.search(r"(?ms)^## Implementation workflow\s*$(.*?)(?=^#{1,2}\s|\Z)", tracker)
+    operation = re.search(
+        rf"(?m)^{re.escape(BRANCH_SATISFIED_OPERATION)}.*\n(?:  - .*\n?)*", section.group(1) if section else "",
+    )
+    return operation.group() if operation else None
+
+
 def tracker_defines_branch_satisfied_blockers(tracker: str) -> bool:
     """Whether the tracker's implementation workflow defines the optional operation."""
-    section = re.search(r"(?ms)^## Implementation workflow\s*$(.*?)(?=^#{1,2}\s|\Z)", tracker)
-    return bool(section) and any(
-        line.startswith(BRANCH_SATISFIED_OPERATION) for line in section.group(1).splitlines()
-    )
+    return branch_satisfied_operation(tracker) is not None
 
 
 def inverse_patch(patch: str) -> str:
@@ -595,9 +608,13 @@ def branch_satisfied_blocker(
         ):
             return "conflicting-records", sorted({sha for record in successes for sha in record["commits"]})
         commits, named = list(latest["commits"]), latest.get("branch_satisfied", [])
-    elif confirmed:
+    elif any(record["outcome"] != "succeeded" for record in trusted) and confirmed is not None:
+        return "conflicting-records", list(confirmed)
+    elif confirmed is not None:
         commits, named = list(confirmed), manual.get("branch_satisfied", [])
     else:
+        return "no-evidence", []
+    if not commits:
         return "no-evidence", []
     reachable = [entry["sha"] for entry in history]
     missing = [sha for sha in commits if sha not in reachable]
@@ -628,7 +645,7 @@ def branch_satisfied_blocker(
 
 def implementation_start_gate(
     *, tracker: str, required: set[str], ticket: dict, branch_satisfaction: dict | None = None,
-    override: bool = False,
+    override: bool = False, held_labels: set = HELD_TRIAGE_STATES,
 ) -> str:
     """Model /implement's authority and ticket-state start gates: "start" or the stop reason.
 
@@ -646,10 +663,7 @@ def implementation_start_gate(
     remaining = [blocker for blocker in ticket["open_blockers"] if blocker not in satisfied]
     ready = ticket["ready"]
     if ticket["open_blockers"] and not remaining:
-        ready = (
-            ticket["state"] == "OPEN" and not ticket.get("assignees")
-            and not HELD_TRIAGE_STATES & set(ticket.get("labels", ()))
-        )
+        ready = reconcile_ready(ticket, remaining, held_labels)
     authority = resolve_issue_authority(
         tracker=tracker, parent=ticket["parent"], issue=ticket, ready_for_agent=ready,
     )
@@ -1336,10 +1350,7 @@ def reconciliation_plan(
             ]
             if blockers:
                 plan["unresolved_blockers"][number] = blockers
-            ready = (
-                subject["state"] == "OPEN" and not subject["assignees"] and not blockers
-                and not held_labels.intersection(subject["labels"])
-            )
+            ready = reconcile_ready(subject, blockers, held_labels)
             marked = ready_label in subject["labels"]
             if ready:
                 plan["frontiers"][scope].append(number)
@@ -1850,7 +1861,7 @@ def validate_branch_satisfied_blockers() -> None:
     for relative, document in (("skills/setup-skills/issue-tracker-github.md", github_seed), ("docs/agents/issue-tracker.md", tracker)):
         if not tracker_defines_branch_satisfied_blockers(document):
             fail(f"{relative}: does not define the optional branch-satisfied blockers operation")
-        operation = next(line for line in document.splitlines() if line.startswith(BRANCH_SATISFIED_OPERATION))
+        operation = branch_satisfied_operation(document)
         for required in BRANCH_SATISFIED_CONTRACT:
             if required not in operation:
                 fail(f"{relative}: branch-satisfied blockers operation is missing {required!r}")
@@ -1865,7 +1876,7 @@ def validate_branch_satisfied_blockers() -> None:
         (implement, "Branch satisfaction is a run-local fact"),
         (implement, "never adds the implementation-ready label"),
         (implement, "is evaluated as `/reconcile` would classify the ticket if its branch-satisfied blockers were closed"),
-        (implement, "A tracker without the operation keeps exactly today's gate"),
+        (implement, "A tracker without the operation keeps the default gate: every blocker must be closed."),
         (implement, "lists each branch-satisfied blocker with its commits and evidence source"),
         (implement, "must not be resolved before those blockers"),
         (write_pr, "Re-validate every branch-satisfied relation in the pull request against the final head"),
@@ -1878,7 +1889,7 @@ def validate_branch_satisfied_blockers() -> None:
 
     # A tracker without the operation, including an existing GitHub configuration, stays current.
     without = {
-        relative: "\n".join(line for line in document.splitlines() if not line.startswith(BRANCH_SATISFIED_OPERATION))
+        relative: document.replace(branch_satisfied_operation(document), "")
         for relative, document in (("the GitHub seed", github_seed), ("this repository's tracker", tracker))
     }
     for label, document in without.items():
@@ -1886,7 +1897,7 @@ def validate_branch_satisfied_blockers() -> None:
             fail(f"{label} without the optional branch-satisfied operation was reported stale")
 
     admin = {"user_type": "User", "permission": "admin"}
-    maintainer = {"user_type": "User", "permission": "write"}
+    writer = {"user_type": "User", "permission": "write"}
 
     def record(*commits, outcome: str = "succeeded", author: dict = admin, created_at: str = "2026-01-02", relied=()) -> dict:
         return {"outcome": outcome, "commits": list(commits), "author": author, "created_at": created_at, "branch_satisfied": list(relied)}
@@ -1905,7 +1916,7 @@ def validate_branch_satisfied_blockers() -> None:
     later = "2026-01-05"
     verdicts = {
         "an intact, claimed blocker with a trusted record": (intact, history, {}, ("satisfied", ["a1", "a2"])),
-        "a maintainer's record": (blocker(record("a1", "a2", author=maintainer)), history, {}, ("satisfied", ["a1", "a2"])),
+        "a writer's record": (blocker(record("a1", "a2", author=writer)), history, {}, ("satisfied", ["a1", "a2"])),
         "a recorded commit implemented on another branch": (
             blocker(record("a1", "a2", "z9")), history, {}, ("missing-commits", ["z9"]),
         ),
@@ -1947,6 +1958,11 @@ def validate_branch_satisfied_blockers() -> None:
         ),
         "manual evidence without user confirmation": (
             blocker(manual={"commits": ["a1", "a2"], "verified": True, "confirmed": False}), history, {}, ("no-evidence", []),
+        ),
+        "a successful record naming no commits": (blocker(record()), history, {}, ("no-evidence", [])),
+        "confirmed manual evidence beside a trusted stop record": (
+            blocker(record(outcome="stopped"), manual={"commits": ["a1", "a2"], "verified": True, "confirmed": True}),
+            history, {}, ("conflicting-records", ["a1", "a2"]),
         ),
         "manual evidence the user confirms": (
             blocker(manual={"commits": ["a1", "a2"], "verified": True, "confirmed": True}), history, {},
@@ -1998,7 +2014,7 @@ def validate_branch_satisfied_blockers() -> None:
         "a parent-backed dependent whose only open blocker is branch-satisfied": ticket("approved"),
         "a standalone dependent with a complete trusted Agent Brief": ticket(None, brief),
         "a standalone dependent with a trusted brief comment": ticket(None, comments=[
-            {"body": brief, "created_at": "2026-01-02", **maintainer},
+            {"body": brief, "created_at": "2026-01-02", **writer},
         ]),
         "a dependent with one closed and one branch-satisfied blocker": ticket("approved", blockers=[9, 10]),
     }
@@ -2038,7 +2054,14 @@ def validate_branch_satisfied_blockers() -> None:
         if found == "start" or found != gate(tracker, subject):
             fail(f"/implement start gate for {label}: expected today's stop, found {found!r}")
 
-    # Without the optional operation the gate is exactly today's, and never a stale-tracker stop.
+    # Held states follow the tracker's triage-label mapping, as reconciliation does.
+    mapped = {f"team:{role}" for role in HELD_TRIAGE_STATES}
+    if gate(tracker, ticket("approved", labels=["team:wontfix"]), satisfied, held_labels=mapped) == "start":
+        fail("/implement started a dependent held by a mapped triage label")
+    if gate(tracker, ticket("approved", labels=["wontfix"]), satisfied, held_labels=mapped) != "start":
+        fail("/implement treated an unmapped label as a held triage state")
+
+    # Without the optional operation the gate is unchanged, and never a stale-tracker stop.
     for label, document in (*without.items(), ("the local seed", local_seed)):
         for subject in (ticket("approved"), ticket(None, brief)):
             found = gate(document, subject, satisfied)
@@ -2070,14 +2093,14 @@ def validate_branch_satisfied_blockers() -> None:
 
     a, b, c = 1, 2, 3
     snapshots = {a: chain_ticket(a, ("a1",)), b: chain_ticket(b, ("b1",), (a,), (a,)), c: chain_ticket(c, ("c1",), (b,), (b,))}
-    first = [commit("base", "README.md"), commit("a1", "a.py")]
-    second = [*first, commit("b1", "b.py", "a.py")]
-    final = [*second, commit("c1", "c.py")]
-    if verdict(snapshots[a], first)[0] != "satisfied" or gate(tracker, ticket("approved", open_blockers=[a]), {a: "satisfied"}) != "start":
+    before_b = [commit("base", "README.md"), commit("a1", "a.py")]
+    before_c = [*before_b, commit("b1", "b.py", "a.py")]
+    final = [*before_c, commit("c1", "c.py")]
+    if verdict(snapshots[a], before_b)[0] != "satisfied" or gate(tracker, ticket("approved", open_blockers=[a]), {a: "satisfied"}) != "start":
         fail("chain A -> B -> C: B did not start with A branch-satisfied")
-    if verdict(snapshots[b], second)[0] != "satisfied" or gate(tracker, ticket(None, brief, open_blockers=[b]), {b: "satisfied"}) != "start":
+    if verdict(snapshots[b], before_c)[0] != "satisfied" or gate(tracker, ticket(None, brief, open_blockers=[b]), {b: "satisfied"}) != "start":
         fail("chain A -> B -> C: C did not start with B branch-satisfied")
-    if verdict(blocker(record("b1"), open_blockers=(a,)), second) != ("unrecorded-blocker", [str(a)]):
+    if verdict(blocker(record("b1"), open_blockers=(a,)), before_c) != ("unrecorded-blocker", [str(a)]):
         fail("chain A -> B -> C: B was valid although its record does not name its branch-satisfied blocker")
     chain_commits = frozenset({"a1", "b1", "c1"})
     if verdict(snapshots[a], final)[0] != "later-path-change":
