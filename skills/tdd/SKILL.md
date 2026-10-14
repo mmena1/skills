@@ -19,7 +19,7 @@ See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking g
 
 A **seam** is the public boundary you test at: the interface where you observe behavior without reaching inside. Tests live at seams, never against internals.
 
-**Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything, so agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.
+**Test only at pre-agreed seams.** Before asking the user to choose, propose the relevant public seams and give each one a concise, one-line description of the observable behavior it can catch and the important behavior it can miss. Describe both sides at that public boundary, so the limitation makes clear what the seam cannot observe or distinguish. Then ask which proposed seams to test. Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything, so agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case. Do not require a fixed seam for every project or feature; when no meaningful candidate is established, ask which public boundary matters.
 
 Ask: "What's the public interface, and which seams should we test?"
 
