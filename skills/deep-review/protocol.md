@@ -168,6 +168,8 @@ Carry each Finding's remediation from the validator's Recommendation without com
 
 Before presenting a result as current/actionable or publishing, re-check target freshness. If the PR head changed, report reviewed and current SHAs, mark the result stale, and require a rerun.
 
+For a confirmed associated PR, include the output template's optional audience note with the findings/publication invitation. Present it as information, not an extra confirmation gate. Audience resolution and drafting remain governed by `references/pr-review-comments.md`.
+
 Use `references/pr-review-comments.md` for publication. Findings may be drafted as established defects. User-selected Unresolved items require explicit per-item approval and must be questions describing evidence and remaining uncertainty. Run the ambiguity check from that reference before presenting each comment for approval. Preserve semantic anchors, changed-line validation, exact payload validation, privacy boundaries, freshness, comment-count verification, and per-comment approval.
 
 ## Cleanup

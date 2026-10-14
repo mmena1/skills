@@ -1734,6 +1734,13 @@ DEEP_REVIEW_PUBLICATION_RULES = {
         "Preserve independent outcomes, severity, evidence, and action classification",
         "Take that remedy classification from the validator's Recommendation",
         "Every Unresolved outcome is separate and always `discuss`",
+        "include the output template's optional audience note with the findings/publication invitation",
+        "Present it as information, not an extra confirmation gate",
+    ),
+    "references/output-template.md": (
+        "**Comment audience:** `human` (default) or `agent`",
+        "include `audience: agent` when requesting publication",
+        "Omitting audience uses human wording without an extra confirmation step",
     ),
     "references/review-tone-agent.md": (
         "`pr-review-comments.md`", "`pr-review-overlap.md`", "take precedence",
@@ -1767,8 +1774,9 @@ def deep_review_audience_problems(documents: dict[str, str]) -> list[str]:
     draft_position = publication.find("Draft inline comments only for Findings")
     if selection_position < 0 or draft_position < 0 or selection_position >= draft_position:
         problems.append("deep-review must resolve audience before drafting comments")
-    if "references/review-tone-agent.md" not in documents:
-        problems.append("deep-review lacks a separate agent tone guide")
+    for guide in {guide for _, _, guide in rows}:
+        if f"references/{guide}" not in documents:
+            problems.append(f"deep-review publication references a missing tone guide: references/{guide}")
     for relative, rules in DEEP_REVIEW_PUBLICATION_RULES.items():
         for rule in rules:
             if rule not in documents.get(relative, ""):
@@ -1790,6 +1798,10 @@ def validate_deep_review_audience_contract(skill: Path) -> None:
     if problems:
         fail(problems[0])
     # Mutation checks make each routing case observable, including explicit human.
+    for guide in ("references/review-tone.md", "references/review-tone-agent.md"):
+        mutated = {relative: content for relative, content in documents.items() if relative != guide}
+        if not deep_review_audience_problems(mutated):
+            fail(f"the audience check accepted a missing {guide}")
     for selection, audience, guide in (
         ("unspecified", "human", "review-tone.md"),
         ("`human`", "human", "review-tone.md"),
