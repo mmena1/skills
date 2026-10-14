@@ -67,7 +67,7 @@ The canonical repository check, `python scripts/check.py`, is the routine fast c
 
 ## Stable and experimental skills
 
-Stable skills live directly under [`skills/`](./skills/). Experimental skills live under [`skills/experimental/`](./skills/experimental/) and are excluded from the default installation. The experimental collection starts empty; ideas that have not been deliberately adopted remain in Git history rather than in a current-tree graveyard.
+Stable skills live directly under [`skills/`](./skills/). Experimental skills live under [`skills/experimental/`](./skills/experimental/) and are excluded from the default installation; install them with `--experimental` or `-Experimental`. Ideas that are neither adopted nor under trial remain in Git history rather than in a current-tree graveyard.
 
 ## Skill catalog
 
@@ -106,6 +106,12 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 - [`tdd`](./skills/tdd/SKILL.md): Test-driven development through a red-green-refactor loop.
 - [`wizard`](./skills/wizard/SKILL.md): Generate an interactive shell wizard for steps only a human can perform.
 - [`writing-for-agents`](./skills/writing-for-agents/SKILL.md): Write predictable skills and instruction documents for agents.
+
+### Experimental
+
+These skills keep their invocation classification and are installed only with the experimental option.
+
+- [`portfolio`](./skills/experimental/portfolio/SKILL.md): Get a read-only development portfolio overview and likely next steps from GitHub.
 
 ## Invocation verification
 

@@ -349,7 +349,7 @@ def iter_repository_text() -> list[Path]:
     return paths
 
 
-def validate_repository_references(skill_names: list[str]) -> None:
+def validate_repository_references() -> None:
     for relative in RETIRED_FILES:
         if (ROOT / relative).exists():
             fail(f"retired file remains: {relative}")
@@ -390,10 +390,10 @@ def validate_repository_references(skill_names: list[str]) -> None:
                     fail(f"{relative}:{line}: broken relative link {target!r}")
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    for name in skill_names:
-        expected = f"./skills/{name}/SKILL.md"
+    for directory in skill_directories():
+        expected = f"./{directory.relative_to(ROOT).as_posix()}/SKILL.md"
         if expected not in readme:
-            fail(f"README.md does not link canonical SKILL.md for {name}")
+            fail(f"README.md does not link canonical SKILL.md for {directory.name}")
 
 
 def agent_brief_fields(text: str) -> dict[str, list[str]] | None:
@@ -2072,7 +2072,7 @@ def without_manifest_field(manifest: str, table: str, field: str) -> str:
 def main() -> int:
     try:
         skill_names = validate_layout_and_skills()
-        validate_repository_references(skill_names)
+        validate_repository_references()
         validate_implementation_authority_contract()
         validate_implementation_review_routing_contract()
         validate_implementation_working_copy_contract()
