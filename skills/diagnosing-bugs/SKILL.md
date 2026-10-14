@@ -69,6 +69,25 @@ If you catch yourself reading code to build a theory before this command exists,
 
 Run the loop. Watch it go red as the bug appears.
 
+When forcing a test red by temporarily mutating source or fixture content, use this
+additional procedure. Ordinary regression tests that are not forced by a temporary
+mutation keep the workflow above unchanged.
+
+1. Before changing anything, name the exact target content and the expected change.
+   Save the target's original content or the exact reversible change so the temporary
+   mutation can be restored without discarding unrelated edits.
+2. After applying the mutation, inspect the target itself and compare it with the saved
+   original. Confirm that the named content changed as expected. A test failure, an
+   empty diff, or a diff that only shows unrelated changes is not evidence that the
+   mutation took effect. If the intended change is absent, treat the experiment as
+   invalid and do not attribute a red result to it.
+3. Run the intended test. Trust its red result as mutation-verified only after step 2
+   confirms the intended content change and the test fails with the expected signal.
+4. After capturing the result, restore the temporary mutation, preserving unrelated
+   edits, and inspect the target again to confirm the intended content matches its
+   pre-mutation state. Do not continue past this phase if restoration cannot be
+   confirmed.
+
 Confirm:
 
 - [ ] The loop produces the failure mode the **user** described, not a different failure that happens to be nearby. Wrong bug = wrong fix.
