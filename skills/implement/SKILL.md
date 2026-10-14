@@ -12,6 +12,8 @@ Implement exactly one approved issue or spec. The requested issue defines delive
 
 This is a self-contained worker. Finish the ticket through commits, review, and tracker closeout, but never pull downstream tickets into the change. A parallel orchestrator must give each worker one ticket and an isolated working copy; frontier selection and scheduling stay outside this skill.
 
+Sequential runs for different tickets on one existing non-default branch are supported. Each run keeps its own `BASELINE`, start gates, claim, review cycle, commits, and closeout, and `/write-pr` can later prepare one pull request for every ticket implemented on the branch.
+
 This skill consumes the working copy it is started in, which may have a detached HEAD. It never creates, replaces, switches to, or cleans up worktrees or other working copies, and it does not ask the user to do so as part of its normal flow. Creating, isolating, and disposing of that working copy belongs to the harness or orchestrator that launched it.
 
 ## 1. Resolve the work and its authority
@@ -76,7 +78,7 @@ Continue the loop while findings produce actionable, in-scope progress. If a fin
 
 ## 6. Close out
 
-Success requires all acceptance criteria satisfied, required verification passing, no blocking review findings, and a clean worktree containing only committed ticket work.
+Success requires all acceptance criteria satisfied, required verification passing, no blocking review findings, and a clean worktree: no uncommitted changes, with this ticket's work committed. Commits from earlier tickets on the branch are allowed; they precede `BASELINE` and stay outside this run's `<BASELINE>...HEAD` review diff.
 
 For a ticket run, perform the configured tracker closeout exactly as `docs/agents/issue-tracker.md` describes. Local tickets may be resolved and their frontier refreshed. For GitHub issues, record the implementation commit and verification evidence, leave the issue open, and record the PR/merge handoff obligation, including the issue number and required `Closes #<issue>` reference. The separately authorized PR/merge owner owns adding and verifying that reference, confirming auto-closure, and invoking `/reconcile <ticket-ref>` to refresh the frontier. Do not promote GitHub-dependent frontier tickets before that reconciliation. Report the ticket or spec, approved authority, `BASELINE`, commits, verification, review result, and any newly available frontier work.
 
