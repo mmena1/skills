@@ -38,7 +38,7 @@ When the source bundle contains both a ticket and parent, preserve their roles. 
 
 ### 3. Identify the standards sources
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+Search the repository for standards documents that apply to the changed files. Include repository guidance such as `AGENTS.md`, `CONTRIBUTING.md`, `CODING_STANDARDS.md`, `STYLEGUIDE.md`, and equivalent documents, plus relevant coding guidance in `README` or `docs` files. Inspect each candidate and record its path and applicable content. If the search finds no applicable standards, record that result; do not invent repository standards.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
@@ -65,7 +65,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 **Standards sub-agent prompt** should include:
 
 - The full diff output and commit list.
-- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full. The sub-agent has no other access to it.
+- The applicable standards-source paths and their contents from step 3, **plus the smell baseline from step 3** pasted in full. The sub-agent has no other access to them. When no applicable standards documents were found, say so explicitly.
 - The brief: "Report, per file or hunk where relevant: (a) every place the diff violates a documented standard, citing the standard file and rule; and (b) any baseline smell, naming it and quoting the hunk. Label documented-standard violations Blocking. Label baseline smells Advisory unless they also demonstrate a documented or correctness violation. A documented repo standard overrides the baseline. Skip anything tooling enforces. Do not run git commands; use the provided diff output. Under 400 words."
 
 **Spec sub-agent prompt** should include:
@@ -74,13 +74,15 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 - The path or fetched contents of every source in the source bundle, with each source's role stated.
 - The brief: "Report Blocking findings for: (a) requirements that are missing or partial; (b) behavior that was not requested; (c) requirements whose implementation appears incorrect; and (d) contradictions between ticket scope and approved parent architecture. Quote the controlling source for each finding. Do not run git commands; use the provided diff output. Under 400 words."
 
-If no originating source is available, skip the Spec sub-agent and note this in the final report.
+The Standards report is always applicable. The Spec report is applicable when an originating source is available. If no originating source is available, skip the Spec sub-agent, mark the Spec axis as skipped with "no spec available," and let the Standards axis complete.
 
 ### 5. Aggregate
 
-Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
+Wait until every applicable sub-agent returns a report before aggregating. Present the reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_). When Spec was skipped, retain its heading and state why.
 
-End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
+If an applicable sub-agent fails or returns no report, identify which report is missing and why, include any report that did arrive under its axis, and mark the overall review **incomplete**. Never present an incomplete review as a completed aggregate.
+
+End a complete report with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent. For an incomplete review, state that it is incomplete instead of reporting a complete aggregate.
 
 ## Why two axes
 

@@ -1125,6 +1125,20 @@ def validate_implementation_review_routing_contract() -> None:
         if required not in implementation_review:
             fail(f"implementation-review invocation contract is missing {required!r}")
 
+    for required in (
+        "Search the repository for standards documents that apply to the changed files",
+        "record its path and applicable content",
+        "applicable standards-source paths and their contents",
+        "When no applicable standards documents were found, say so explicitly",
+        "The Standards report is always applicable",
+        "mark the Spec axis as skipped with \"no spec available,\"",
+        "Wait until every applicable sub-agent returns a report before aggregating",
+        "mark the overall review **incomplete**",
+        "Never present an incomplete review as a completed aggregate",
+    ):
+        if required not in implementation_review:
+            fail(f"implementation-review report contract is missing {required!r}")
+
     review_step = implement.partition("## 5. Commit, review, and converge")[2].partition("## 6.")[0]
     native_compose = review_step.find("Compose the `implementation-review` skill natively")
     compatibility_fallback = review_step.find("On a harness that cannot compose installed skills")
