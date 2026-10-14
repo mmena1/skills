@@ -76,24 +76,24 @@ Use `docs/agents/issue-tracker.md` to locate the authoritative issue, specificat
 
 Admit a candidate to the ticket set only with admissible evidence. For a candidate without a tracker implementation record naming delta commits, run the repository's relevant verification now, show its output with the referencing commits, and ask the user to confirm that those commits implement that ticket; without that confirmation, the candidate is not admitted. List every candidate that still lacks admissible evidence, such as a referenced ticket with no establishing evidence, as an unclear source for the user to resolve, include, or exclude. If no candidate is admitted, or the tracker source is missing or does not explain the branch, ask the user for the issue or specification path rather than inventing requirements.
 
-Attribute every commit in the branch delta to the admitted tickets whose evidence names it. Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly. Report every unattributed commit as a supporting change with a stated rationale, asking the user for the rationale when the delta and change briefs do not supply one.
+Attribute every commit in the branch delta to the admitted tickets whose admissible evidence names it. Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly. Report every unattributed commit as a supporting change with a stated rationale, asking the user for the rationale when the delta and change briefs do not supply one.
 
 Validate closure across the whole pull request. For every admitted ticket, every unresolved blocker must itself be in the ticket set: on GitHub, unresolved means open; on a local tracker, it means not in its resolved state. Otherwise, stop before drafting and report the ticket, the unresolved blocker, and that merging would resolve a dependent before its blocker. Continue only when the user explicitly overrides that blocker, and report the override in the body. Because each ticket's own blockers are checked, a chain such as A, then B, then C validates only when every earlier ticket is in the set or already resolved.
 
-Present the ticket set, each ticket's evidence, commit attribution, supporting changes, and unclear sources, and ask the user to confirm the final ticket set before drafting.
+Present the ticket set, each ticket's admissible evidence, commit attribution, supporting changes, and unclear sources, and ask the user to confirm the final ticket set before drafting.
 
 Capture the tracker-defined PR/merge lifecycle for each ticket, including required issue references, close directives, and handoff or post-merge reconciliation steps. Do not close an issue directly unless the configured tracker workflow explicitly assigns that action to this workflow.
 
-- **GitHub**: carry one independent closing keyword per issue, preferably on separate lines, such as `Closes #<a>` and `Closes #<b>`. Give each issue its own keyword: GitHub applies a shared keyword such as `Closes #<a>, #<b>` only to the first issue.
+- **GitHub**: carry one independent closing keyword per issue, preferably on separate lines, such as `Closes #<a>` and `Closes #<b>`, because GitHub applies a shared keyword such as `Closes #<a>, #<b>` only to the first issue.
 - **Local Markdown**: generate no GitHub closing directive. Reference each ticket by its tracker identifier or path, as the tracker requires; resolution stays wherever the local tracker defines it.
 
 Closure is never assumed. Prepare the closure handoff for the PR/merge owner:
 
 - When the base branch is not the repository's default branch, state that closing keywords will not close the issues on merge, and that closure needs a later default-branch merge or the tracker's explicit close step.
 - When the repository's automatic issue closure cannot be confirmed as enabled, mark auto-closure as unverified.
-- In every case, instruct the PR/merge owner to verify each ticket's closed state after merge, close any ticket that did not close through the tracker's lifecycle, and invoke `/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed. A ticket that is not verified closed is never reconciled.
+- In every case, instruct the PR/merge owner to verify each ticket's closed state after merge, close any ticket that did not close through the tracker's lifecycle, and invoke `/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed.
 
-With one admitted ticket, this produces the same single close directive and handoff as a single-ticket branch.
+With one admitted ticket, the body keeps its single-ticket shape: one close directive, one closure verification, and one `/reconcile`.
 
 Compare each ticket's change brief with:
 
@@ -133,8 +133,6 @@ For a new feature, use the relevant test or command proving the new behavior. Fo
 
 Do not claim evidence that was not observed.
 
-Group evidence by ticket when the ticket set has more than one ticket.
-
 **Completion criterion**: each behavior claim in the pull-request body has concrete evidence or an explicit verification gap.
 
 ### 5. Draft the pull request
@@ -164,7 +162,7 @@ Use the repository pull-request template when present. Preserve its headings and
 <brief explanation when the change is hard to reverse, destructive, changes a public contract, or has broad impact>
 ```
 
-When the ticket set has more than one ticket, group the changed themes and evidence under one subheading per ticket within these sections. A single-ticket body keeps this structure unchanged.
+When the ticket set has more than one ticket, group the changed themes and evidence under one subheading per ticket within these sections.
 
 Keep prose brief. Place each visual next to the text it supports. Choose the smallest representation that makes ownership, order, state, or data flow clear:
 
@@ -178,10 +176,10 @@ Include:
 
 - A title using the repository's required format, based on the change briefs of the ticket set.
 - A concise summary of the intended result.
-- Grouped changed themes from the diff, per ticket when there are several.
+- Grouped changed themes from the diff.
 - Every supporting change with its rationale and appropriate depth.
 - Verification evidence and gaps.
-- Tracker-required PR/merge references and handoff directives: one independent `Closes #<issue>` per GitHub issue when the tracker requires it, no GitHub closing directive on a local tracker, and the closure handoff from step 2.
+- The tracker-required PR/merge references and closure handoff from step 2.
 - Every confirmed multi-ticket commit and every explicit blocker override.
 - Merge danger with reversibility and blast radius.
 - Template checkboxes that the diff and verification can actually prove.

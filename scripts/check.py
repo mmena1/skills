@@ -1476,6 +1476,7 @@ def pr_ticket_plan(
     with the ticket references their messages carry. This is a regression model of
     the prompt workflow, not a tracker adapter.
     """
+    shared_confirmed, rationales, blocker_overrides = shared_confirmed or set(), rationales or {}, blocker_overrides or set()
     delta = [entry["sha"] for entry in commits]
     plan = {
         "tickets": [], "evidence": {}, "attribution": {}, "unresolved": [], "supporting": [], "shared": [],
@@ -1502,11 +1503,11 @@ def pr_ticket_plan(
         owners = attribution.get(sha, [])
         if not owners:
             plan["supporting"].append(sha)
-            if not (rationales or {}).get(sha):
+            if not rationales.get(sha):
                 plan["stops"].append(("supporting-change-without-rationale", sha))
         elif len(owners) > 1:
             plan["shared"].append(sha)
-            if sha not in (shared_confirmed or set()):
+            if sha not in shared_confirmed:
                 plan["stops"].append(("unconfirmed-shared-commit", sha))
     if not plan["tickets"]:
         plan["stops"].append(("no-admitted-ticket", None))
@@ -1515,7 +1516,7 @@ def pr_ticket_plan(
         for blocker in tickets[reference]["blockers"]:
             if blocker in plan["tickets"] or (blocker in tickets and tickets[blocker]["resolved"]):
                 continue
-            if (reference, blocker) in (blocker_overrides or set()):
+            if (reference, blocker) in blocker_overrides:
                 plan["overrides"].append((reference, blocker))
             else:
                 plan["stops"].append(("blocker-outside-set", (reference, blocker)))
@@ -1650,9 +1651,8 @@ def validate_pr_ticket_plan() -> None:
 
     chain = {1: ticket(("c1",)), 2: ticket(("c2",), blockers=(1,)), 3: ticket(("c3",), blockers=(2,))}
     chain_commits = [commit("c1", 1), commit("c2", 2), commit("c3", 3)]
-    if plan(chain, chain_commits)["stops"] or plan(chain, chain_commits)["close_directives"] != [
-        "Closes #1", "Closes #2", "Closes #3",
-    ]:
+    whole_chain = plan(chain, chain_commits)
+    if whole_chain["stops"] or whole_chain["close_directives"] != ["Closes #1", "Closes #2", "Closes #3"]:
         fail("a chain A -> B -> C with all three in the set did not validate")
     without_b = plan({**chain, 2: ticket()}, [commit("c1", 1), commit("c3", 3)])
     if without_b["stops"] != [("blocker-outside-set", (3, 2))]:
@@ -1667,9 +1667,14 @@ MULTI_TICKET_HANDOFF = (
     "`Closes #<b>` on separate lines, because GitHub applies a shared keyword only to its first issue. "
     "Closing keywords close issues only when the PR targets the default branch and automatic issue closure "
     "is enabled, so after merge the PR/merge owner verifies each issue's closed state, accounting for a "
-    "non-default base branch and disabled or unverified auto-closure, closes any issue that did not close "
-    "through this lifecycle, and invokes `/reconcile <ticket-ref>` once per ticket only after that ticket "
-    "is verified closed. "
+    "non-default base branch and disabled or unverified auto-closure. For an issue that did not close, report "
+    "the missing or ineffective close reference and close it explicitly before reconciling it. Invoke "
+    "`/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed, so no dependent is "
+    "promoted before its blocker closes. "
+)
+SINGLE_TICKET_HANDOFF = (
+    "If the issue did not auto-close, stop the reconciliation and report the missing or ineffective close "
+    "reference rather than promoting dependent tickets. "
 )
 
 
@@ -1700,8 +1705,7 @@ def validate_multi_ticket_pr_contract() -> None:
         "closing keywords will not close the issues on merge",
         "mark auto-closure as unverified",
         "invoke `/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed",
-        "With one admitted ticket, this produces the same single close directive and handoff",
-        "A single-ticket body keeps this structure unchanged.",
+        "With one admitted ticket, the body keeps its single-ticket shape: one close directive",
     ):
         if required not in write_pr:
             fail(f"/write-pr multi-ticket contract is missing {required!r}")
@@ -1714,8 +1718,8 @@ def validate_multi_ticket_pr_contract() -> None:
         handoff = next(line for line in tracker.splitlines() if line.startswith("- **PR/merge handoff"))
         if MULTI_TICKET_HANDOFF not in handoff:
             fail(f"{relative}: PR/merge handoff is missing the multi-ticket closing and verification sentence")
-        # A clarification, not a new capability: a tracker without it stays current.
-        older = tracker.replace(MULTI_TICKET_HANDOFF, "")
+        # A clarification, not a new capability: the single-ticket tracker it replaced stays current.
+        older = tracker.replace(MULTI_TICKET_HANDOFF, SINGLE_TICKET_HANDOFF)
         if older == tracker or missing_tracker_capabilities(older) or not tracker_is_current(older):
             fail(f"{relative}: a tracker without the multi-ticket handoff sentence was reported stale")
     if "such as the multi-ticket PR/merge handoff, is not a missing capability" not in read("skills/setup-skills/SKILL.md"):
