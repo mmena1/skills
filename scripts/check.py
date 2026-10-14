@@ -3172,6 +3172,15 @@ def validate_portfolio_sync() -> None:
         fail("portfolio-sync: every open item matching a readable member is in sync despite inaccessible items")
 
 
+def validate_wizard() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/test_wizard.py")],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        fail(f"wizard helper regression checks failed:\n{result.stdout}{result.stderr}")
+
+
 def main() -> int:
     try:
         skill_names = validate_layout_and_skills()
@@ -3192,6 +3201,7 @@ def main() -> int:
         validate_deep_review_generation()
         validate_agent_generation_contract()
         validate_portfolio_sync()
+        validate_wizard()
     except CheckFailure as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
