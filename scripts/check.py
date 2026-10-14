@@ -1471,9 +1471,9 @@ def pr_ticket_plan(
     """Model /write-pr's ticket set, commit attribution, and closure handoff over one branch delta.
 
     Tickets are tracker snapshots keyed by reference (GitHub issue numbers or local
-    ticket paths): `record` lists the commits a tracker implementation record names,
-    and `manual` holds other observed evidence. Commits are the branch delta in order,
-    with the ticket references their messages carry. This is a regression model of
+    ticket paths): `record` is a tracker implementation record with its outcome and
+    recorded commits, and `manual` holds the observed verification and confirmation.
+    Commits are the branch delta in order, with the ticket references their messages carry. This is a regression model of
     the prompt workflow, not a tracker adapter.
     """
     shared_confirmed = shared_confirmed or set()
@@ -1487,7 +1487,12 @@ def pr_ticket_plan(
     attribution: dict = {}
     for reference in sorted(tickets):
         subject = tickets[reference]
-        named = [sha for sha in subject["record"] if sha in delta]
+        record = subject["record"]
+        # Only a successful closeout whose complete recorded commit set is in the delta counts.
+        named = record["commits"] if (
+            record and record["outcome"] == "succeeded" and record["commits"]
+            and all(sha in delta for sha in record["commits"])
+        ) else []
         # Commit-message references are candidates; they count only with observed verification and confirmation.
         referencing = [entry["sha"] for entry in commits if reference in entry["references"]]
         manual = subject["manual"] or {}
@@ -1526,15 +1531,18 @@ def pr_ticket_plan(
         plan["stops"].append(("unconfirmed-ticket-set", None))
     if plan["stops"]:
         return plan
-    github = tracker == "github"
-    plan["references"] = [f"#{reference}" if github else reference for reference in plan["tickets"]]
-    if github:
-        # One independent keyword per issue: GitHub applies a shared keyword only to its first issue.
-        plan["close_directives"] = [f"Closes {reference}" for reference in plan["references"]]
-        if base != default:
-            plan["handoff"].append("keywords-inert-on-non-default-base")
-        if auto_close is not True:
-            plan["handoff"].append("auto-close-unverified")
+    if tracker != "github":
+        # A local ticket keeps its configured resolve and frontier rules; nothing waits on the merge.
+        plan["references"] = list(plan["tickets"])
+        plan["handoff"].append("tracker-lifecycle")
+        return plan
+    plan["references"] = [f"#{reference}" for reference in plan["tickets"]]
+    # One independent keyword per issue: GitHub applies a shared keyword only to its first issue.
+    plan["close_directives"] = [f"Closes {reference}" for reference in plan["references"]]
+    if base != default:
+        plan["handoff"].append("keywords-inert-on-non-default-base")
+    if auto_close is not True:
+        plan["handoff"].append("auto-close-unverified")
     # Every ticket is verified closed after merge, and only a verified-closed ticket is reconciled.
     plan["handoff"].append("verify-closure")
     plan["reconcile"] = list(plan["tickets"])
@@ -1544,8 +1552,11 @@ def pr_ticket_plan(
 def validate_pr_ticket_plan() -> None:
     """Exercise multi-ticket /write-pr planning through the PR ticket plan seam."""
 
-    def ticket(record: tuple = (), resolved: bool = False, blockers: tuple = (), **manual) -> dict:
-        return {"record": list(record), "resolved": resolved, "blockers": list(blockers), "manual": manual or None}
+    def ticket(
+        record: tuple = (), outcome: str = "succeeded", resolved: bool = False, blockers: tuple = (), **manual,
+    ) -> dict:
+        closeout = {"commits": list(record), "outcome": outcome} if record else None
+        return {"record": closeout, "resolved": resolved, "blockers": list(blockers), "manual": manual or None}
 
     def commit(sha: str, *references) -> dict:
         return {"sha": sha, "references": list(references)}
@@ -1573,8 +1584,23 @@ def validate_pr_ticket_plan() -> None:
     )
     if local["stops"] or local["close_directives"] or local["references"] != list(paths):
         fail("a local Markdown tracker emitted a GitHub closing directive or lost a ticket path reference")
-    if local["reconcile"] != list(paths) or "verify-closure" not in local["handoff"]:
-        fail("a local Markdown tracker skipped resolved-state verification before per-ticket reconciliation")
+    if local["reconcile"] or local["handoff"] != ["tracker-lifecycle"]:
+        fail("a local Markdown tracker was given GitHub's post-merge closure and /reconcile lifecycle")
+
+    # Only a successful closeout whose complete recorded commit set is in the delta admits a ticket.
+    partial_commits = [commit("a1", 101)]
+    rationale_a1 = {"rationales": {"a1": "Unclear."}}
+    for label, record in (
+        ("a stopped implementation record", ticket(("a1",), outcome="stopped")),
+        ("a failed implementation record", ticket(("a1",), outcome="failed")),
+        ("a record with a recorded commit missing from the delta", ticket(("a1", "a2"))),
+    ):
+        rejected = plan({101: record}, partial_commits, **rationale_a1)
+        if rejected["tickets"] or rejected["unresolved"] != [101] or rejected["close_directives"]:
+            fail(f"{label} admitted its ticket or was not listed as an unclear source")
+    rewritten = plan({101: ticket(("a1", "a2"), verified=True, confirmed=True)}, partial_commits)
+    if rewritten["stops"] or rewritten["admission"] != {101: "manual"} or rewritten["attribution"] != {"a1": [101]}:
+        fail("a partially recorded ticket was not admissible through verified, confirmed manual evidence")
 
     # Manual work without an /implement closeout needs referencing delta commits,
     # observed verification, and explicit confirmation. A reference alone is a candidate.
@@ -1689,9 +1715,11 @@ def validate_multi_ticket_pr_contract() -> None:
     write_pr = read("skills/write-pr/SKILL.md")
     for required in (
         "**Ticket set**: the tickets the branch delta implements, confirmed by the user before drafting",
-        "(a) a tracker implementation record, such as an `/implement` closeout, that names commits present in the branch delta",
+        "(a) a tracker implementation record of a successful closeout, such as a completed `/implement` closeout, "
+        "whose complete recorded commit set is present in the branch delta",
         "verification output this workflow observes, and explicit user confirmation",
-        "A commit-message reference alone is a candidate, never admissible evidence.",
+        "A stop report, a failed or partial record, or a closeout with any recorded commit missing from the branch delta",
+        "as does a commit-message reference alone; neither is admissible evidence",
         "without that confirmation, the candidate is not admitted",
         "as an unclear source for the user to resolve, include, or exclude",
         "Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly",
@@ -1707,7 +1735,9 @@ def validate_multi_ticket_pr_contract() -> None:
         "closing keywords will not close the issues on merge",
         "mark auto-closure as unverified",
         "invoke `/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed",
-        "With one admitted ticket, the body keeps its single-ticket shape: one close directive",
+        "leave its resolution and frontier refresh to the tracker's configured resolve and frontier rules",
+        "The merge carries no closed-state, auto-closure, or post-merge `/reconcile` requirement.",
+        "With one admitted GitHub issue, the body keeps its single-ticket shape: one close directive",
     ):
         if required not in write_pr:
             fail(f"/write-pr multi-ticket contract is missing {required!r}")
