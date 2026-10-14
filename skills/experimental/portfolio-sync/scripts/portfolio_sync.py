@@ -54,6 +54,10 @@ OPEN_QUERY = """query Open%s($owner: String!, $name: String!, $after: String) {
 }"""
 OPEN_ISSUES_QUERY = OPEN_QUERY % ("Issues", "issues", PAGE, PAGE_INFO)
 OPEN_PULL_REQUESTS_QUERY = OPEN_QUERY % ("PullRequests", "pullRequests", PAGE, PAGE_INFO)
+# Rechecked immediately before each add, because an item can close after the plan was read.
+CONTENT_STATE_QUERY = """query ContentState($id: ID!) {
+  node(id: $id) { ... on Issue { state url } ... on PullRequest { state url } }
+}"""
 # The only mutation this helper sends. GitHub returns the existing item when the
 # content is already a member, so a repeated add cannot duplicate it.
 ADD_ITEM_MUTATION = """mutation AddProjectItem($project: ID!, $content: ID!) {
@@ -137,6 +141,7 @@ def read_all(graphql: GraphQL, query: str, variables: dict, root: str, label: st
     """Read every page of one connection, failing on any gap instead of returning a partial list."""
     nodes: list[dict] = []
     after = None
+    seen: set[str] = set()
     while True:
         holder = request(graphql, query, {**variables, "after": after}).get(root)
         if holder is None:
@@ -151,7 +156,10 @@ def read_all(graphql: GraphQL, query: str, variables: dict, root: str, label: st
             break
         if not info["endCursor"]:
             raise SyncError(f"{label} reported another page without a cursor")
+        if not page or info["endCursor"] in seen:
+            raise SyncError(f"{label} made no progress: an empty page or a repeated cursor claimed more pages")
         after = info["endCursor"]
+        seen.add(after)
     if len(nodes) != connection["totalCount"]:
         raise SyncError(
             f"{label} read {len(nodes)} of {connection['totalCount']} entries; "
@@ -236,8 +244,9 @@ def report(plan: Plan, out: TextIO) -> None:
         summary = f"{len(missing)} missing" if missing else "in sync"
         counts = f"{count(issues, 'open issue')}, {count(len(open_items) - issues, 'open pull request')}"
         print(f"{repository}: {counts}; {summary}", file=out)
+        marker = "?" if plan.redacted else "+"
         for item in missing:
-            print(f"  + {item.kind} #{item.number} {item.title}\n    {item.url}", file=out)
+            print(f"  {marker} {item.kind} #{item.number} {item.title}\n    {item.url}", file=out)
     print(file=out)
 
 
@@ -251,6 +260,13 @@ def run(url: str, apply: bool, plan_id: str | None, graphql: GraphQL, out: TextI
             return 0
         repositories = len({item.repository for item in plan.missing})
         across = "1 repository" if repositories == 1 else f"{repositories} repositories"
+        if plan.redacted:
+            print(f"Unverified: {count(len(plan.missing), 'open item')} across {across} matched no readable member.", file=out)
+            raise SyncError(
+                f"{count(plan.redacted, 'inaccessible Project item')} could already represent any of them, so their "
+                "absence is not proven and no plan was made; restore read access to that content or remove those "
+                "items from the Project yourself, then rerun"
+            )
         print(f"Missing: {count(len(plan.missing), 'open item')} across {across}.", file=out)
         print(f"Plan: {plan.id}", file=out)
         if not apply:
@@ -263,12 +279,15 @@ def run(url: str, apply: bool, plan_id: str | None, graphql: GraphQL, out: TextI
         added: list[OpenItem] = []
         for item in plan.missing:
             try:
+                current = request(graphql, CONTENT_STATE_QUERY, {"id": item.content_id}).get("node") or {}
+                if current.get("state") != "OPEN" or current.get("url") != item.url:
+                    raise SyncError(f"it is no longer open ({current.get('state', 'unreadable')}), so the plan changed")
                 result = request(graphql, ADD_ITEM_MUTATION, {"project": project["id"], "content": item.content_id})
                 if not ((result.get("addProjectV2ItemById") or {}).get("item") or {}).get("id"):
                     raise SyncError("GitHub returned no Project item")
             except SyncError as error:
                 print(f"Added {len(added)} of {len(plan.missing)} items before a failure.", file=out)
-                raise SyncError(f"adding {item.url} failed: {error}; rerun the dry run to continue") from None
+                raise SyncError(f"stopped at {item.url}: {error}; rerun the dry run to continue") from None
             added.append(item)
             print(f"Added {item.url}", file=out)
         verify = build_plan(graphql, project)

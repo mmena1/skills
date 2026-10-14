@@ -2100,7 +2100,10 @@ class FakePortfolio:
                               ("https://github.com/octo/other/issues/9", False)):
             self.members.append({"type": "ISSUE", "isArchived": archived, "url": url})
         self.members.append({"type": "DRAFT_ISSUE", "isArchived": False, "url": None})
-        self.members.append({"type": "REDACTED", "isArchived": False, "url": None})
+
+    def add_opaque_member(self, url: str) -> None:
+        """A member whose content the viewer cannot read, so GitHub returns it without content."""
+        self.members.append({"type": "REDACTED", "isArchived": False, "url": url, "opaque": True})
 
     def missing_urls(self) -> list[str]:
         members = {member["url"] for member in self.members}
@@ -2132,7 +2135,7 @@ class FakePortfolio:
             for member in self.members:
                 if member["isArchived"] and "ARCHIVED," not in query:
                     continue  # GitHub hides archived items unless archivedStates includes them.
-                item = self.content.get(member["url"])
+                item = None if member.get("opaque") else self.content.get(member["url"])
                 content = {"url": item["url"], "repository": {"nameWithOwner": item["repository"]}} if item else None
                 nodes.append({"type": member["type"], "isArchived": member["isArchived"], "content": content})
             return {"data": {"node": {"connection": self.page(nodes, variables["after"])}}}
@@ -2145,6 +2148,9 @@ class FakePortfolio:
                      if item["repository"] == repository and item["kind"] == kind
                      and (item["state"] == "OPEN" or "states: OPEN" not in query)]
             return {"data": {"repository": {"connection": self.page(nodes, variables["after"])}}}
+        if operation == "ContentState":
+            item = next((item for item in self.content.values() if item["id"] == variables["id"]), None)
+            return {"data": {"node": {"state": item["state"], "url": item["url"]} if item else None}}
         if operation == "AddProjectItem" and "addProjectV2ItemById" in query and variables["project"] == "P7":
             self.mutations.append(variables["content"])
             url = next(url for url, item in self.content.items() if item["id"] == variables["content"])
@@ -2198,7 +2204,7 @@ def validate_portfolio_sync() -> None:
         fail(f"portfolio-sync: dry run must report exactly {expected} without changes, got {reported}")
     if "issues/3" in "".join(reported) or "pull/5" in "".join(reported):
         fail("portfolio-sync: closed issues and merged pull requests must not be imported")
-    for note in ("1 archived", "1 draft", "1 inaccessible", "octo/other"):
+    for note in ("1 archived", "1 draft", "0 inaccessible", "octo/other"):
         if note not in output:
             fail(f"portfolio-sync: dry run must report coverage note {note!r}")
     authorized = plan_id(output)
@@ -2222,7 +2228,10 @@ def validate_portfolio_sync() -> None:
         fake = FakePortfolio()
         _, output, _ = sync(fake)
         setup(fake)
-        code, output, err = sync(fake, apply=apply, plan=plan_id(output), url=url)
+        try:
+            code, output, err = sync(fake, apply=apply, plan=plan_id(output), url=url)
+        except AssertionError as error:
+            fail(f"portfolio-sync: {name} must fail cleanly, got {error}")
         if code != status or fake.mutations or "Plan:" in output or "In sync" in output or not err.startswith("error:"):
             fail(f"portfolio-sync: {name} must fail before any change and without a conclusion")
 
@@ -2237,6 +2246,22 @@ def validate_portfolio_sync() -> None:
 
     failing("an incomplete Project item read", truncated)
     failing("an unreadable linked repository entry", unreadable_node)
+
+    def endless(next_cursor):
+        calls = iter(range(20))
+
+        def respond(variables: dict) -> dict:
+            if next(calls, None) is None:
+                raise AssertionError("pagination never stopped")
+            return {"data": {"node": {"connection": {
+                "totalCount": 2, "nodes": [{"nameWithOwner": "octo/app"}] if next_cursor(variables) == "same" else [],
+                "pageInfo": {"hasNextPage": True, "endCursor": next_cursor(variables)}}}}}
+        return respond
+
+    failing("a repeated pagination cursor", lambda fake: fake.faults.update(
+        ProjectRepositories=endless(lambda variables: "same")))
+    failing("an empty page that claims more pages", lambda fake: fake.faults.update(
+        ProjectRepositories=endless(lambda variables: str(int(variables["after"] or 0) + 1))))
     failing("an unavailable repository", lambda fake: fake.faults.update(OpenIssues={"data": {"repository": None}}))
     failing("a GraphQL error", lambda fake: fake.faults.update(
         OpenPullRequests={"data": None, "errors": [{"message": "Resource not accessible by integration"}]}))
@@ -2262,6 +2287,39 @@ def validate_portfolio_sync() -> None:
     code, output, _ = sync(fake)
     if code != 0 or len(re.findall(r"^    https://", output, re.MULTILINE)) != len(expected) - 1:
         fail("portfolio-sync: a dry run after a partial apply must plan exactly the remainder")
+
+    # An item can close after the plan was read; the helper rechecks each one just before adding it.
+    fake = FakePortfolio()
+    _, output, _ = sync(fake)
+    closing = fake.missing_urls()[1]
+
+    def close_after_first_add(variables: dict) -> None:
+        fake.content[closing]["state"] = "CLOSED"
+
+    fake.faults["AddProjectItem"] = close_after_first_add
+    code, output, err = sync(fake, apply=True, plan=plan_id(output))
+    if code != 1 or len(fake.mutations) != 1 or "Added 1 of" not in output or "no longer open (CLOSED)" not in err:
+        fail("portfolio-sync: an item that closes during application must stop the add before it")
+    code, output, _ = sync(fake)
+    remaining = sorted(re.findall(r"^    (https://\S+)$", output, re.MULTILINE))
+    if code != 0 or closing in remaining or len(remaining) != len(expected) - 2:
+        fail("portfolio-sync: a dry run after a closure must plan only the still-open remainder")
+
+    # An inaccessible member could be any open item, so a readable-only comparison proves no absence.
+    fake = FakePortfolio()
+    fake.add_opaque_member(expected[0])
+    for apply in (False, True):
+        code, output, err = sync(fake, apply=apply, plan=authorized)
+        if (code != 1 or fake.mutations or "Plan:" in output or "In sync" in output
+                or "  ? " not in output or "absence is not proven" not in err):
+            fail("portfolio-sync: inaccessible Project items must leave candidates unverified and refuse a plan")
+    fake = FakePortfolio()
+    _, output, _ = sync(fake)
+    sync(fake, apply=True, plan=plan_id(output))
+    fake.add_opaque_member("https://github.com/octo/private/issues/1")
+    code, output, _ = sync(fake)
+    if code != 0 or "In sync" not in output or "1 inaccessible" not in output:
+        fail("portfolio-sync: every open item matching a readable member is in sync despite inaccessible items")
 
 
 def main() -> int:
