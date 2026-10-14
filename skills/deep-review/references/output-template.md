@@ -1,5 +1,7 @@
 # Deep Review Output Template
 
+Omit the Comment audience note when no confirmed PR is associated.
+
 ```markdown
 ## Deep Review Results
 
@@ -107,4 +109,6 @@ Unresolved outcomes are always Action: discuss and are not Findings.
 - [ ] Fix fix-now Finding #1 [use existing discussion link when already reported]
 - [ ] Discuss Finding #1 or Unresolved item #1 [use existing discussion link when already reported]
 - [ ] Decide Unresolved item #1
+
+**Comment audience:** `human` (default) or `agent`; include `audience: agent` when requesting publication. Omitting audience uses human wording without an extra confirmation step.
 ```
