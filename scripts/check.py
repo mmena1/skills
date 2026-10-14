@@ -1463,6 +1463,278 @@ def validate_reconciliation_contract() -> None:
             fail("expanded reconciliation migration lost a custom readiness state or user note")
 
 
+def pr_ticket_plan(
+    *, tracker: str, tickets: dict, commits: list[dict], base: str, default: str,
+    auto_close: bool | None, set_confirmed: bool, shared_confirmed: set | None = None,
+    rationales: dict | None = None, blocker_overrides: set | None = None,
+) -> dict:
+    """Model /write-pr's ticket set, commit attribution, and closure handoff over one branch delta.
+
+    Tickets are tracker snapshots keyed by reference (GitHub issue numbers or local
+    ticket paths): `record` lists the commits a tracker implementation record names,
+    and `manual` holds other observed evidence. Commits are the branch delta in order,
+    with the ticket references their messages carry. This is a regression model of
+    the prompt workflow, not a tracker adapter.
+    """
+    delta = [entry["sha"] for entry in commits]
+    plan = {
+        "tickets": [], "evidence": {}, "attribution": {}, "unresolved": [], "supporting": [], "shared": [],
+        "overrides": [], "references": [], "close_directives": [], "reconcile": [], "handoff": [], "stops": [],
+    }
+    attribution: dict = {}
+    for reference in sorted(tickets):
+        subject = tickets[reference]
+        named = [sha for sha in subject["record"] if sha in delta]
+        # Commit-message references are candidates; they count only with observed verification and confirmation.
+        referencing = [entry["sha"] for entry in commits if reference in entry["references"]]
+        manual = subject["manual"] or {}
+        confirmed_manual = bool(referencing) and manual.get("verified", False) and manual.get("confirmed", False)
+        if not named and not confirmed_manual:
+            if referencing or subject["record"] or subject["manual"]:
+                plan["unresolved"].append(reference)
+            continue
+        plan["tickets"].append(reference)
+        plan["evidence"][reference] = "record" if named else "manual"
+        for sha in set(named) | set(referencing if confirmed_manual else ()):
+            attribution.setdefault(sha, []).append(reference)
+    plan["attribution"] = {sha: attribution[sha] for sha in delta if sha in attribution}
+    for sha in delta:
+        owners = attribution.get(sha, [])
+        if not owners:
+            plan["supporting"].append(sha)
+            if not (rationales or {}).get(sha):
+                plan["stops"].append(("supporting-change-without-rationale", sha))
+        elif len(owners) > 1:
+            plan["shared"].append(sha)
+            if sha not in (shared_confirmed or set()):
+                plan["stops"].append(("unconfirmed-shared-commit", sha))
+    if not plan["tickets"]:
+        plan["stops"].append(("no-admitted-ticket", None))
+    # Checking each admitted ticket's own blockers validates whole chains across the set.
+    for reference in plan["tickets"]:
+        for blocker in tickets[reference]["blockers"]:
+            if blocker in plan["tickets"] or (blocker in tickets and tickets[blocker]["resolved"]):
+                continue
+            if (reference, blocker) in (blocker_overrides or set()):
+                plan["overrides"].append((reference, blocker))
+            else:
+                plan["stops"].append(("blocker-outside-set", (reference, blocker)))
+    if not set_confirmed:
+        plan["stops"].append(("unconfirmed-ticket-set", None))
+    if plan["stops"]:
+        return plan
+    github = tracker == "github"
+    plan["references"] = [f"#{reference}" if github else reference for reference in plan["tickets"]]
+    if github:
+        # One independent keyword per issue: GitHub applies a shared keyword only to its first issue.
+        plan["close_directives"] = [f"Closes {reference}" for reference in plan["references"]]
+        if base != default:
+            plan["handoff"].append("keywords-inert-on-non-default-base")
+        if auto_close is not True:
+            plan["handoff"].append("auto-close-unverified")
+    # Every ticket is verified closed after merge, and only a verified-closed ticket is reconciled.
+    plan["handoff"].append("verify-closure")
+    plan["reconcile"] = list(plan["tickets"])
+    return plan
+
+
+def validate_pr_ticket_plan() -> None:
+    """Exercise multi-ticket /write-pr planning through the PR ticket plan seam."""
+
+    def ticket(record: tuple = (), resolved: bool = False, blockers: tuple = (), **manual) -> dict:
+        return {"record": list(record), "resolved": resolved, "blockers": list(blockers), "manual": manual or None}
+
+    def commit(sha: str, *references) -> dict:
+        return {"sha": sha, "references": list(references)}
+
+    def plan(tickets: dict, commits: list, **options) -> dict:
+        settings = {"tracker": "github", "base": "main", "default": "main", "auto_close": True, "set_confirmed": True}
+        return pr_ticket_plan(tickets=tickets, commits=commits, **{**settings, **options})
+
+    two = {101: ticket(("a1",)), 102: ticket(("b1", "b2"))}
+    two_commits = [commit("a1", 101), commit("b1", 102), commit("b2")]
+    github = plan(two, two_commits)
+    if github["stops"] or github["tickets"] != [101, 102] or github["evidence"] != {101: "record", 102: "record"}:
+        fail("two GitHub tickets with implementation records naming delta commits were not both admitted")
+    if github["close_directives"] != ["Closes #101", "Closes #102"] or github["reconcile"] != [101, 102]:
+        fail("two GitHub tickets did not get one independent closing keyword and one gated /reconcile each")
+    if github["attribution"] != {"a1": [101], "b1": [102], "b2": [102]} or "verify-closure" not in github["handoff"]:
+        fail("two GitHub tickets lost commit attribution or closure verification before reconciliation")
+    if any(re.search(r"#\d+\s*,\s*#?\d+", directive) for directive in github["close_directives"]):
+        fail("a multi-ticket plan emitted a shared closing keyword, which GitHub applies only to the first issue")
+
+    paths = (".scratch/sync/issues/01-cache.md", ".scratch/sync/issues/02-index.md")
+    local = plan(
+        {paths[0]: ticket(("a1",)), paths[1]: ticket(("b1", "b2"))},
+        [commit("a1", paths[0]), commit("b1", paths[1]), commit("b2")], tracker="local",
+    )
+    if local["stops"] or local["close_directives"] or local["references"] != list(paths):
+        fail("a local Markdown tracker emitted a GitHub closing directive or lost a ticket path reference")
+    if local["reconcile"] != list(paths) or "verify-closure" not in local["handoff"]:
+        fail("a local Markdown tracker skipped resolved-state verification before per-ticket reconciliation")
+
+    # Manual work without an /implement closeout needs referencing delta commits,
+    # observed verification, and explicit confirmation. A reference alone is a candidate.
+    manual_commits = [commit("a1", 101), commit("m1", 103)]
+    manual = plan({101: ticket(("a1",)), 103: ticket(verified=True, confirmed=True)}, manual_commits)
+    if manual["stops"] or manual["tickets"] != [101, 103] or manual["evidence"][103] != "manual":
+        fail("a manually implemented ticket with observed verification and confirmation was not admitted")
+    if manual["attribution"] != {"a1": [101], "m1": [103]}:
+        fail("a manually implemented ticket's referencing commits were not attributed to it")
+    rationale = {"rationales": {"m1": "Shared fixture refresh."}}
+    for label, evidence in (
+        ("without confirmation", ticket(verified=True, confirmed=False)),
+        ("without observed verification", ticket(verified=False, confirmed=True)),
+        ("from commit-message references alone", ticket()),
+    ):
+        rejected = plan({101: ticket(("a1",)), 103: evidence}, manual_commits, **rationale)
+        if rejected["tickets"] != [101] or rejected["unresolved"] != [103]:
+            fail(f"a ticket was admitted {label}, or was not listed as an unclear source for the user")
+        if rejected["supporting"] != ["m1"] or rejected["stops"] or "Closes #103" in rejected["close_directives"]:
+            fail(f"the commits of a ticket rejected {label} were not reported as a rationalized supporting change")
+    unexplained = plan({101: ticket(("a1",))}, manual_commits)
+    if unexplained["supporting"] != ["m1"] or unexplained["stops"] != [("supporting-change-without-rationale", "m1")]:
+        fail("an unattributed commit without a stated rationale did not stop drafting")
+    if unexplained["close_directives"] or unexplained["reconcile"]:
+        fail("a stopped plan still drafted closing keywords or reconciliation")
+
+    shared_tickets = {101: ticket(("a1", "s1")), 102: ticket(("s1", "b1"))}
+    shared_commits = [commit("a1", 101), commit("s1", 101, 102), commit("b1", 102)]
+    unconfirmed = plan(shared_tickets, shared_commits)
+    if unconfirmed["shared"] != ["s1"] or unconfirmed["stops"] != [("unconfirmed-shared-commit", "s1")]:
+        fail("a commit attributed to two tickets was accepted without explicit confirmation")
+    confirmed = plan(shared_tickets, shared_commits, shared_confirmed={"s1"})
+    if confirmed["stops"] or confirmed["shared"] != ["s1"] or confirmed["attribution"]["s1"] != [101, 102]:
+        fail("a confirmed commit shared by two tickets was not reported against both")
+
+    # Closure is never assumed: keywords are inert off the default branch or without auto-closure.
+    stacked = plan(two, two_commits, base="release")
+    if stacked["stops"] or "keywords-inert-on-non-default-base" not in stacked["handoff"]:
+        fail("a PR targeting a non-default branch did not state that closing keywords will not close its issues")
+    for label, auto_close in (("unknown", None), ("disabled", False)):
+        unverified = plan(two, two_commits, auto_close=auto_close)
+        if unverified["stops"] or "auto-close-unverified" not in unverified["handoff"]:
+            fail(f"{label} automatic issue closure was not marked unverified in the handoff")
+        if "verify-closure" not in unverified["handoff"] or unverified["reconcile"] != [101, 102]:
+            fail(f"{label} automatic issue closure dropped closure verification before reconciliation")
+    if {"keywords-inert-on-non-default-base", "auto-close-unverified"} & set(local["handoff"] + github["handoff"]):
+        fail("a GitHub-closure caveat appeared where keywords close on merge or no keyword exists")
+    if plan(two, two_commits, set_confirmed=False)["stops"] != [("unconfirmed-ticket-set", None)]:
+        fail("drafting proceeded before the user confirmed the final ticket set")
+
+    single = plan({101: ticket(("a1",))}, [commit("a1", 101)])
+    expected_single = {
+        "tickets": [101], "references": ["#101"], "close_directives": ["Closes #101"],
+        "handoff": ["verify-closure"], "reconcile": [101], "stops": [],
+    }
+    if {key: single[key] for key in expected_single} != expected_single:
+        fail("a single-ticket branch changed its close directive or handoff shape")
+    if plan({101: ticket()}, [commit("a1", 101)], rationales={"a1": "Unclear."})["stops"] != [("no-admitted-ticket", None)]:
+        fail("drafting proceeded with no admitted ticket instead of asking for the governing source")
+
+    # Every unresolved blocker of every admitted ticket must be in the set, which validates chains.
+    blocked = {101: ticket(("a1",)), 102: ticket(("b1",), blockers=(101, 90)), 90: ticket()}
+    blocked_commits = [commit("a1", 101), commit("b1", 102)]
+    outside = plan(blocked, blocked_commits)
+    if outside["stops"] != [("blocker-outside-set", (102, 90))] or outside["close_directives"]:
+        fail("a ticket with an unresolved blocker outside the confirmed set did not stop drafting")
+    overridden = plan(blocked, blocked_commits, blocker_overrides={(102, 90)})
+    if overridden["stops"] or overridden["overrides"] != [(102, 90)] or overridden["tickets"] != [101, 102]:
+        fail("an explicit blocker override was not honoured and reported")
+    blocked[90] = ticket(resolved=True)
+    if plan(blocked, blocked_commits)["stops"]:
+        fail("a resolved blocker outside the set stopped drafting")
+    included = {**blocked, 90: ticket(("z1",))}
+    if plan(included, [commit("z1", 90), *blocked_commits])["stops"]:
+        fail("including the unresolved blocker in the set did not clear the stop")
+
+    chain = {1: ticket(("c1",)), 2: ticket(("c2",), blockers=(1,)), 3: ticket(("c3",), blockers=(2,))}
+    chain_commits = [commit("c1", 1), commit("c2", 2), commit("c3", 3)]
+    if plan(chain, chain_commits)["stops"] or plan(chain, chain_commits)["close_directives"] != [
+        "Closes #1", "Closes #2", "Closes #3",
+    ]:
+        fail("a chain A -> B -> C with all three in the set did not validate")
+    without_b = plan({**chain, 2: ticket()}, [commit("c1", 1), commit("c3", 3)])
+    if without_b["stops"] != [("blocker-outside-set", (3, 2))]:
+        fail("a chain A -> B -> C validated although B is unresolved and outside the set")
+    resolved_a = plan({**chain, 1: ticket(resolved=True)}, chain_commits[1:])
+    if resolved_a["stops"] or resolved_a["tickets"] != [2, 3]:
+        fail("a chain A -> B -> C did not validate when A is already resolved and B and C are in the set")
+
+
+MULTI_TICKET_HANDOFF = (
+    "A multi-ticket PR carries one independent closing keyword per issue, such as `Closes #<a>` and "
+    "`Closes #<b>` on separate lines, because GitHub applies a shared keyword only to its first issue. "
+    "Closing keywords close issues only when the PR targets the default branch and automatic issue closure "
+    "is enabled, so after merge the PR/merge owner verifies each issue's closed state, accounting for a "
+    "non-default base branch and disabled or unverified auto-closure, closes any issue that did not close "
+    "through this lifecycle, and invokes `/reconcile <ticket-ref>` once per ticket only after that ticket "
+    "is verified closed. "
+)
+
+
+def validate_multi_ticket_pr_contract() -> None:
+    """Pin the multi-ticket /write-pr, tracker handoff, and sequential /implement wording."""
+
+    def read(relative: str) -> str:
+        return (ROOT / relative).read_text(encoding="utf-8")
+
+    write_pr = read("skills/write-pr/SKILL.md")
+    for required in (
+        "**Ticket set**: the tickets the branch delta implements, confirmed by the user before drafting",
+        "(a) a tracker implementation record, such as an `/implement` closeout, that names commits present in the branch delta",
+        "verification output this workflow observes, and explicit user confirmation",
+        "A commit-message reference alone is a candidate, never evidence.",
+        "without that confirmation, the candidate is not admitted",
+        "as an unclear source for the user to resolve, include, or exclude",
+        "Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly",
+        "Report every unattributed commit as a supporting change with a stated rationale",
+        "every unresolved blocker must itself be in the ticket set",
+        "merging would resolve a dependent before its blocker",
+        "report the override in the body",
+        "ask the user to confirm the final ticket set before drafting",
+        "carry one independent closing keyword per issue",
+        "GitHub applies a shared keyword such as `Closes #<a>, #<b>` only to the first issue",
+        "generate no GitHub closing directive. Reference each ticket by its tracker identifier or path",
+        "Closure is never assumed.",
+        "closing keywords will not close the issues on merge",
+        "mark auto-closure as unverified",
+        "invoke `/reconcile <ticket-ref>` once per ticket only after that ticket is verified closed",
+        "With one admitted ticket, this produces the same single close directive and handoff",
+        "A single-ticket body keeps this structure unchanged.",
+    ):
+        if required not in write_pr:
+            fail(f"/write-pr multi-ticket contract is missing {required!r}")
+    for retired in ("required ticket or issue identifier", "list them and ask the user to choose"):
+        if retired in write_pr:
+            fail(f"/write-pr still assumes one ticket per branch: {retired!r}")
+
+    for relative in ("skills/setup-skills/issue-tracker-github.md", "docs/agents/issue-tracker.md"):
+        tracker = read(relative)
+        handoff = next(line for line in tracker.splitlines() if line.startswith("- **PR/merge handoff"))
+        if MULTI_TICKET_HANDOFF not in handoff:
+            fail(f"{relative}: PR/merge handoff is missing the multi-ticket closing and verification sentence")
+        # A clarification, not a new capability: a tracker without it stays current.
+        older = tracker.replace(MULTI_TICKET_HANDOFF, "")
+        if older == tracker or missing_tracker_capabilities(older) or not tracker_is_current(older):
+            fail(f"{relative}: a tracker without the multi-ticket handoff sentence was reported stale")
+    if "such as the multi-ticket PR/merge handoff, is not a missing capability" not in read("skills/setup-skills/SKILL.md"):
+        fail("/setup-skills does not state that the multi-ticket handoff clarification leaves a tracker current")
+
+    implement = read("skills/implement/SKILL.md")
+    for required in (
+        "Sequential runs for different tickets on one existing non-default branch are supported.",
+        "Each run keeps its own `BASELINE`, start gates, claim, review cycle, commits, and closeout",
+        "a clean worktree: no uncommitted changes, with this ticket's work committed",
+        "Commits from earlier tickets on the branch are allowed; they precede `BASELINE` and stay outside "
+        "this run's `<BASELINE>...HEAD` review diff.",
+    ):
+        if required not in implement:
+            fail(f"/implement sequential same-branch contract is missing {required!r}")
+    if "a clean worktree containing only committed ticket work" in implement:
+        fail("/implement still reads as forbidding earlier tickets' commits on the branch")
+
+
 def validate_native_agents(root: Path = ROOT) -> None:
     """Every role manifest renders each harness agent in memory, with one owner per agent name."""
     owners: dict[str, str] = {}
@@ -2333,6 +2605,8 @@ def main() -> int:
         validate_tracker_capability_contract()
         validate_reconciliation()
         validate_reconciliation_contract()
+        validate_pr_ticket_plan()
+        validate_multi_ticket_pr_contract()
         validate_native_agents()
         validate_generated_agents_untracked()
         validate_deep_review()
