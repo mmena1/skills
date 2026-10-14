@@ -25,7 +25,7 @@ class WizardTests(unittest.TestCase):
         return subprocess.run(
             [shutil.which("bash"), "-c", LIBRARY + "\n" + stages],
             cwd=self.directory, input=input, text=True, capture_output=True,
-            env={**os.environ, **(env or {})}, timeout=10,
+            env={**os.environ, "ENV_FILE": ".env", **(env or {})}, timeout=10,
         )
 
     def assert_success(self, result):
@@ -47,6 +47,7 @@ source "$ENV_FILE"
 ''', env={"TEST_VALUE": value})
                 self.assert_success(result)
 
+    @unittest.skipUnless(os.name == "posix", "requires POSIX links and modes")
     def test_upsert_preserves_symlink_target_mode_and_other_entries(self):
         target = self.directory / "settings.env"
         target.write_text("KEEP=old\nTOKEN=first\nTOKEN=second\n")
@@ -63,6 +64,7 @@ source "$ENV_FILE"
         self.assertEqual(target.read_text().count("TOKEN="), 1)
         self.assertIn("KEEP=old\n", target.read_text())
 
+    @unittest.skipUnless(os.name == "posix", "requires POSIX file modes")
     def test_existing_regular_file_keeps_its_mode(self):
         path = self.directory / ".env"
         path.write_text("TOKEN=old\n")
@@ -70,6 +72,7 @@ source "$ENV_FILE"
         self.assert_success(self.run_wizard("write_env TOKEN replacement"))
         self.assertEqual(path.stat().st_mode & 0o777, 0o664)
 
+    @unittest.skipUnless(os.name == "posix", "requires POSIX file modes")
     def test_new_file_is_private_even_with_permissive_umask(self):
         self.assert_success(self.run_wizard("umask 000; write_env TOKEN value"))
         self.assertEqual((self.directory / ".env").stat().st_mode & 0o777, 0o600)
@@ -103,6 +106,13 @@ printf '%s\\n' 'TOKEN=$(touch executed) legacy' > "$ENV_FILE"
 ask TOKEN "Token:"
 [[ "$TOKEN" == '$(touch executed) legacy' && ! -e executed ]]
 ''', input="\n\n"))
+
+    def test_legacy_default_keeps_literal_surrounding_single_quotes(self):
+        (self.directory / ".env").write_text("TOKEN='literal single quotes'\n")
+        self.assert_success(self.run_wizard('''
+ask TOKEN 'Keep token:'
+[[ "$TOKEN" == "'literal single quotes'" ]]
+''', input="\n"))
 
     def test_missing_or_failing_opener_warns_once_with_url(self):
         for available in (False, True):

@@ -92,9 +92,11 @@ confirm() {
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  local value="${line#*=}" escaped_quote="'\\''"
-  # Decode only our single-quote format, never evaluate .env contents.
-  if [[ "$value" == \'*\' ]]; then
+  local value="${line#*=}" escaped_quote="'\\''" marker=" # wizard: quoted"
+  # Decode marked output only; legacy entries remain literal. Never evaluate them.
+  if [[ "$value" == *"$marker" ]]; then
+    value="${value%"$marker"}"
+    [[ "$value" == \'*\' ]] || return 1
     value="${value:1:${#value}-2}"
     value="${value//"$escaped_quote"/\'}"
   fi
@@ -142,7 +144,7 @@ write_env() {
   tmp=$(mktemp)
   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
   value="${value//\'/$escaped_quote}"
-  printf "%s='%s'\n" "$key" "$value" >> "$tmp"
+  printf "%s='%s' # wizard: quoted\n" "$key" "$value" >> "$tmp"
   if ! cat "$tmp" > "$ENV_FILE"; then
     rm -f "$tmp"
     return 1
