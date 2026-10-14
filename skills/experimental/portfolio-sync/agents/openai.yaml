@@ -1,0 +1,5 @@
+interface:
+  display_name: "Portfolio Sync"
+  short_description: "Add open issues and PRs missing from the portfolio Project"
+policy:
+  allow_implicit_invocation: false

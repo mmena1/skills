@@ -25,7 +25,7 @@ Do not modify issues, labels, assignments, dependencies, Project fields or items
 
 ## Retrieve repository state
 
-Always pass `--repo <owner/repo>` to issue and PR commands and use explicit owner/repository API paths. Query each selected repository directly, independently of Project membership. Retrieve open issues with labels, assignees, bodies, and timestamps; open PRs with draft state, review state, and checks; and recently merged PRs and closed issues, including items absent from the Project. Mark those omissions in the summary.
+Always pass `--repo <owner/repo>` to issue and PR commands and use explicit owner/repository API paths. Query each selected repository directly, independently of Project membership. Retrieve open issues with labels, assignees, bodies, and timestamps; open PRs with draft state, review state, and checks; and recently merged PRs and closed issues, including items absent from the Project. Mark those omissions in the summary. When open issues or PRs of a linked repository are absent from the Project, recommend `/portfolio-sync` as a follow-up the user may run; synchronization stays the user's separate, explicit invocation.
 
 Useful starting commands, substituting the resolved repository and date:
 
