@@ -1476,10 +1476,12 @@ def pr_ticket_plan(
     with the ticket references their messages carry. This is a regression model of
     the prompt workflow, not a tracker adapter.
     """
-    shared_confirmed, rationales, blocker_overrides = shared_confirmed or set(), rationales or {}, blocker_overrides or set()
+    shared_confirmed = shared_confirmed or set()
+    rationales = rationales or {}
+    blocker_overrides = blocker_overrides or set()
     delta = [entry["sha"] for entry in commits]
     plan = {
-        "tickets": [], "evidence": {}, "attribution": {}, "unresolved": [], "supporting": [], "shared": [],
+        "tickets": [], "admission": {}, "attribution": {}, "unresolved": [], "supporting": [], "shared": [],
         "overrides": [], "references": [], "close_directives": [], "reconcile": [], "handoff": [], "stops": [],
     }
     attribution: dict = {}
@@ -1495,7 +1497,7 @@ def pr_ticket_plan(
                 plan["unresolved"].append(reference)
             continue
         plan["tickets"].append(reference)
-        plan["evidence"][reference] = "record" if named else "manual"
+        plan["admission"][reference] = "record" if named else "manual"
         for sha in set(named) | set(referencing if confirmed_manual else ()):
             attribution.setdefault(sha, []).append(reference)
     plan["attribution"] = {sha: attribution[sha] for sha in delta if sha in attribution}
@@ -1555,7 +1557,7 @@ def validate_pr_ticket_plan() -> None:
     two = {101: ticket(("a1",)), 102: ticket(("b1", "b2"))}
     two_commits = [commit("a1", 101), commit("b1", 102), commit("b2")]
     github = plan(two, two_commits)
-    if github["stops"] or github["tickets"] != [101, 102] or github["evidence"] != {101: "record", 102: "record"}:
+    if github["stops"] or github["tickets"] != [101, 102] or github["admission"] != {101: "record", 102: "record"}:
         fail("two GitHub tickets with implementation records naming delta commits were not both admitted")
     if github["close_directives"] != ["Closes #101", "Closes #102"] or github["reconcile"] != [101, 102]:
         fail("two GitHub tickets did not get one independent closing keyword and one gated /reconcile each")
@@ -1578,7 +1580,7 @@ def validate_pr_ticket_plan() -> None:
     # observed verification, and explicit confirmation. A reference alone is a candidate.
     manual_commits = [commit("a1", 101), commit("m1", 103)]
     manual = plan({101: ticket(("a1",)), 103: ticket(verified=True, confirmed=True)}, manual_commits)
-    if manual["stops"] or manual["tickets"] != [101, 103] or manual["evidence"][103] != "manual":
+    if manual["stops"] or manual["tickets"] != [101, 103] or manual["admission"][103] != "manual":
         fail("a manually implemented ticket with observed verification and confirmation was not admitted")
     if manual["attribution"] != {"a1": [101], "m1": [103]}:
         fail("a manually implemented ticket's referencing commits were not attributed to it")
@@ -1689,7 +1691,7 @@ def validate_multi_ticket_pr_contract() -> None:
         "**Ticket set**: the tickets the branch delta implements, confirmed by the user before drafting",
         "(a) a tracker implementation record, such as an `/implement` closeout, that names commits present in the branch delta",
         "verification output this workflow observes, and explicit user confirmation",
-        "A commit-message reference alone is a candidate, never evidence.",
+        "A commit-message reference alone is a candidate, never admissible evidence.",
         "without that confirmation, the candidate is not admitted",
         "as an unclear source for the user to resolve, include, or exclude",
         "Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly",

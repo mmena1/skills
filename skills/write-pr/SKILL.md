@@ -17,7 +17,7 @@ This workflow handles pull-request preparation and handoff, not implementation o
 - **Base branch**: the branch the pull request targets, discovered from the configured primary remote and repository guidance.
 - **Branch delta**: committed changes on the current branch that are not in the base branch.
 - **Ticket set**: the tickets the branch delta implements, confirmed by the user before drafting. A branch may carry one ticket or several tickets implemented sequentially on it, for example by successive `/implement` runs.
-- **Admissible evidence**: what establishes that the branch delta implements a ticket. Either (a) a tracker implementation record, such as an `/implement` closeout, that names commits present in the branch delta, or (b) commits in the branch delta that reference the ticket, verification output this workflow observes, and explicit user confirmation that those commits implement that ticket. A commit-message reference alone is a candidate, never evidence.
+- **Admissible evidence**: what establishes that the branch delta implements a ticket. Either (a) a tracker implementation record, such as an `/implement` closeout, that names commits present in the branch delta, or (b) commits in the branch delta that reference the ticket, verification output this workflow observes, and explicit user confirmation that those commits implement that ticket. A commit-message reference alone is a candidate, never admissible evidence.
 - **Change brief**: the authoritative explanation of the work, assembled for each ticket in the ticket set from the configured issue tracker, linked issue or specification files, repository guidance, commits, and the diff.
 - **Supporting change**: a changed file or theme not explained by the change brief but plausibly related to the pull request. The body must explain why it is included.
 - **Evidence**: concrete output showing that the change works, such as a test result, command output, rendered result, or a clearly stated verification gap.
@@ -74,7 +74,7 @@ Check for an existing open pull request from the current head branch to the conf
 
 Use `docs/agents/issue-tracker.md` to locate the authoritative issue, specification, or task files. Collect candidate tickets from tracker implementation records and from ticket references in the branch delta's commit messages. Read each candidate's files that the tracker workflow identifies as part of the change brief, its state, its blockers, and its implementation records. Also read linked design or implementation notes when repository guidance requires them.
 
-Admit a candidate to the ticket set only with admissible evidence. For a candidate without a tracker implementation record naming delta commits, run the repository's relevant verification now, show its output with the referencing commits, and ask the user to confirm that those commits implement that ticket; without that confirmation, the candidate is not admitted. List every candidate that still lacks admissible evidence, such as a referenced ticket with no establishing evidence, as an unclear source for the user to resolve, include, or exclude. If no candidate is admitted, or the tracker source is missing or does not explain the branch, ask the user for the issue or specification path rather than inventing requirements.
+Admit a candidate to the ticket set only with admissible evidence. For a candidate without a tracker implementation record naming delta commits, run the repository's relevant verification now, show its output with the referencing commits, and ask the user to confirm that those commits implement that ticket; without that confirmation, the candidate is not admitted. List every candidate that still lacks admissible evidence, such as a referenced ticket with nothing that establishes its implementation, as an unclear source for the user to resolve, include, or exclude. If no candidate is admitted, or the tracker source is missing or does not explain the branch, ask the user for the issue or specification path rather than inventing requirements.
 
 Attribute every commit in the branch delta to the admitted tickets whose admissible evidence names it. Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly. Report every unattributed commit as a supporting change with a stated rationale, asking the user for the rationale when the delta and change briefs do not supply one.
 
@@ -146,7 +146,7 @@ Use the repository pull-request template when present. Preserve its headings and
 
 <brief explanation in the repository's domain language>
 
-<tracker-required PR/merge references: one close directive per GitHub issue, such as Closes #<issue>, each on its own line, and the closure handoff>
+<tracker-required PR/merge references and closure handoff from step 2>
 
 ## Evidence
 
