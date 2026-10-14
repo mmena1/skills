@@ -80,6 +80,8 @@ Attribute every commit in the branch delta to the admitted tickets whose admissi
 
 Validate closure across the whole pull request. For every admitted ticket, every unresolved blocker must itself be in the ticket set: on GitHub, unresolved means open; on a local tracker, it means not in its resolved state. Otherwise, stop before drafting and report the ticket, the unresolved blocker, and that merging would resolve a dependent before its blocker. Continue only when the user explicitly overrides that blocker, and report the override in the body. Because each ticket's own blockers are checked, a chain such as A, then B, then C validates only when every earlier ticket is in the set or already resolved.
 
+Re-validate every branch-satisfied relation in the pull request against the final head, in addition to that closure validation. A relation is a blocker that an admitted ticket's implementation record lists as branch-satisfied. Each such blocker that is still unresolved must itself be in the ticket set, and no blocker override applies to it. Validate it as the tracker's branch-satisfied blockers operation defines, including ancestry, intactness, and revert detection, counting the recorded commits of the admitted tickets linked through these relations as in-chain. This catches a blocker reverted or rewritten after a later ticket was built on it, even when each direct check passed when it ran. When any relation fails, stop before drafting and report the dependent, the blocker, the failed condition, and the commits involved; do not repair it here.
+
 Present the ticket set, each ticket's admissible evidence, commit attribution, supporting changes, and unclear sources, and ask the user to confirm the final ticket set before drafting.
 
 Capture the tracker-defined PR/merge lifecycle for each ticket, including required issue references, close directives, and handoff or post-merge reconciliation steps. Do not close an issue directly unless the configured tracker workflow explicitly assigns that action to this workflow.
@@ -102,7 +104,7 @@ Compare each ticket's change brief with:
 
 Record every changed theme under the ticket whose change brief describes it, or as a supporting change requiring rationale.
 
-**Completion criterion**: the user-confirmed ticket set, each ticket's admissible evidence and change brief, every commit's attribution or supporting-change rationale, PR-wide blocker validation or each reported override, each ticket's tracker-defined PR/merge lifecycle and closure handoff, intended implementation areas, tests, documentation, and every supporting change are accounted for.
+**Completion criterion**: the user-confirmed ticket set, each ticket's admissible evidence and change brief, every commit's attribution or supporting-change rationale, PR-wide blocker validation or each reported override, every branch-satisfied relation re-validated at the final head, each ticket's tracker-defined PR/merge lifecycle and closure handoff, intended implementation areas, tests, documentation, and every supporting change are accounted for.
 
 ### 3. Check repository conventions and security
 
