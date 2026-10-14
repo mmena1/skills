@@ -1655,9 +1655,9 @@ def validate_reconciliation_contract() -> None:
 
 def pr_ticket_plan(
     *, tracker: str, tickets: dict, commits: list[dict], base: str, default: str,
-    auto_close: bool | None, set_confirmed: bool, shared_confirmed: set | None = None,
+    auto_close: bool | None, shared_confirmed: set | None = None,
     rationales: dict | None = None, blocker_overrides: set | None = None,
-    branch_relations: dict | None = None,
+    branch_relations: dict | None = None, excluded_sources: set | None = None,
 ) -> dict:
     """Model /write-pr's ticket set, commit attribution, and closure handoff over one branch delta.
 
@@ -1667,14 +1667,17 @@ def pr_ticket_plan(
     Commits are the branch delta in order, with the ticket references their messages carry. A record's
     `branch_satisfied` lists the blockers its run relied on; `branch_relations` maps each such
     (dependent, blocker) relation to its branch-satisfied verdict re-validated at the final head.
+    `excluded_sources` records explicit user exclusions of candidates lacking admissible evidence;
+    their unattributed commits still require supporting-change rationales.
     This is a regression model of the prompt workflow, not a tracker adapter.
     """
     shared_confirmed = shared_confirmed or set()
     rationales = rationales or {}
     blocker_overrides = blocker_overrides or set()
+    excluded_sources = excluded_sources or set()
     delta = [entry["sha"] for entry in commits]
     plan = {
-        "tickets": [], "admission": {}, "attribution": {}, "unresolved": [], "supporting": [], "shared": [],
+        "tickets": [], "admission": {}, "attribution": {}, "unresolved": [], "excluded": [], "supporting": [], "shared": [],
         "overrides": [], "references": [], "close_directives": [], "reconcile": [], "handoff": [], "stops": [],
     }
     attribution: dict = {}
@@ -1692,7 +1695,11 @@ def pr_ticket_plan(
         confirmed_manual = bool(referencing) and manual.get("verified", False) and manual.get("confirmed", False)
         if not named and not confirmed_manual:
             if referencing or subject["record"] or subject["manual"]:
-                plan["unresolved"].append(reference)
+                if reference in excluded_sources:
+                    plan["excluded"].append(reference)
+                else:
+                    plan["unresolved"].append(reference)
+                    plan["stops"].append(("unresolved-ticket-source", reference))
             continue
         plan["tickets"].append(reference)
         plan["admission"][reference] = "record" if named else "manual"
@@ -1733,8 +1740,6 @@ def pr_ticket_plan(
                 plan["overrides"].append((reference, blocker))
             else:
                 plan["stops"].append(("blocker-outside-set", (reference, blocker)))
-    if not set_confirmed:
-        plan["stops"].append(("unconfirmed-ticket-set", None))
     if plan["stops"]:
         return plan
     if tracker != "github":
@@ -1768,7 +1773,8 @@ def validate_pr_ticket_plan() -> None:
         return {"sha": sha, "references": list(references)}
 
     def plan(tickets: dict, commits: list, **options) -> dict:
-        settings = {"tracker": "github", "base": "main", "default": "main", "auto_close": True, "set_confirmed": True}
+        # No blanket confirmation input: admission and the targeted gates establish the set.
+        settings = {"tracker": "github", "base": "main", "default": "main", "auto_close": True}
         return pr_ticket_plan(tickets=tickets, commits=commits, **{**settings, **options})
 
     two = {101: ticket(("a1",)), 102: ticket(("b1", "b2"))}
@@ -1800,10 +1806,13 @@ def validate_pr_ticket_plan() -> None:
         ("a stopped implementation record", ticket(("a1",), outcome="stopped")),
         ("a failed implementation record", ticket(("a1",), outcome="failed")),
         ("a record with a recorded commit missing from the delta", ticket(("a1", "a2"))),
+        ("a record naming no commits", {**ticket(), "record": {"commits": [], "outcome": "succeeded"}}),
     ):
         rejected = plan({101: record}, partial_commits, **rationale_a1)
         if rejected["tickets"] or rejected["unresolved"] != [101] or rejected["close_directives"]:
             fail(f"{label} admitted its ticket or was not listed as an unclear source")
+        if rejected["stops"] != [("unresolved-ticket-source", 101), ("no-admitted-ticket", None)]:
+            fail(f"{label} did not require source resolution and an admitted ticket")
     rewritten = plan({101: ticket(("a1", "a2"), verified=True, confirmed=True)}, partial_commits)
     if rewritten["stops"] or rewritten["admission"] != {101: "manual"} or rewritten["attribution"] != {"a1": [101]}:
         fail("a partially recorded ticket was not admissible through verified, confirmed manual evidence")
@@ -1825,8 +1834,20 @@ def validate_pr_ticket_plan() -> None:
         rejected = plan({101: ticket(("a1",)), 103: evidence}, manual_commits, **rationale)
         if rejected["tickets"] != [101] or rejected["unresolved"] != [103]:
             fail(f"a ticket was admitted {label}, or was not listed as an unclear source for the user")
-        if rejected["supporting"] != ["m1"] or rejected["stops"] or "Closes #103" in rejected["close_directives"]:
-            fail(f"the commits of a ticket rejected {label} were not reported as a rationalized supporting change")
+        if rejected["supporting"] != ["m1"] or rejected["stops"] != [("unresolved-ticket-source", 103)]:
+            fail(f"a ticket rejected {label} silently became a supporting change without source resolution")
+        if rejected["close_directives"] or rejected["reconcile"]:
+            fail(f"an unresolved ticket source {label} allowed drafting or reconciliation")
+        excluded = plan({101: ticket(("a1",)), 103: evidence}, manual_commits, excluded_sources={103}, **rationale)
+        if excluded["stops"] or excluded["tickets"] != [101] or excluded["excluded"] != [103]:
+            fail(f"explicitly excluding a ticket {label} required redundant ticket-set confirmation")
+        if excluded["supporting"] != ["m1"] or excluded["close_directives"] != ["Closes #101"]:
+            fail(f"excluding a ticket {label} admitted it or lost its supporting-change rationale")
+    excluded_without_rationale = plan(
+        {101: ticket(("a1",)), 103: ticket()}, manual_commits, excluded_sources={103},
+    )
+    if excluded_without_rationale["stops"] != [("supporting-change-without-rationale", "m1")]:
+        fail("explicit source exclusion silently supplied a missing supporting-change rationale")
     unexplained = plan({101: ticket(("a1",))}, manual_commits)
     if unexplained["supporting"] != ["m1"] or unexplained["stops"] != [("supporting-change-without-rationale", "m1")]:
         fail("an unattributed commit without a stated rationale did not stop drafting")
@@ -1854,8 +1875,8 @@ def validate_pr_ticket_plan() -> None:
             fail(f"{label} automatic issue closure dropped closure verification before reconciliation")
     if {"keywords-inert-on-non-default-base", "auto-close-unverified"} & set(local["handoff"] + github["handoff"]):
         fail("a GitHub-closure caveat appeared where keywords close on merge or no keyword exists")
-    if plan(two, two_commits, set_confirmed=False)["stops"] != [("unconfirmed-ticket-set", None)]:
-        fail("drafting proceeded before the user confirmed the final ticket set")
+    if plan(two, two_commits)["stops"]:
+        fail("an unambiguous verified ticket set required redundant confirmation before drafting")
 
     single = plan({101: ticket(("a1",))}, [commit("a1", 101)])
     expected_single = {
@@ -1864,7 +1885,9 @@ def validate_pr_ticket_plan() -> None:
     }
     if {key: single[key] for key in expected_single} != expected_single:
         fail("a single-ticket branch changed its close directive or handoff shape")
-    if plan({101: ticket()}, [commit("a1", 101)], rationales={"a1": "Unclear."})["stops"] != [("no-admitted-ticket", None)]:
+    if plan({101: ticket()}, [commit("a1", 101)], rationales={"a1": "Unclear."})["stops"] != [
+        ("unresolved-ticket-source", 101), ("no-admitted-ticket", None),
+    ]:
         fail("drafting proceeded with no admitted ticket instead of asking for the governing source")
 
     # Every unresolved blocker of every admitted ticket must be in the set, which validates chains.
@@ -1872,7 +1895,7 @@ def validate_pr_ticket_plan() -> None:
     blocked_commits = [commit("a1", 101), commit("b1", 102)]
     outside = plan(blocked, blocked_commits)
     if outside["stops"] != [("blocker-outside-set", (102, 90))] or outside["close_directives"]:
-        fail("a ticket with an unresolved blocker outside the confirmed set did not stop drafting")
+        fail("a ticket with an unresolved blocker outside the established set did not stop drafting")
     overridden = plan(blocked, blocked_commits, blocker_overrides={(102, 90)})
     if overridden["stops"] or overridden["overrides"] != [(102, 90)] or overridden["tickets"] != [101, 102]:
         fail("an explicit blocker override was not honoured and reported")
@@ -2209,7 +2232,7 @@ def validate_branch_satisfied_blockers() -> None:
         delta = [{"sha": entry["sha"], "references": []} for entry in history[1:]]
         return pr_ticket_plan(
             tracker="github", tickets=tickets, commits=delta, base="main", default="main", auto_close=True,
-            set_confirmed=True, branch_relations=relations(history), **options,
+            branch_relations=relations(history), **options,
         )
 
     chain = {a: pr_ticket(snapshots[a]), b: pr_ticket(snapshots[b], (a,)), c: pr_ticket(snapshots[c], (b,))}
@@ -2256,7 +2279,7 @@ def validate_multi_ticket_pr_contract() -> None:
 
     write_pr = read("skills/write-pr/SKILL.md")
     for required in (
-        "**Ticket set**: the tickets the branch delta implements, confirmed by the user before drafting",
+        "**Ticket set**: the tickets the branch delta implements, established from admissible evidence",
         "(a) a tracker implementation record of a successful closeout, such as a completed `/implement` closeout, "
         "whose complete recorded commit set is present in the branch delta",
         "verification output this workflow observes, and explicit user confirmation",
@@ -2264,12 +2287,23 @@ def validate_multi_ticket_pr_contract() -> None:
         "as does a commit-message reference alone; neither is admissible evidence",
         "without that confirmation, the candidate is not admitted",
         "as an unclear source for the user to resolve, include, or exclude",
+        "Resolve every unclear source before drafting: inclusion requires admissible evidence, and exclusion requires an explicit user decision",
+        "excluded commits still need supporting-change rationales",
+        "Missing evidence or user silence never admits a candidate",
         "Report a commit attributed to more than one ticket and ask the user to confirm that attribution explicitly",
         "Report every unattributed commit as a supporting change with a stated rationale",
         "every unresolved blocker must itself be in the ticket set",
         "merging would resolve a dependent before its blocker",
         "report the override in the body",
-        "ask the user to confirm the final ticket set before drafting",
+        "Present the established ticket set",
+        "proceed without ticket-set confirmation, for both single-ticket and multi-ticket branches",
+        "Request targeted input only for unresolved evidence, attribution, or rationale",
+        "once resolved, proceed without another acknowledgment of the set",
+        "step 6 still requires approval of the exact title and body",
+        "**Completion criterion**: the ticket set established from admissible evidence, every unclear source resolved",
+        "Stop and warn the user before creating the pull request if the diff contains likely secrets or sensitive material",
+        "Create pull request? (ready / draft / edit / abort)",
+        "This approves pushing the branch and creating the pull request with the exact displayed title and body",
         "carry one independent closing keyword per issue",
         "GitHub applies a shared keyword such as `Closes #<a>, #<b>` only to the first issue",
         "generate no GitHub closing directive. Reference each ticket by its tracker identifier or path",
@@ -2283,9 +2317,13 @@ def validate_multi_ticket_pr_contract() -> None:
     ):
         if required not in write_pr:
             fail(f"/write-pr multi-ticket contract is missing {required!r}")
-    for retired in ("required ticket or issue identifier", "list them and ask the user to choose"):
+    for retired in (
+        "required ticket or issue identifier", "list them and ask the user to choose",
+        "confirmed by the user before drafting", "ask the user to confirm the final ticket set before drafting",
+        "the user-confirmed ticket set",
+    ):
         if retired in write_pr:
-            fail(f"/write-pr still assumes one ticket per branch: {retired!r}")
+            fail(f"/write-pr retains retired ticket-set wording: {retired!r}")
 
     for relative in ("skills/setup-skills/issue-tracker-github.md", "docs/agents/issue-tracker.md"):
         tracker = read(relative)
