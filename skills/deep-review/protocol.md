@@ -31,22 +31,24 @@ Classify the target as production source, tests, docs, config/build, or other. R
 - `history`: regression-risk review using relevant history for modified code or configuration.
 - `docs`: accuracy review of changed comments, TODOs, documentation, and behavior claims.
 
-Obtain a non-empty confirmed set. Before analysis, verify the invocation-specific runtime contract:
+Obtain a non-empty confirmed set. Before analysis, verify the invocation-specific role and access prerequisites:
 
 - the exact selected scout count is known;
-- enough simultaneous scout capacity exists for the complete set;
+- the harness declares which scout capacity gate applies;
 - the native scout agent for every selected lens is installed: `deep-review-scout-<lens>` for `bugs`, `conventions`, `history`, and `docs`, and `deep-review-structural` for `structural`, each embedding the common scout contract and exactly its own lens;
 - the static and writable validator agents are installed;
-- an independent validator can launch when hypotheses survive;
-- scouts can inspect the pinned worktree read-only;
-- the validator can inspect it read-only during static adjudication and receive writable access for bounded probes;
+- the harness declares its static-validator concurrency ceiling and launch-refusal/backpressure behavior. A fixed limit is an upper bound, not evidence that those slots will be available when validators launch;
+- scouts and static validators can inspect the pinned worktree read-only;
+- the writable probe has only the harness-authorized access needed for bounded checks;
 - every role can access the same pinned worktree and its bounded context manifests.
+
+Apply the declared scout capacity gate at its defined point. Strict preflight, used when reliable available-slot observation exists, confirms enough slots for the complete set before any scout launches. Launch-time admission, used when no reliable observation exists, makes no advance slot claim; admission happens while dispatching the complete concurrent wave, with refusal behavior defined below.
 
 Read-only and writable describe role behavior contracts; their enforcement follows the active harness mechanisms in `SKILL.md`. A writable probe stays within the coordinator's effective permissions and gains no permissions from its phase.
 
 Scouts and static validators create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.
 
-If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. If `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Never launch a partial set, run sequentially, use bounded waves, or change global harness concurrency policy.
+If a required native agent is missing, stop before analysis and name it; never substitute the coordinator, a generic agent, another scout, or another model. Under strict preflight, if `N` scouts are selected and fewer than `N` simultaneous slots are available, report required and available capacity and stop before analysis. Under launch-time admission, attempt every selected scout in the same concurrent wave without querying, guessing, assuming, estimating, inferring, or recording a numeric available capacity. If any launch is refused, do not retry it or launch a replacement, reduce or substitute the set, or fall back to sequential scouting or bounded waves. Let already-started scouts finish and preserve their evidence in run state and report, launch no validator or probe, mark the run incomplete, block PASS, `No findings`, and publication, and still run cleanup. Never launch a deliberately partial set or change global harness concurrency policy.
 
 ## Capture context and create one worktree
 
@@ -97,7 +99,7 @@ The coordinator merges hypotheses only when they describe the same behavioral fa
 
 ## Validation outcomes
 
-The validator follows `reviewers/validator.md` and receives exactly one canonical hypothesis per invocation. Every hypothesis enters one logical concurrent static adjudication phase against the same pinned worktree under a read-only contract. The coordinator queues hypotheses in canonical ID order (`H1`, `H2`, …), fills the maximum safe validator capacity exposed by the harness, and launches the next queued hypothesis whenever an invocation finishes and frees a slot, including after failure or timeout. Capacity-constrained batching, including sequential execution with one slot, is valid and does not make the review incomplete. Completion order may be arbitrary, and static invocations remain independent: no invocation depends on or consumes another validator's outcome. A static invocation returns exactly one of:
+The validator follows `reviewers/validator.md` and receives exactly one canonical hypothesis per invocation. Every hypothesis enters one logical concurrent static adjudication phase against the same pinned worktree under a read-only contract. The coordinator queues hypotheses in canonical ID order (`H1`, `H2`, …) and launches up to the maximum concurrent validator capacity declared by the active harness. A declared fixed capacity is a ceiling, not a guarantee that those slots are available at launch; any measured available capacity reported by the harness further bounds concurrency. A refused launch follows the harness's declared backpressure behavior. The coordinator launches the next queued hypothesis whenever an invocation finishes and frees a slot, including after failure or timeout. Capacity-constrained batching, including sequential execution with one slot, is valid and does not make the review incomplete. Completion order may be arbitrary, and static invocations remain independent: no invocation depends on or consumes another validator's outcome. A static invocation returns exactly one of:
 
 - **Finding**: decisive static evidence independently establishes the hypothesis, including final severity and evidence of actual reachability and impact, or for a structural hypothesis evidence meeting the structural evidence standard.
 - **Disproved**: concrete static evidence such as an invariant, guard, contract, or test rejects the hypothesis, or for a structural hypothesis evidence establishes one of the structural evidence standard's rejection grounds. Passing tests or correct behavior never disprove a structural hypothesis. It is not user-visible.
@@ -128,7 +130,7 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - surviving hypotheses: whether every canonical hypothesis received independent static adjudication;
 - capacity-bounded static validation: whether hypotheses exceeding available validator slots were queued in canonical ID order, launched as slots freed, and completed without capacity alone making the run incomplete;
 - multiple selected scouts: whether the complete selected set was dispatched before waiting for any scout to complete;
-- insufficient scout capacity: whether analysis stopped before any partial launch;
+- insufficient scout capacity: whether strict preflight stopped before any scout launched, or launch-time refusal stopped the run as incomplete; for launch-time refusal, whether any scouts started, those scouts finished with their evidence preserved, and no retry, reduction, or substitution occurred;
 - validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe;
 - scout failure: whether running scouts finished, the run became incomplete, and publication/PASS were blocked;
 - validator partial failure: whether completed outcomes survived, queued static hypotheses were still attempted, and writable probing was blocked;
