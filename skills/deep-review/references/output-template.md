@@ -154,6 +154,7 @@ Include every row of the full-review receipt first. Mark Zero hypotheses, Surviv
 | Resolved thread with a persisting defect | PASS / FAIL / NOT EXERCISED | [resolved thread state beside the Not addressed status] |
 | Head change during revalidation | PASS / FAIL / NOT EXERCISED | [reviewed and current SHAs and the stale statuses] |
 | Multiple selected concerns | PASS / FAIL / NOT EXERCISED | [one follow-up adjudication per selected concern in canonical ID order] |
+| Follow-up validator capacity | PASS / FAIL / NOT EXERCISED | [the harness's validator-only capacity read or fixed bound, slots used, and any refusal handled as backpressure] |
 | Record discovery in a later session | PASS / FAIL / NOT EXERCISED | [source record found by repository and target key] |
 | Discovery when the newest record is a narrower follow-up | PASS / FAIL / NOT EXERCISED | [latest full-review source chosen; follow-up record used only for prior context] |
 | Record preservation from a linked worktree | PASS / FAIL / NOT EXERCISED | [caller worktree and the canonical record root reached] |

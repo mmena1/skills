@@ -87,7 +87,8 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Explicitly deferred concern | A concern the user deferred at the confirmation launches no validator and is reported as Deferred with its reason, separately from Addressed | Same | Same |
 | Resolved thread with a persisting defect | Thread state is retrieved after validation from recorded comment identifiers and shown as resolved in its own column, while the concern stays Not addressed | Same | Same |
 | Head change during revalidation | Reviewed and current SHAs are reported, every status is stale, and a rerun is required | Same | Same |
-| Multiple selected concerns | Each selected concern receives one independent follow-up adjudication in canonical ID order under the static capacity rules; no scout runs | Same | Same |
+| Multiple selected concerns | Each selected concern receives one independent follow-up adjudication in canonical ID order under the follow-up validator capacity; no scout runs | Same | Same |
+| Follow-up validator capacity | Static validator concurrency comes from a fixed bound of at most 4 slots, with no scout capacity read; a refusal is backpressure | Same, from a validator-only read of the concurrent subagent cap, using at most 4 slots and never more than the available count | Same, from a validator-only inspection of the active subagent capacity |
 | Record discovery in a later session | A new session finds the source record under the record root by repository identity and target kind and key | Same | Same |
 | Discovery when the newest record is a narrower follow-up | The latest matching full-review record stays the source and the full concern inventory is offered; the newer follow-up record supplies only prior status and provenance | Same | Same |
 | Record preservation from a linked worktree | Records started from a linked worktree, or a subdirectory, are preserved under the same canonical `<git-common-dir>/deep-review/records/<run-id>/` and verified byte for byte | Same | Same |
@@ -105,6 +106,7 @@ Observed follow-up acceptance per harness. No harness is accepted for a row with
 | Resolved thread with a persisting defect | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 | Head change during revalidation | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 | Multiple selected concerns | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Follow-up validator capacity | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 | Record discovery in a later session | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 | Discovery when the newest record is a narrower follow-up | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 | Record preservation from a linked worktree | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |

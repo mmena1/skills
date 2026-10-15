@@ -2828,16 +2828,20 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "resolve symlinks, normalize separators and case to the platform's native form, and reject a result that is not an existing directory",
         "Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.",
         "It never removes unpreserved records and is never silent about a preservation failure.",
-        "Worktree cleanup proceeds whether or not preservation succeeded.",
+        "Worktree cleanup never waits on preservation, and a preservation failure never reverses or blocks it.",
+        "It runs only after worktree cleanup has finished and the run state and final report record the actual cleanup outcome",
         # Full-review source selection.
         "The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record",
         "supply prior status and provenance only",
         # No reconstruction.
         "It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.",
         "or with ambiguous evidence",
-        "mapped to concerns only through the source record's recorded comment identifiers",
+        "mapped to concerns only through recorded comment identifiers: the source record's publication mapping and the mappings of follow-up records whose lineage names the source, each keyed by source run ID plus canonical ID",
+        "These mappings are provenance for selection and thread state, never validator evidence.",
         # Scout skip.
         "Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran.",
+        # Follow-up validator capacity independent of the scout capacity check.
+        "static validator concurrency comes from the **follow-up validator capacity** the active harness declares in `SKILL.md`",
         # Discussion isolation for follow-up validators.
         "Follow-up validators never receive GitHub discussion, thread state, author claims, or prior follow-up statuses.",
         "The original outcome is context, never evidence",
@@ -2925,6 +2929,11 @@ def deep_review_follow_up_problems(documents: dict[str, str]) -> list[str]:
     for forbidden in ("Headline takeaway", "No findings", "| Already reported"):
         if forbidden in report:
             problems.append(f"deep-review follow-up report must not carry the full-review {forbidden!r} presentation")
+    capacity = [line.split("|")[2:5] for line in documents["SKILL.md"].splitlines()
+                if line.startswith("| Follow-up validator capacity |")]
+    if len(capacity) != 1 or len(capacity[0]) != 3 or not all(cell.strip() for cell in capacity[0]) or any(
+            "scout capacity check" in cell or "found by the capacity check" in cell for cell in capacity[0]):
+        problems.append("deep-review/SKILL.md: every harness must declare a follow-up validator capacity independent of the scout capacity check")
     hint = re.search(r'(?m)^argument-hint: "([^"\n]*)"$', documents["SKILL.md"].split("\n---\n", 1)[0])
     if not hint or not hint.group(1).startswith("[follow-up] "):
         problems.append("deep-review argument-hint must lead with the optional `follow-up` token")
@@ -2963,6 +2972,11 @@ def validate_deep_review_follow_up_contract(skill: Path, roles: dict[str, genera
         "a PASS headline in the follow-up report": ("references/output-template.md", "**Status counts:**", "**Headline takeaway:** No findings\n**Status counts:**"),
         "a full-review-only row left unmarked": ("references/output-template.md", "Insufficient scout capacity, and Scout failure", "and Scout failure"),
         "a full-review argument-hint": ("SKILL.md", 'argument-hint: "[follow-up] ', 'argument-hint: "'),
+        "a missing follow-up validator capacity": ("SKILL.md", "| Follow-up validator capacity |", "| Follow-up validator limit |"),
+        "a follow-up validator capacity tied to the scout check": (
+            "SKILL.md", "as a validator-only read with no scout selection or admission, and use the maximum safe capacity it finds.",
+            "and use the maximum safe capacity found by the capacity check.",
+        ),
         "Codex metadata without follow-up": ("agents/openai.yaml", "or follow-up revalidation", ""),
     }
     for label, (relative, old, new) in mutations.items():

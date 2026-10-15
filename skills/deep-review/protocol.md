@@ -210,13 +210,20 @@ Every run that created a run state preserves its records under the **record root
 
 An ordinary checkout, any of its linked worktrees, and any subdirectory of either all resolve to the same record root. Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.
 
-A preserved record holds `run-state.json`, `final-report.md` when produced, and `publication-receipt.json` when produced. Preservation uses the fixed direct copy operation, the same `cp` operation (or selected byte-for-byte equivalent) that context capture uses, with narrowly scoped authorization for that exact record directory. It never overwrites an existing record directory. It copies `run-state.json` last, so a partial record has no run state, and verifies byte equality of every copied file before the run directory is removed.
+A preserved record holds `run-state.json`, `final-report.md` when produced, and `publication-receipt.json` when produced. Preservation uses the fixed direct copy operation, the same `cp` operation (or selected byte-for-byte equivalent) that context capture uses, with narrowly scoped authorization for that exact record directory. It never overwrites an existing record directory. It runs only after worktree cleanup has finished and the run state and final report record the actual cleanup outcome, including a failed or interrupted cleanup, so the preserved record describes how the run really ended. Before copying, the run state records the intended record directory. Preservation copies `run-state.json` last, so a partial record has no run state, and verifies byte equality of every copied file before the run directory is removed.
 
-Preservation never changes a review. A denied authorization, a write restriction on the Git common directory, or any other preservation failure leaves the run's analysis, outcomes, report, and publication unchanged and does not block worktree cleanup. The coordinator then reports that records were not preserved and why, keeps the run directory with its records, and names the exact retained paths, including any partial record directory. It never removes unpreserved records and is never silent about a preservation failure.
+Preservation never changes a review. A denied authorization, a write restriction on the Git common directory, or any other preservation failure leaves the run's analysis, outcomes, report, cleanup outcome, and publication unchanged. Worktree cleanup has already run by then, so preservation never blocks it. The coordinator then records the preservation failure in the retained run state, reports that records were not preserved and why, keeps the run directory with its records, and names the exact retained paths, including any partial record directory. It never removes unpreserved records and is never silent about a preservation failure.
 
 ## Cleanup
 
-After every exit path, preserve the run's records as described in "Preserved review records", obtain narrowly scoped authorization for the exact coordinator-created worktree cleanup path, remove only that worktree with the narrowest Git worktree mechanism, and verify its registration is gone. Worktree cleanup proceeds whether or not preservation succeeded. Remove the matching context snapshot and run directory only after preservation is verified; when it is not, keep the run directory and report its exact path. Report the preserved record path, and exact leftovers when cleanup is interrupted.
+After every exit path, clean up in this order:
+
+1. Obtain narrowly scoped authorization for the exact coordinator-created worktree cleanup path, remove only that worktree with the narrowest Git worktree mechanism, and verify its registration is gone. Keep the run directory.
+2. Update the run state's cleanup status and the final report with the actual worktree cleanup outcome, including a failed or interrupted cleanup and its exact leftovers.
+3. Preserve the run's records as described in "Preserved review records". Worktree cleanup never waits on preservation, and a preservation failure never reverses or blocks it.
+4. Remove the matching context snapshot and run directory only after preservation is verified; when it is not, keep the run directory and report its exact path.
+
+Report the preserved record path, and exact leftovers when cleanup is interrupted.
 
 ## Follow-up revalidation
 
@@ -230,7 +237,7 @@ For a PR or branch target, read every `run-state.json` directly under the record
 
 A commit-range target, no matching full-review record, or a user preference uses explicit selection by run ID (a run directory in the record root) or record path. Explicit selection may name a record without identity fields, such as one preserved before record identity existed; the confirmation shows the missing identity, and the user confirms it. Explicitly selecting a follow-up record resolves through its lineage to its source full-review record; when that source record cannot be read, stop and report it, because the concern inventory cannot be recovered.
 
-Follow-up records whose lineage names the chosen source supply prior status and provenance only. For each concern, the confirmation and report show its latest prior follow-up status, any prior deferral, and the run IDs that produced them, as context, never as evidence.
+Follow-up records whose lineage names the chosen source supply prior status and provenance only, including the comments they published and the concerns those comments map to. For each concern, the confirmation and report show its latest prior follow-up status, any prior deferral, and the run IDs that produced them, as context, never as evidence.
 
 ### Concerns and selection
 
@@ -239,9 +246,11 @@ The **concern inventory** is the source record's Finding and Unresolved outcomes
 Selection is one of:
 
 - omitted or `all`: every concern;
-- `published`: every concern with a recorded published comment;
+- `published`: every concern with a recorded published comment in the source record or in a follow-up record whose lineage names the source;
 - explicit canonical IDs such as `H2,H5`;
-- published comment URLs or IDs, mapped to concerns only through the source record's recorded comment identifiers.
+- published comment URLs or IDs, mapped to concerns only through recorded comment identifiers: the source record's publication mapping and the mappings of follow-up records whose lineage names the source, each keyed by source run ID plus canonical ID.
+
+A comment published by an earlier follow-up therefore selects the same source concern as one published by the full review. These mappings are provenance for selection and thread state, never validator evidence.
 
 A requested ID or comment with no preserved original concern, with incomplete original evidence (no hypothesis, original outcome and evidence, or original reviewed head SHA), or with ambiguous evidence (a comment identifier recorded for more than one concern, or a run ID or record path that resolves to more than one record) is reported as incomplete coverage with the reason. It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.
 
@@ -253,7 +262,7 @@ At that confirmation, the user may mark selected concerns **deferred**, with an 
 
 ### Focused validation
 
-Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran. Preflight still verifies that both validator agents are installed. Every other mechanism runs unchanged against the new head: freshness, one immutable target-bound context snapshot with no scout manifests, one pinned coordinator-owned worktree with its exact baseline, workspace authorizations, one late-bound `reviewers/validator-manifest` derived from the selected concerns' context references, the static phase with its existing queue and capacity rules in canonical ID order, the sequential writable phase with baseline restoration, operational-failure handling, and cleanup.
+Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran. Preflight still verifies that both validator agents are installed. Because no scout capacity result exists, static validator concurrency comes from the **follow-up validator capacity** the active harness declares in `SKILL.md`: a validator-only capacity read or a fixed conservative bound, with no scout selection or admission. When it reports no available slot before any validator launches, stop validation and report every selected concern as Incomplete, not validated due to review failure. Every other mechanism runs unchanged against the new head: freshness, one immutable target-bound context snapshot with no scout manifests, one pinned coordinator-owned worktree with its exact baseline, workspace authorizations, one late-bound `reviewers/validator-manifest` derived from the selected concerns' context references, the static phase with its existing queue in canonical ID order and its existing backpressure and refusal rules, the sequential writable phase with baseline restoration, operational-failure handling, and cleanup.
 
 Each `deep-review-validator-static` and `deep-review-validator-probe` invocation runs the follow-up adjudication in `reviewers/validator.md` and receives exactly one original concern record (canonical ID, hypothesis, original outcome and evidence, and original reviewed head SHA), the new pinned worktree, and the base and new head SHAs. It may inspect the diff from the original head to the new head when the original head object is present locally, and must not fetch it. Follow-up validators never receive GitHub discussion, thread state, author claims, or prior follow-up statuses.
 
@@ -270,7 +279,7 @@ Statuses come only from the follow-up adjudication. The original outcome is cont
 
 Use the follow-up variant in `references/output-template.md`, labeled "Follow-up revalidation: not a full PR review". It never shows PASS or a `No findings` headline and states that code outside the selected concerns was not reviewed.
 
-GitHub thread state (open, resolved, outdated, not published, or unknown) is a separate column. Retrieve it only after validation finishes and only for recorded comment identifiers. A retrieval failure leaves it unknown without changing any code-level status, and a resolved thread never makes a concern addressed.
+GitHub thread state (open, resolved, outdated, not published, or unknown) is a separate column. Retrieve it only after validation finishes and only for recorded comment identifiers, from the source record and from follow-up records whose lineage names the source. A retrieval failure leaves it unknown without changing any code-level status, and a resolved thread never makes a concern addressed.
 
 Follow-up is read-only toward GitHub by default. A new comment the user requests for a Not addressed concern is drafted from its fresh evidence and goes through the existing `references/pr-review-overlap.md` and `references/pr-review-comments.md` gates unchanged. Follow-up never replies to, edits, resolves, or reopens an existing thread.
 
@@ -288,6 +297,7 @@ The follow-up receipt keeps every full-review row and marks the full-review-only
 - resolved thread with a persisting defect: whether the resolved thread state stayed separate and the concern stayed Not addressed;
 - head change during revalidation: whether every status became stale with reviewed and current SHAs reported;
 - multiple selected concerns: whether each selected concern received one independent follow-up adjudication in canonical ID order;
+- follow-up validator capacity: whether static validator concurrency came from the harness's follow-up validator capacity without any scout capacity read, with refusals handled as backpressure;
 - record discovery in a later session: whether a new session found the source record by repository and target;
 - discovery when the newest record is a narrower follow-up: whether the latest full-review record stayed the source and the follow-up supplied only prior context;
 - record preservation from a linked worktree: whether records reached the canonical record root of the clone's Git common directory;
