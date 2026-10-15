@@ -15,7 +15,7 @@ Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validat
 
 **Pipeline:** Hypotheses [discovered] → [after dedupe]; Validation [findings] Finding, [disproved] Disproved, [unresolved] Unresolved
 **Status:** complete | stale | **Review incomplete**: [scout/validator failure and affected hypotheses]
-**PR review overlap:** [complete / incomplete and publication blocked / skipped: no uniquely associated PR]; Already reported [item count], Prior resolved discussion [item count], Distinct [item count]; Newly published [actual count / not requested]
+**PR review overlap:** [complete / incomplete and publication blocked / skipped: no uniquely associated PR]; Already reported [item count], Prior resolved discussion [item count], Distinct [item count]; Newly published [actual count / not requested]; Submission [submitted / rejected / ambiguous / not requested]; Read-back [verified / mismatch / verification incomplete / not requested]
 
 **Headline takeaway:** [most important Finding, "No findings" when complete with zero Findings and zero Unresolved items, "<N> unresolved item(s) need discussion" when complete with no Findings but Unresolved items, or "Review incomplete"]
 

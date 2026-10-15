@@ -46,6 +46,8 @@
 
 - **Publication boundary**: The line separating private or local context from team-visible evidence suitable for a GitHub review comment. Ignored context does not cross it automatically.
 - **Publication payload**: The exact team-visible review content approved for publication, preserved with its publication receipt when publication occurs.
+- **Submission outcome**: What the review submission call established: `submitted`, `rejected`, or `ambiguous`. It is recorded independently of read-back verification and an `ambiguous` outcome is never replayed automatically.
+- **Read-back verification**: The comparison of the comments published under a submitted review against the publication payload, with outcome `verified`, `mismatch`, or `verification incomplete`. Omitted fields yield `verification incomplete`, never `mismatch`, and no verification outcome authorizes resubmission.
 - **Comment scope**: Whether a comment addresses a point, a method or design, or a compact range.
 - **Source anchor**: The smallest semantically representative code location for a comment. Publication coordinates must be mechanically valid for the current head as well as semantically representative.
 

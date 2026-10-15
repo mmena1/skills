@@ -32,10 +32,41 @@ Read the selected guide before drafting. Audience changes wording only: preserve
 7. If the preferred anchor is not commentable, use only the smallest relevant changed line or compact range as an explicit fallback, preserving scope and rationale. If no relevant changed location exists, do not publish inline.
 8. Get per-comment approval with scope and anchor.
 9. Immediately before posting, re-fetch complete PR discussion and re-check overlap under `pr-review-overlap.md`, together with PR state and head SHA. If the head changed, stop and rerun the review. Remove newly overlapping open concerns; route any changed comment body or anchor through validation and per-comment approval again, then repeat this freshness/overlap check. Submit no review when every comment is suppressed, and report that result.
-10. Submit one review with an empty top-level body unless the user explicitly requests a summary:
-   `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT` and the approved `comments` array.
-11. Validate the final payload after any coordinate change and verify the expected comment count after overlap suppression. Update the final report and run state with actual publication and overlap dispositions.
+10. Before submitting, record in run state the final approved and overlap-filtered payload, the pinned head SHA, the authenticated account, and the submission start time. Submit one review with an empty top-level body unless the user explicitly requests a summary:
+   `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT` and the approved `comments` array. Submit it at most once per approved payload; see "Submission outcome".
+11. Validate the final payload after any coordinate change. After submission, run "Read-back verification" and update the final report and run state with the actual publication, verification, and overlap dispositions.
+
+## Submission outcome
+
+Record the submission outcome independently of read-back verification, with the response status, returned review ID and `commit_id`, and the request and response times.
+
+| Outcome | Meaning |
+| --- | --- |
+| `submitted` | A success response returned a review ID. |
+| `rejected` | A definitive error response states that no review was created. |
+| `ambiguous` | Anything else: a timeout, dropped connection, server error, unreadable body, or success without a review ID. |
+
+Never post the review or any of its comments a second time because verification failed or was incomplete, or because the outcome is `ambiguous`. A `rejected` review is reported with the response and is never replayed automatically; posting again is a new attempt that repeats step 9 and the per-comment approval for any changed payload.
+
+For `ambiguous`, reconcile with read-only calls only. Retrieve the PR's reviews and comments completely, then accept a review only if exactly one review matches the authenticated account, the pinned head SHA, the submission window, and verifies against the exact approved payload under "Read-back verification". Retry a transient retrieval failure a small bounded number of times, such as three. With no match, several candidates, or a retrieval that stays incomplete, keep the outcome `ambiguous`, record the evidence, and stop for explicit human action. Absence from an incomplete or lagging read is not proof that nothing was published.
+
+## Read-back verification
+
+Verification confirms the received comments against the approved payload. It never decides whether to submit again.
+
+1. Read comments from `gh api --paginate "/repos/{owner}/{repo}/pulls/{pull_number}/comments?per_page=100"`, the PR-wide endpoint. Do not use the review-specific comments endpoint as the source, because it can omit anchor fields. Pagination must complete; a failed page, a rate limit, or an unreadable body is a retrieval failure.
+2. Select only comments whose `pull_request_review_id` equals the returned review ID. Other reviews' and unrelated comments are never part of the receipt. Without a returned review ID, the publication cannot be identified and verification is incomplete unless reconciliation under "Submission outcome" established the review.
+3. Compare each expected comment with the selected comments on `body`, `path`, `side`, `line`, and, for a range, `start_line` and `start_side`. A comment whose payload sets no range expects none. If `line` or `start_line` is null because the comment became outdated, use `original_line` or `original_start_line`. Compare bodies exactly after normalizing only line endings and surrounding whitespace. Compare as a multiset, one received comment per expected comment; a matching count is never sufficient.
+4. Classify each expected and selected comment pair as equal (every compared field present and equal), conflicting (a present field differs), or unknown (no present field differs but a compared field is missing). Then decide:
+   - `verified`: the expected comments can be paired one-to-one with the selected comments, all equal.
+   - `mismatch`: no pairing is consistent even if every unknown pair were equal, including a different number of selected comments. Re-read once before concluding a count difference, because a fresh review can lag. Record each difference as expected versus received.
+   - `verification incomplete`: any pairing is consistent only because a missing field might match, or retrieval or identification failed. A missing field is never a mismatch.
+5. Record the verification outcome with the read-back source and pagination state, the read time, and diagnostic evidence: matched, missing, conflicting, and extra comments, with missing field names and any retrieval error. A known `submitted` outcome stays reported as published whatever the verification outcome. Report `verification incomplete` as unverified, and `mismatch` with its differences, as separate from the submission result.
 
 ## Wording verification
 
 When changing audience routing or tone instructions, use `comment-audience-scenarios.md` to verify generated wording separately from the deterministic contract checks in `scripts/check.py`. This is maintenance verification, not an additional publication gate.
+
+## Verification scenarios
+
+When changing the submission outcome or read-back verification rules, use `publication-verification-scenarios.md` to check the outcomes for omitted fields, mismatches, ranges, pagination, other reviews' comments, partial failures, and ambiguous submissions. This is maintenance verification, not an additional publication gate.
