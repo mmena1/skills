@@ -77,6 +77,81 @@ source "$ENV_FILE"
         self.assert_success(self.run_wizard("umask 000; write_env TOKEN value"))
         self.assertEqual((self.directory / ".env").stat().st_mode & 0o777, 0o600)
 
+    def test_read_error_keeps_existing_file_intact(self):
+        path = self.directory / ".env"
+        original = "IMPORTANT=keep\nTOKEN=old\n"
+        path.write_text(original)
+        result = self.run_wizard('''
+grep() { printf '%s\\n' 'PARTIAL=read'; return 2; }
+write_env TOKEN changed
+''')
+        self.assertEqual(path.read_text(), original)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("✓ wrote", result.stdout)
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX links and modes")
+    def test_failed_commit_preserves_file_or_symlink_target(self):
+        for linked in (False, True):
+            with self.subTest(linked=linked):
+                path = self.directory / ("settings.env" if linked else ".env")
+                original = "IMPORTANT=keep\nTOKEN=old\n"
+                path.write_text(original)
+                path.chmod(0o640)
+                env_file = self.directory / ".env"
+                if linked:
+                    env_file.unlink()
+                    env_file.symlink_to(path.name)
+                result = self.run_wizard('''
+# Fail a copying commit after partial output, or a rename before it commits.
+cat() { printf 'PARTIAL=write'; printf 'COMMIT_FAILED' >&2; return 1; }
+mv() { printf 'COMMIT_FAILED' >&2; return 1; }
+write_env TOKEN changed
+''')
+                self.assertIn("COMMIT_FAILED", result.stderr)
+                self.assertEqual(path.read_text(), original)
+                self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+                self.assertEqual(env_file.is_symlink(), linked)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("✓ wrote", result.stdout)
+
+    def test_failed_staging_write_preserves_original(self):
+        path = self.directory / ".env"
+        original = "IMPORTANT=keep\nTOKEN=old\n"
+        path.write_text(original)
+        result = self.run_wizard('''
+printf() { builtin printf 'PARTIAL=write'; return 1; }
+write_env TOKEN changed
+''')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(path.read_text(), original)
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX links and modes")
+    def test_upsert_follows_relative_and_absolute_symlink_chain(self):
+        settings = self.directory / "settings"
+        settings.mkdir()
+        target = settings / "target.env"
+        target.write_text("IMPORTANT=keep\nTOKEN=old\n")
+        target.chmod(0o640)
+        (settings / "link.env").symlink_to(target)
+        (self.directory / ".env").symlink_to("settings/link.env")
+        self.assert_success(self.run_wizard('''
+write_env TOKEN changed
+source "$ENV_FILE"
+[[ "$TOKEN" == changed && "$IMPORTANT" == keep ]]
+'''))
+        self.assertTrue((self.directory / ".env").is_symlink())
+        self.assertTrue((settings / "link.env").is_symlink())
+        self.assertEqual(target.stat().st_mode & 0o777, 0o640)
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX symlinks")
+    def test_symlink_cycle_fails_without_replacing_links(self):
+        (self.directory / ".env").symlink_to("other.env")
+        (self.directory / "other.env").symlink_to(".env")
+        result = self.run_wizard("write_env TOKEN changed")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue((self.directory / ".env").is_symlink())
+        self.assertTrue((self.directory / "other.env").is_symlink())
+
     def test_required_prompts_fail_on_eof_even_with_existing_default(self):
         for helper in ("ask", "ask_secret"):
             for saved in (False, True):

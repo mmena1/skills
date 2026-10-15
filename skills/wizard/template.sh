@@ -139,17 +139,32 @@ ask_secret() {
 # any existing line). Idempotent.
 write_env() {
   local key="$1" value="$2" tmp escaped_quote="'\\''"
-  # Creating privately and writing through the path keeps existing modes and links.
-  (umask 077; touch "$ENV_FILE")
-  tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
+  local target="$ENV_FILE" link hops=0 mode="" read_status=0
+  [[ "$target" == /* ]] || target="./$target"
+  # Resolve the final file without replacing any link in the chain.
+  while [[ -L "$target" ]]; do
+    hops=$((hops + 1))
+    (( hops <= 40 )) || return 1
+    link=$(readlink "$target") || return 1
+    if [[ "$link" == /* ]]; then target="$link"
+    else target="$(dirname "$target")/$link"; fi
+  done
   value="${value//\'/$escaped_quote}"
-  printf "%s='%s' # wizard: quoted\n" "$key" "$value" >> "$tmp"
-  if ! cat "$tmp" > "$ENV_FILE"; then
-    rm -f "$tmp"
-    return 1
-  fi
-  rm -f "$tmp"
+  (
+    # A sibling temporary file makes the final rename atomic on this filesystem.
+    tmp=$(mktemp "${target}.tmp.XXXXXX") || exit 1
+    trap 'rm -f "$tmp"' EXIT
+    trap 'exit 1' HUP INT TERM
+    if [[ -e "$target" ]]; then
+      [[ -f "$target" ]] || exit 1
+      mode=$(stat -c '%a' "$target" 2>/dev/null || stat -f '%Lp' "$target") || exit 1
+      grep -vE "^${key}=" "$target" > "$tmp" || read_status=$?
+      (( read_status <= 1 )) || exit 1
+    fi
+    printf "%s='%s' # wizard: quoted\n" "$key" "$value" >> "$tmp" || exit 1
+    if [[ -n "$mode" ]]; then chmod "$mode" "$tmp" || exit 1; fi
+    mv -f "$tmp" "$target" || exit 1
+  ) || return 1
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
