@@ -16,6 +16,8 @@ Every row ends with zero additional review or comment POSTs. A verification outc
 | Omitted range start | B carries `line: 24` and the body, but `start_line` and `start_side` are absent | `verification incomplete` |
 | Different anchor | A reports `line: 11`, every field present | `mismatch` |
 | Different body | B reports `Close the file on error.`, every field present | `mismatch` |
+| Whitespace drift | A's approved body begins with four spaces (an indented Markdown code block) and the received body has them removed, every field present | `mismatch`; only line-ending normalization is excused |
+| Line endings only | B's received body differs from the approved body only by `\r\n` versus `\n` | `verified` for B |
 | Different comment set | The review has A and a comment on `src/c.py` instead of B | `mismatch` |
 | Extra comment | The review has A, B, and a third comment | `mismatch` |
 | Missing comment, confirmed | The review has only A on two reads | `mismatch` |
@@ -25,6 +27,9 @@ Every row ends with zero additional review or comment POSTs. A verification outc
 | Pagination | A payload of 150 comments spans two pages and all pages are read | Compared as one set: `verified` or `mismatch` as the rows above |
 | Page failure | The second of two pages fails or the body is unreadable | `verification incomplete` |
 | Other reviews' comments | The PR has comments from other reviews and an older review by the same account, besides the submitted review's comments | Only comments with the submitted review ID count; the outcome follows the rows above |
+| Head moved during submission, bound | The PR head changes after step 9; the POST carried `commit_id` equal to the pinned head SHA and the review reports that `commit_id` | Compared against the pinned head SHA, so `verified` for the reviewed commit when the comments match; the head change is reported as stale for current-gate use |
+| Review at a different commit | The review reports a `commit_id`, or comments an `original_commit_id`, other than the pinned head SHA | `mismatch` recorded as stale with both SHAs; reported as published but unverified; no further POST |
+| Missing commit | The review or its comments omit `commit_id` and `original_commit_id` | `verification incomplete` |
 | No review ID | The success response lacks an ID and reconciliation found no unique match | `verification incomplete`, submission `ambiguous` |
 
 ## Submission
