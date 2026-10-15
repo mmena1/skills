@@ -2,7 +2,7 @@
 
 Research date: 2026-10-15. Investigation for [issue #121](https://github.com/mmena1/skills/issues/121), governed by its newest trusted Agent Brief. This is repository research only. It ships no helper, wires nothing into the deep-review skill, and changes no skill text. The run-state contract it models is `skills/deep-review/protocol.md` as of `main` at `388a424`, after #125 (separate publication submission and read-back outcomes) and #126 (record identity, preserved records, and follow-up revalidation).
 
-**Recommendation: implement candidate C, a script-free clarification of how the coordinator updates the run state, conditional on the native runtime verification gate showing how each harness reads before it edits. Decline candidate B, the shipped script helper.** When the coordinator can place targeted edits without re-reading the whole record, C cuts the bytes through its context to 3.3 to 5.8 percent of whole-record rewriting with read-back comparison, within about 1 percentage point of B, with no new code and no new invocation or permission surface. When a harness forces a full read before every edit, C falls to about 51 percent, roughly the cost of a rewrite without comparison, so the gate must measure that. B is declined regardless. File-mutating execution through Devin's `exec` tool conflicts with maintainer-reported runtime tool guidance and is classified unsupported there. B would also add a shipped executable, a runtime Python dependency, per-harness approvals, and a schema copy that can drift. No candidate is viable on any harness yet. Every harness label below is a static compatibility assessment, and the [native runtime verification gate](#native-runtime-verification-gate) must pass before the [proposed implementation issue](#proposed-implementation-issue-not-filed) is approved.
+**Recommendation: implement candidate C, a script-free clarification of how the coordinator updates the run state, conditional on the native runtime verification gate showing how each harness reads before it edits. Decline candidate B, the shipped script helper.** When the coordinator can place targeted edits without re-reading the whole record, C cuts the bytes through its context to 3.3 to 6.0 percent of whole-record rewriting with read-back comparison, within about 1 percentage point of B, with no new code and no new invocation or permission surface. When a harness forces a full read before every edit, C falls to about 51 percent, roughly the cost of a rewrite without comparison, so the gate must measure that. B is declined regardless. File-mutating execution through Devin's `exec` tool conflicts with maintainer-reported runtime tool guidance and is classified unsupported there. B would also add a shipped executable, a runtime Python dependency, per-harness approvals, and a schema copy that can drift. No candidate is viable on any harness yet. Every harness label below is a static compatibility assessment, and the [native runtime verification gate](#native-runtime-verification-gate) must pass before the [proposed implementation issue](#proposed-implementation-issue-not-filed) is approved.
 
 ## Deliverables
 
@@ -13,6 +13,7 @@ Research date: 2026-10-15. Investigation for [issue #121](https://github.com/mme
 | [`test_run_state_helper.py`](test_run_state_helper.py) | 28 runnable tests that demonstrate every property this report claims for B. |
 | [`benchmark.py`](benchmark.py) | Replays every step for every profile and measures candidates A, B, and C, including a file-backed sequential replay of C's edits. |
 | [`test_benchmark.py`](test_benchmark.py) | 3 tests that C's measured edits apply in sequence and reproduce every reference record exactly. |
+| [`test_synthetic_records.py`](test_synthetic_records.py) | 5 fixture-fidelity tests whose expected values are copied from the protocol text: final concern outcomes, the full and follow-up receipt rows, and the PR-wide read-back source. |
 
 Run from the repository root:
 
@@ -52,15 +53,15 @@ The maintainer-supplied Devin retrospective is not attached to the issue or the 
 | Devin's `exec` tool guidance says: "DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools instead." | Reported by the maintainer from the earlier Devin runtime investigation, in review of this research. Not recorded in this repository. The Devin version it applies to and whether it is still current are unverified. |
 | The run's preservation checks passed, and no data was lost or corrupted. | Reported, unverified. Nothing in the evidence demonstrates loss or corruption. |
 | Context and tool overhead from whole-record rewriting, and its size relative to targeted updates. | Holds from the synthetic benchmark below, under its stated assumptions. |
-| The properties claimed for candidate B, and that C's counted edits apply. | Hold from the prototype's and benchmark's tests. |
+| The properties claimed for candidate B, that C's counted edits apply, and that the fixtures follow the protocol's concern, receipt, and read-back rules. | Hold from the prototype's, benchmark's, and fixture tests. |
 
 ## Synthetic records
 
 `synthetic_records.py` builds every record deterministically from a fixed seed and a fixed vocabulary, so every run produces identical bytes.
 
 - **Layout.** UTF-8 JSON with two-space indentation and insertion-ordered keys, the layout every candidate writes. The record identity follows the protocol's field names. Field names and nesting elsewhere are this research's assumptions, since the protocol fixes contents, not a schema.
-- **Contents.** One slot per enumerated item: `record`, the identity above, with `lineage` only in a follow-up record; `baseline.identity` and `baseline.restorations`; `scouts`, keyed by lens; `hypotheses`; `validator_outcomes`, for static and writable phases; `pr_discussion`; `run_status`; `runtime_acceptance_receipt`, with every scenario row; `final_report`; `cleanup`; `publication`, with the payload (a JSON string whose entries carry `concern_id`, so its bytes are exact), the pre-submission record, the submission outcome, the read-back verification outcome, and the comment identifiers; `preservation`, with the intended record directory and any failure; `follow_up`, null in a full review and otherwise holding the source record, the verbatim selected concerns, deferrals, and thread states; and `runtime_constraints`.
-- **Profiles.** `large`: a full review with 5 scouts, 14 hypotheses, 3 probes, 10 dispositions, and a 6-comment publication, serializing to 71,940 bytes in 37 steps. `medium`: a full review with 2 scouts, 6 hypotheses, 1 probe, 4 dispositions, and a 3-comment publication, serializing to 30,549 bytes in 22 steps. `follow-up`: a follow-up revalidation of 5 concerns from the large review, with 1 deferred, 1 probe, no scouts, and no publication, because follow-up is read-only toward GitHub by default. It serializes to 28,370 bytes in 15 steps. Prose lengths were tuned so the two full reviews land near the reported sizes.
+- **Contents.** One slot per enumerated item: `record`, the identity above, with `lineage` only in a follow-up record; `baseline.identity` and `baseline.restorations`; `scouts`, keyed by lens; `hypotheses`; `validator_outcomes`, for static and writable phases, where a writable adjudication replaces its static `Needs probe` transition as the final outcome; `pr_discussion`; `run_status`; `runtime_acceptance_receipt`, with every full-review scenario row, and in a follow-up record also the 13 follow-up rows, with the full-review-only rows marked not run; `final_report`; `cleanup`; `publication`, with the payload (a JSON string whose entries carry `concern_id`, so its bytes are exact), the pre-submission record, the submission outcome, the read-back verification outcome with the PR-wide comments endpoint as its source, and the comment identifiers; `preservation`, with the intended record directory and any failure; `follow_up`, null in a full review and otherwise holding the source record, the verbatim selected concerns, deferrals, and thread states; and `runtime_constraints`.
+- **Profiles.** `large`: a full review with 5 scouts, 14 hypotheses, 3 probes, 10 dispositions, and a 6-comment publication, serializing to 71,548 bytes in 37 steps. `medium`: a full review with 2 scouts, 6 hypotheses, 1 probe, 4 dispositions, and a 3-comment publication, serializing to 30,445 bytes in 22 steps. In both, only final Finding and Unresolved outcomes are compared with PR discussion, given actions, and published. `follow-up`: a follow-up revalidation of the first 5 concerns in the large review's concern inventory (its final Finding and Unresolved outcomes), each preserved with its final original outcome and evidence, with 1 deferred, 1 probe, no scouts, and no publication, because follow-up is read-only toward GitHub by default. It serializes to 32,081 bytes in 15 steps. Prose lengths were tuned so the two full reviews land near the reported sizes.
 - **Steps.** Each step is one persistence moment listed above. Batching steps lowers A's cost roughly in proportion and leaves B and C nearly unchanged.
 
 ## Candidates
@@ -77,55 +78,55 @@ Candidates that would give up the single consolidated record, such as per-stage 
 
 C is measured by a **file-backed sequential replay**. Starting from the skeleton on disk, each step applies string replacements to the real file in sequence. Each edit is found against the file as it stands, as the smallest old string that occurs exactly once there, widened by whole lines until it is unique. The replay asserts that each old string is unique when applied and that the file equals the reference record after every step; `test_benchmark.py` checks every profile. The counted edits are therefore edits a string-replacement tool can actually apply. The oracle that chooses them still knows the exact current file, so **C's main figure is an optimistic bound**: it assumes the coordinator holds every anchor it edits. The read-before-edit row is the pessimistic bound for a harness or session that must read the whole current file before each edit. Final report prose is excluded because every candidate authors it once.
 
-Large full review, 71,940 bytes, 37 steps:
+Large full review, 71,548 bytes, 37 steps:
 
 | Candidate | Emitted by updates | Read by updates | Update tool calls | Receipt finalization | Total through context | Share of A with comparison |
 | --- | --- | --- | --- | --- | --- | --- |
-| A, whole-record rewrite, no comparison | 1,443.9 KiB | 0.0 KiB | 37 | 9.1 KiB | 1,453.0 KiB | 50.2% |
-| A, whole-record rewrite plus read-back comparison | 1,443.9 KiB | 1,443.9 KiB | 74 | 9.1 KiB | 2,896.9 KiB | 100.0% |
-| B, fixed helper | 76.7 KiB | 3.5 KiB | 38 | 0.4 KiB | 80.6 KiB | 2.8% |
-| C, native targeted edit, optimistic bound | 85.4 KiB | 0.0 KiB | 39 | 9.1 KiB | 94.4 KiB | 3.3% |
-| C plus one validity check per step | 88.2 KiB | 0.1 KiB | 76 | 9.1 KiB | 97.4 KiB | 3.4% |
-| C with a full read before every edit | 85.4 KiB | 1,375.6 KiB | 77 | 9.1 KiB | 1,470.0 KiB | 50.7% |
+| A, whole-record rewrite, no comparison | 1,441.0 KiB | 0.0 KiB | 37 | 9.2 KiB | 1,450.2 KiB | 50.2% |
+| A, whole-record rewrite plus read-back comparison | 1,441.0 KiB | 1,441.0 KiB | 74 | 9.2 KiB | 2,891.2 KiB | 100.0% |
+| B, fixed helper | 76.5 KiB | 3.5 KiB | 38 | 0.4 KiB | 80.4 KiB | 2.8% |
+| C, native targeted edit, optimistic bound | 85.0 KiB | 0.0 KiB | 39 | 9.2 KiB | 94.1 KiB | 3.3% |
+| C plus one validity check per step | 87.8 KiB | 0.1 KiB | 76 | 9.2 KiB | 97.1 KiB | 3.4% |
+| C with a full read before every edit | 85.0 KiB | 1,373.1 KiB | 77 | 9.2 KiB | 1,467.2 KiB | 50.7% |
 
-Medium full review, 30,549 bytes, 22 steps:
-
-| Candidate | Emitted by updates | Read by updates | Update tool calls | Receipt finalization | Total through context | Share of A with comparison |
-| --- | --- | --- | --- | --- | --- | --- |
-| A, whole-record rewrite, no comparison | 391.7 KiB | 0.0 KiB | 22 | 4.5 KiB | 396.1 KiB | 50.3% |
-| A, whole-record rewrite plus read-back comparison | 391.7 KiB | 391.7 KiB | 44 | 4.5 KiB | 787.8 KiB | 100.0% |
-| B, fixed helper | 33.7 KiB | 2.1 KiB | 23 | 0.4 KiB | 36.2 KiB | 4.6% |
-| C, native targeted edit, optimistic bound | 34.2 KiB | 0.0 KiB | 24 | 4.5 KiB | 38.7 KiB | 4.9% |
-| C plus one validity check per step | 35.9 KiB | 0.1 KiB | 46 | 4.5 KiB | 40.5 KiB | 5.1% |
-| C with a full read before every edit | 34.2 KiB | 363.8 KiB | 47 | 4.5 KiB | 402.5 KiB | 51.1% |
-
-Follow-up revalidation, 28,370 bytes, 15 steps, no publication:
+Medium full review, 30,445 bytes, 22 steps:
 
 | Candidate | Emitted by updates | Read by updates | Update tool calls | Receipt finalization | Total through context | Share of A with comparison |
 | --- | --- | --- | --- | --- | --- | --- |
-| A, whole-record rewrite, no comparison | 314.5 KiB | 0.0 KiB | 15 | 0.0 KiB | 314.5 KiB | 50.0% |
-| A, whole-record rewrite plus read-back comparison | 314.5 KiB | 314.5 KiB | 30 | 0.0 KiB | 629.0 KiB | 100.0% |
-| B, fixed helper | 29.4 KiB | 1.5 KiB | 16 | 0.0 KiB | 30.9 KiB | 4.9% |
-| C, native targeted edit, optimistic bound | 36.4 KiB | 0.0 KiB | 18 | 0.0 KiB | 36.4 KiB | 5.8% |
-| C plus one validity check per step | 37.6 KiB | 0.0 KiB | 33 | 0.0 KiB | 37.6 KiB | 6.0% |
-| C with a full read before every edit | 36.4 KiB | 290.2 KiB | 35 | 0.0 KiB | 326.7 KiB | 51.9% |
+| A, whole-record rewrite, no comparison | 390.8 KiB | 0.0 KiB | 22 | 4.5 KiB | 395.3 KiB | 50.3% |
+| A, whole-record rewrite plus read-back comparison | 390.8 KiB | 390.8 KiB | 44 | 4.5 KiB | 786.1 KiB | 100.0% |
+| B, fixed helper | 33.6 KiB | 2.1 KiB | 23 | 0.4 KiB | 36.1 KiB | 4.6% |
+| C, native targeted edit, optimistic bound | 34.1 KiB | 0.0 KiB | 24 | 4.5 KiB | 38.7 KiB | 4.9% |
+| C plus one validity check per step | 35.8 KiB | 0.1 KiB | 46 | 4.5 KiB | 40.5 KiB | 5.1% |
+| C with a full read before every edit | 34.1 KiB | 363.0 KiB | 47 | 4.5 KiB | 401.6 KiB | 51.1% |
+
+Follow-up revalidation, 32,081 bytes, 15 steps, no publication:
+
+| Candidate | Emitted by updates | Read by updates | Update tool calls | Receipt finalization | Total through context | Share of A with comparison |
+| --- | --- | --- | --- | --- | --- | --- |
+| A, whole-record rewrite, no comparison | 334.4 KiB | 0.0 KiB | 15 | 0.0 KiB | 334.4 KiB | 50.0% |
+| A, whole-record rewrite plus read-back comparison | 334.4 KiB | 334.4 KiB | 30 | 0.0 KiB | 668.7 KiB | 100.0% |
+| B, fixed helper | 32.5 KiB | 1.5 KiB | 16 | 0.0 KiB | 34.0 KiB | 5.1% |
+| C, native targeted edit, optimistic bound | 40.1 KiB | 0.0 KiB | 18 | 0.0 KiB | 40.1 KiB | 6.0% |
+| C plus one validity check per step | 41.2 KiB | 0.0 KiB | 33 | 0.0 KiB | 41.3 KiB | 6.2% |
+| C with a full read before every edit | 40.1 KiB | 306.4 KiB | 35 | 0.0 KiB | 346.5 KiB | 51.8% |
 
 Per update, from the same runs:
 
 | Per update, emitted by the coordinator | Large mean | Large largest step | Medium mean | Medium largest step | Follow-up mean | Follow-up largest step |
 | --- | --- | --- | --- | --- | --- | --- |
-| A, whole-record rewrite | 39.0 KiB | 70.3 KiB | 17.8 KiB | 29.8 KiB | 21.0 KiB | 27.7 KiB |
-| B, fixed helper | 2.0 KiB | 21.4 KiB | 1.5 KiB | 8.2 KiB | 1.8 KiB | 15.8 KiB |
-| C, native targeted edit | 2.2 KiB | 22.0 KiB | 1.4 KiB | 8.3 KiB | 2.0 KiB | 16.7 KiB |
+| A, whole-record rewrite | 38.9 KiB | 69.9 KiB | 17.8 KiB | 29.7 KiB | 22.3 KiB | 31.3 KiB |
+| B, fixed helper | 2.0 KiB | 21.4 KiB | 1.5 KiB | 8.2 KiB | 2.0 KiB | 16.0 KiB |
+| C, native targeted edit | 2.2 KiB | 22.0 KiB | 1.4 KiB | 8.3 KiB | 2.2 KiB | 16.9 KiB |
 
-A with comparison reads back as many bytes as it emits. B reads back about 94 bytes per update, the helper's digest and size. In its optimistic bound, C reads back only the edit tool's short success message, plus 3 bytes read and about 80 bytes of command emitted when a validity check follows. In its pessimistic bound, C reads the whole current file before each edit. The largest step for B and C is the one that records all canonical hypotheses or selected concerns at once, which is new information either way. At finalization, A and C emit the whole receipt, 9.1 KiB and 4.5 KiB including the payload and both outcomes, while B emits only its command and reads back its digest, 0.4 KiB.
+A with comparison reads back as many bytes as it emits. B reads back about 94 bytes per update, the helper's digest and size. In its optimistic bound, C reads back only the edit tool's short success message, plus 3 bytes read and about 80 bytes of command emitted when a validity check follows. In its pessimistic bound, C reads the whole current file before each edit. The largest step for B and C is the one that records all canonical hypotheses or selected concerns at once, which is new information either way. At finalization, A and C emit the whole receipt, 9.2 KiB and 4.5 KiB including the payload and both outcomes, while B emits only its command and reads back its digest, 0.4 KiB.
 
 How to read these numbers:
 
-- **Token bound.** At 3.5 to 4 bytes per token for JSON-heavy text, A with comparison passes about 740,000 to 850,000 tokens on the large record, 200,000 to 230,000 on the medium one, and 160,000 to 185,000 on the follow-up. B passes about 21,000 to 24,000, 9,000 to 11,000, and 8,000 to 9,000. C's optimistic bound passes about 24,000 to 28,000, 10,000 to 11,000, and 9,000 to 11,000. The ratio between candidates does not depend on the bytes-per-token assumption.
-- **The floor.** The ops documents alone, meaning the new information each step contributes, total 69.4 KiB, 29.3 KiB, and 26.4 KiB. B's update emissions stay within about 15 percent of that floor and C's within about 40 percent. A's cost is quadratic: each step re-emits everything persisted so far.
-- **What separates B and C.** In the optimistic bound, C pays for anchor context and re-emits the receipt, while B pays for command lines and outputs. The difference is 13.8 KiB, 2.5 KiB, and 5.5 KiB.
-- **Read-before-edit sensitivity.** C's advantage depends almost entirely on not re-reading the whole record per edit. With a full read before every edit, C costs 50.7 to 51.9 percent of A with comparison, about the same as A without comparison. Partial or occasional re-reads, for example one full read after each context compaction, fall between the two bounds, each adding at most one record. The proposed clarification still removes confirm-only read-back, which alone halves A's cost, but the remaining savings exist only where a harness can place edits without a full read each time. That is now a required measurement in the native runtime verification gate.
+- **Token bound.** At 3.5 to 4 bytes per token for JSON-heavy text, A with comparison passes about 740,000 to 850,000 tokens on the large record, 200,000 to 230,000 on the medium one, and 170,000 to 195,000 on the follow-up. B passes about 21,000 to 24,000, 9,000 to 11,000, and 9,000 to 10,000. C's optimistic bound passes about 24,000 to 28,000, 10,000 to 11,000, and 10,000 to 12,000. The ratio between candidates does not depend on the bytes-per-token assumption.
+- **The floor.** The ops documents alone, meaning the new information each step contributes, total 69.2 KiB, 29.2 KiB, and 29.4 KiB. B's update emissions stay within about 15 percent of that floor and C's within about 40 percent. A's cost is quadratic: each step re-emits everything persisted so far.
+- **What separates B and C.** In the optimistic bound, C pays for anchor context and re-emits the receipt, while B pays for command lines and outputs. The difference is 13.7 KiB, 2.6 KiB, and 6.1 KiB.
+- **Read-before-edit sensitivity.** C's advantage depends almost entirely on not re-reading the whole record per edit. With a full read before every edit, C costs 50.7 to 51.8 percent of A with comparison, about the same as A without comparison. Partial or occasional re-reads, for example one full read after each context compaction, fall between the two bounds, each adding at most one record. The proposed clarification still removes confirm-only read-back, which alone halves A's cost, but the remaining savings exist only where a harness can place edits without a full read each time. That is now a required measurement in the native runtime verification gate.
 
 ## Correctness
 
@@ -200,7 +201,7 @@ No candidate relaxes any of these, and none changes the record's schema, content
 
 **Implement candidate C as a protocol clarification, conditional on the native runtime verification gate. Decline candidate B.**
 
-- **Savings.** In its optimistic bound, C removes 96.7, 95.1, and 94.2 percent of the bytes of A with comparison on the large, medium, and follow-up records. Against A without comparison, the figures are 93.5, 90.2, and 88.4 percent. B saves about another 0.3 to 0.9 percentage points. In its pessimistic bound, with a full read before every edit, C removes only about 48 to 49 percent, essentially the confirm-only read-back the clarification forbids. The gate decides where each harness falls.
+- **Savings.** In its optimistic bound, C removes 96.7, 95.1, and 94.0 percent of the bytes of A with comparison on the large, medium, and follow-up records. Against A without comparison, the figures are 93.5, 90.2, and 88.0 percent. B saves about another 0.3 to 0.9 percentage points. In its pessimistic bound, with a full read before every edit, C removes only about 48 to 49 percent, essentially the confirm-only read-back the clarification forbids. The gate decides where each harness falls.
 - **Why decline B.** It is unsupported on Devin, so it is not a cross-harness solution. Elsewhere it would cost about 690 lines of code and tests before Windows support, a shipped executable with harness-specific path resolution, a runtime Python requirement, one new approval per harness, an `Edit`-rule bypass on Claude Code, and a schema that this investigation already had to update twice to follow the protocol. Its only unmatched advantages are atomicity, schema enforcement, and receipt derivation, protecting against failures no evidence has shown.
 - **Tradeoffs accepted with C.** There is no atomicity guarantee and no schema validation, both unchanged from today. Concurrent changes go undetected, which matters little for a single-writer record. An edit can produce malformed JSON. Where a harness allows a read-only command without extra approval, one validity check per step catches that for 3 bytes of output, about 80 bytes of command, and one extra tool call.
 - **Decline condition for C.** If the gate shows that a harness cannot perform targeted edits on the run-state path under its normal permissions, or must read the whole record before every edit, revise this to adapt per harness, or decline for that harness. A failing harness keeps C non-viable there.
@@ -233,7 +234,7 @@ Proposed text for maintainer triage. It is not filed.
 >
 > **Narrow interface:** Protocol text only (see "Proposed skill text" in `docs/research/deep-review-run-state-updates/README.md`). No helper, script, schema, content, record identity, preservation, ownership, or semantic change. `SKILL.md`, `harnesses/roles.toml`, reviewer bodies, and installers are untouched.
 >
-> **Expected savings:** On synthetic full-review records of 72 KB and 30 KB and a 28 KB follow-up record, under the protocol as of `388a424`, bytes through the coordinator's context fall to 3.3, 4.9, and 5.8 percent of whole-record rewriting with comparison when edits are placed without full re-reads, and to about 51 percent when every edit needs a full read. Per update, the mean emission falls from 39.0 KiB to 2.2 KiB on the large record.
+> **Expected savings:** On synthetic full-review records of 72 KB and 30 KB and a 32 KB follow-up record, under the protocol as of `388a424`, bytes through the coordinator's context fall to 3.3, 4.9, and 6.0 percent of whole-record rewriting with comparison when edits are placed without full re-reads, and to about 51 percent when every edit needs a full read. Per update, the mean emission falls from 38.9 KiB to 2.2 KiB on the large record.
 >
 > **Validation scenarios:** `python scripts/check.py` and `git diff --check` pass. The native runtime verification gate in the research report passes on Codex, Devin, and Claude Code for a full review and a follow-up, with harness version, read cost, and evidence recorded in `skills/deep-review/runtime-acceptance.md`. Each run shows targeted edits only after the initial write and a valid, complete preserved record.
 >
