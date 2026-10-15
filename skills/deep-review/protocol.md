@@ -221,7 +221,7 @@ After every exit path, clean up in this order:
 1. Obtain narrowly scoped authorization for the exact coordinator-created worktree cleanup path, remove only that worktree with the narrowest Git worktree mechanism, and verify its registration is gone. Keep the run directory.
 2. Update the run state's cleanup status and the final report with the actual worktree cleanup outcome, including a failed or interrupted cleanup and its exact leftovers.
 3. Preserve the run's records as described in "Preserved review records". Worktree cleanup never waits on preservation, and a preservation failure never reverses or blocks it.
-4. Remove the matching context snapshot and run directory only after preservation is verified; when it is not, keep the run directory and report its exact path.
+4. Remove the matching context snapshot and run directory only when both the worktree cleanup in step 1 and the record preservation in step 3 are verified. The worktree lives beneath the run directory, so a failed or interrupted worktree removal keeps the run directory, the leftover worktree path, and its Git registration exactly as they are for recovery, and the coordinator reports each exact path; it never deletes them outside the Git worktree mechanism. When preservation is not verified, keep the run directory and report its exact path. A failed worktree cleanup is still preserved to the record root independently, so the record carries the failure outcome.
 
 Report the preserved record path, and exact leftovers when cleanup is interrupted.
 

@@ -2829,6 +2829,8 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.",
         "It never removes unpreserved records and is never silent about a preservation failure.",
         "Worktree cleanup never waits on preservation, and a preservation failure never reverses or blocks it.",
+        "only when both the worktree cleanup in step 1 and the record preservation in step 3 are verified",
+        "it never deletes them outside the Git worktree mechanism",
         "It runs only after worktree cleanup has finished and the run state and final report record the actual cleanup outcome",
         # Full-review source selection.
         "The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record",
