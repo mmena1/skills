@@ -32,7 +32,7 @@ SKIPPED=()        # things we couldn't do (e.g. gh missing)
 # output isn't a terminal, so piped logs stay readable.
 _clear() {
   [[ -t 1 ]] || return 0
-  if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
+  if command -v tput >/dev/null 2>&1; then tput clear || true; else printf '\033[2J\033[3J\033[H'; fi
 }
 
 # banner "Title" shows the opening frame: what this wizard does.
@@ -70,7 +70,7 @@ open_url() {
     elif command -v explorer.exe >/dev/null 2>&1; then explorer.exe "$url"
     elif command -v xdg-open    >/dev/null 2>&1; then xdg-open "$url"
     elif command -v open        >/dev/null 2>&1; then open "$url"
-    else warn "couldn't open a browser; visit it manually: $url"; fi
+    else false; fi
   } >/dev/null 2>&1 || warn "couldn't open a browser, so visit it manually: $url"
 }
 
@@ -92,7 +92,15 @@ confirm() {
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
+  local value="${line#*=}" escaped_quote="'\\''" marker=" # wizard: quoted"
+  # Decode marked output only; legacy entries remain literal. Never evaluate them.
+  if [[ "$value" == *"$marker" ]]; then
+    value="${value%"$marker"}"
+    [[ "$value" == \'*\' ]] || return 1
+    value="${value:1:${#value}-2}"
+    value="${value//"$escaped_quote"/\'}"
+  fi
+  printf '%s' "$value"
 }
 
 # ask KEY "Prompt" reads a value into $KEY. Offers the existing .env value as
@@ -105,7 +113,7 @@ ask() {
   else
     printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
   fi
-  read -r input || true
+  IFS= read -r input || [[ -n "$input" ]] || return 1
   [[ -z "$input" && -n "$current" ]] && input="$current"
   printf -v "$key" '%s' "$input"
 }
@@ -119,8 +127,10 @@ ask_secret() {
   else
     printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
   fi
-  read -rs input || true
+  local read_status=0
+  IFS= read -rs input || read_status=$?
   printf '\n'
+  (( read_status == 0 )) || [[ -n "$input" ]] || return 1
   [[ -z "$input" && -n "$current" ]] && input="$current"
   printf -v "$key" '%s' "$input"
 }
@@ -128,12 +138,33 @@ ask_secret() {
 # write_env KEY VALUE upserts KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
 write_env() {
-  local key="$1" value="$2" tmp
-  touch "$ENV_FILE"
-  tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
-  mv "$tmp" "$ENV_FILE"
+  local key="$1" value="$2" tmp escaped_quote="'\\''"
+  local target="$ENV_FILE" link hops=0 mode="" read_status=0
+  [[ "$target" == /* ]] || target="./$target"
+  # Resolve the final file without replacing any link in the chain.
+  while [[ -L "$target" ]]; do
+    hops=$((hops + 1))
+    (( hops <= 40 )) || return 1
+    link=$(readlink "$target") || return 1
+    if [[ "$link" == /* ]]; then target="$link"
+    else target="$(dirname "$target")/$link"; fi
+  done
+  value="${value//\'/$escaped_quote}"
+  (
+    # A sibling temporary file makes the final rename atomic on this filesystem.
+    tmp=$(mktemp "${target}.tmp.XXXXXX") || exit 1
+    trap 'rm -f "$tmp"' EXIT
+    trap 'exit 1' HUP INT TERM
+    if [[ -e "$target" ]]; then
+      [[ -f "$target" ]] || exit 1
+      mode=$(stat -c '%a' "$target" 2>/dev/null || stat -f '%Lp' "$target") || exit 1
+      grep -vE "^${key}=" "$target" > "$tmp" || read_status=$?
+      (( read_status <= 1 )) || exit 1
+    fi
+    printf "%s='%s' # wizard: quoted\n" "$key" "$value" >> "$tmp" || exit 1
+    if [[ -n "$mode" ]]; then chmod "$mode" "$tmp" || exit 1; fi
+    mv -f "$tmp" "$target" || exit 1
+  ) || return 1
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
