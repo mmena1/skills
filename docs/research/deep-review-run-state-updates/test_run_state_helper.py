@@ -37,8 +37,8 @@ class HelperTestCase(unittest.TestCase):
             capture_output=True, env=environment, check=False,
         )
 
-    def init(self):
-        result = self.helper("init", "--run-dir", str(self.run_dir), "--root", str(self.root))
+    def init(self, mode="full"):
+        result = self.helper("init", "--run-dir", str(self.run_dir), "--root", str(self.root), "--mode", mode)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)["sha256"]
 
@@ -53,23 +53,32 @@ class HelperTestCase(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)["sha256"]
 
-    def build_large(self):
-        digest = self.init()
-        for step in synthetic_records.steps("large"):
+    def build(self, profile):
+        digest = self.init(synthetic_records.PROFILES[profile]["mode"])
+        for step in synthetic_records.steps(profile):
             digest = self.apply(step, digest)
         return digest
+
+    def build_large(self):
+        return self.build("large")
 
 
 class UpdateTests(HelperTestCase):
     def test_replaying_the_synthetic_steps_produces_the_reference_record(self):
-        digest = self.build_large()
-        self.assertEqual(self.record.read_text(encoding="utf-8"), synthetic_records.serialize(synthetic_records.build("large")))
-        self.assertEqual(digest, sha256(self.record))
+        for profile in synthetic_records.PROFILES:
+            with self.subTest(profile=profile):
+                self.run_dir = self.root / profile
+                self.run_dir.mkdir()
+                self.record = self.run_dir / "run-state.json"
+                digest = self.build(profile)
+                self.assertEqual(self.record.read_text(encoding="utf-8"),
+                                 synthetic_records.serialize(synthetic_records.build(profile)))
+                self.assertEqual(digest, sha256(self.record))
 
     def test_an_update_preserves_every_unrelated_field_byte_for_byte(self):
         digest = self.build_large()
         before = self.record.read_text(encoding="utf-8")
-        old_line = '    "status": "worktree removed; snapshot and run directory pending preservation checks",\n'
+        old_line = '    "status": "worktree removed and registration verified gone",\n'
         self.assertEqual(before.count(old_line), 1)
         self.apply([{"op": "set", "path": "/cleanup/status", "value": "worktree removed"}], digest)
         after = self.record.read_text(encoding="utf-8")
@@ -164,12 +173,30 @@ class ValidationTests(HelperTestCase):
         self.assert_refused(digest, ops=[{"op": "set", "path": "/baseline/identity/head_sha", "value": "0" * 40}], reason="write-once")
         self.assert_refused(digest, ops=[{"op": "set", "path": "/publication/payload", "value": "{}"}], reason="write-once")
 
+    def test_record_identity_and_submission_outcome_are_write_once(self):
+        digest = self.build_large()
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/record/run_id", "value": "other"}], reason="write-once")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/record/mode", "value": "follow-up"}], reason="write-once")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/record/target/key", "value": "x"}], reason="write-once")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/publication/submission/review_id", "value": 1}], reason="write-once")
+
+    def test_lineage_belongs_only_to_a_follow_up_record(self):
+        digest = self.init("full")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/record/lineage", "value": {"source_run_id": "x"}}], reason="schema")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/follow_up", "value": {"source": None}}], reason="refused")
+
+    def test_init_refuses_an_unknown_mode(self):
+        result = self.helper("init", "--run-dir", str(self.run_dir), "--root", str(self.root), "--mode", "partial")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(list(self.run_dir.iterdir()), [])
+
     def test_protected_fields_cannot_be_replaced_through_an_ancestor(self):
         digest = self.build_large()
         self.assert_refused(digest, ops=[{"op": "set", "path": "/publication", "value": {"payload": "REPLACED"}}], reason="protected")
         self.assert_refused(digest, ops=[{"op": "set", "path": "/baseline", "value": {"identity": None, "restorations": []}}], reason="protected")
         self.assert_refused(digest, ops=[{"op": "set", "path": "/pr_discussion", "value": {
             "retrieval_complete": True, "retrieved_at": None, "dispositions": []}}], reason="protected")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/record", "value": {}}], reason="protected")
 
     def test_an_update_applies_all_of_its_ops_or_none(self):
         digest = self.init()
@@ -193,7 +220,7 @@ class ConfinementTests(HelperTestCase):
 
     def test_a_run_directory_outside_the_root_is_refused(self):
         with tempfile.TemporaryDirectory() as outside:
-            self.assertIn("outside", self.refused("init", "--run-dir", outside, "--root", str(self.root)))
+            self.assertIn("outside", self.refused("init", "--run-dir", outside, "--root", str(self.root), "--mode", "full"))
             self.assertEqual(os.listdir(outside), [])
 
     def test_a_symlinked_run_directory_is_refused(self):
@@ -207,7 +234,7 @@ class ConfinementTests(HelperTestCase):
         with tempfile.TemporaryDirectory() as outside:
             (Path(outside) / "run").mkdir()
             (self.root / "escape").symlink_to(outside, target_is_directory=True)
-            self.assertIn("outside", self.refused("init", "--run-dir", str(self.root / "escape" / "run"), "--root", str(self.root)))
+            self.assertIn("outside", self.refused("init", "--run-dir", str(self.root / "escape" / "run"), "--root", str(self.root), "--mode", "full"))
             self.assertEqual(os.listdir(Path(outside) / "run"), [])
 
     def test_a_symlinked_record_is_refused_and_its_target_untouched(self):
@@ -231,7 +258,7 @@ class ConfinementTests(HelperTestCase):
         self.assertIn("not a coordinator-owned run directory", self.refused(
             "update", "--run-dir", str(stranger), "--root", str(self.root), "--expect-sha256", digest,
             stdin=json.dumps({"ops": [{"op": "set", "path": "/cleanup/status", "value": "x"}]})))
-        self.assertIn("not empty", self.refused("init", "--run-dir", str(stranger), "--root", str(self.root)))
+        self.assertIn("not empty", self.refused("init", "--run-dir", str(stranger), "--root", str(self.root), "--mode", "full"))
 
     def test_the_helper_writes_nothing_but_its_own_files_and_deletes_nothing(self):
         sibling = self.root / "context"
@@ -245,23 +272,30 @@ class ConfinementTests(HelperTestCase):
 
 
 class ReceiptTests(HelperTestCase):
-    RECEIPT = {"review_id": 5550001, "comment_ids": [1, 2, 3, 4, 5, 6], "posted_at": "2026-10-15T10:50:00Z"}
-
     def finalize(self, digest):
         return self.helper("finalize-receipt", "--run-dir", str(self.run_dir), "--root", str(self.root),
-                           "--expect-sha256", digest, stdin=json.dumps(self.RECEIPT))
+                           "--expect-sha256", digest)
 
-    def test_the_receipt_carries_the_recorded_payload_exactly(self):
+    def test_the_receipt_carries_the_recorded_payload_and_outcomes_exactly(self):
         digest = self.build_large()
         state = self.record.read_bytes()
         result = self.finalize(digest)
         self.assertEqual(result.returncode, 0, result.stderr)
-        payload = json.loads(state)["publication"]["payload"]
+        publication = json.loads(state)["publication"]
         receipt = json.loads((self.run_dir / "publication-receipt.json").read_text(encoding="utf-8"))
-        self.assertEqual(receipt["payload"].encode("utf-8"), payload.encode("utf-8"))
-        self.assertEqual(receipt["payload_sha256"], hashlib.sha256(payload.encode("utf-8")).hexdigest())
-        self.assertEqual(receipt["receipt"], self.RECEIPT)
+        self.assertEqual(receipt["payload"].encode("utf-8"), publication["payload"].encode("utf-8"))
+        self.assertEqual(receipt["payload_sha256"], hashlib.sha256(publication["payload"].encode("utf-8")).hexdigest())
+        self.assertEqual(receipt["submission"], publication["submission"])
+        self.assertEqual(receipt["verification"], publication["verification"])
+        self.assertEqual(receipt["comment_identifiers"], publication["comment_identifiers"])
         self.assertEqual(self.record.read_bytes(), state)
+
+    def test_no_receipt_before_the_submission_outcome_is_recorded(self):
+        digest = self.apply([{"op": "set", "path": "/publication/payload", "value": "{}"}], self.init())
+        result = self.finalize(digest)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("no submission outcome", result.stderr)
+        self.assertFalse((self.run_dir / "publication-receipt.json").exists())
 
     def test_no_receipt_without_a_recorded_payload(self):
         digest = self.init()
