@@ -39,16 +39,18 @@
 
 ## Follow-up revalidation
 
-- **Follow-up revalidation**: A `/deep-review follow-up` run that independently revalidates selected concerns from a preserved prior review record against a newly pinned head. It runs no scouts and is not a full PR review.
+- **Follow-up revalidation**: A `/deep-review follow-up` run that independently revalidates selected concerns from a preserved prior review record against a newly pinned head. It runs no scouts and is not a full PR review. It is unrelated to the `follow-up` Action, which classifies a Finding.
 - **Source record**: The preserved full-review record whose concerns a follow-up revalidates: the latest full-review record matching the target, or one the user selects explicitly. A follow-up record is never a source record.
 - **Lineage**: The source full-review run ID and every earlier follow-up run ID a follow-up record built on. Follow-up records in a source's lineage supply prior status and provenance only.
 - **Concern**: A Finding or Unresolved outcome in the source record. Disproved hypotheses and hypotheses not validated due to review failure are never concerns.
-- **Incomplete coverage**: A requested concern or comment with no preserved original concern or with incomplete original evidence. It is reported with its reason and never reconstructed.
+- **Concern inventory**: Every concern in the source record, keyed by canonical ID. A follow-up record never narrows it.
+- **Original concern record**: One concern exactly as the source record preserves it: canonical ID, hypothesis, original outcome and evidence, and original reviewed head SHA. It is the only concern input a follow-up validator receives.
+- **Incomplete coverage**: A requested concern or comment with no preserved original concern, or with incomplete or ambiguous original evidence. It is reported with its reason and never reconstructed.
 - **Follow-up adjudication**: The validator's judgment of one original concern record from fresh evidence at the new head, returning Addressed, Not addressed, Incomplete, or the internal `Needs probe` transition.
 - **Addressed**: Fresh evidence establishes that the original failure or structural cost no longer applies and cites the change responsible.
 - **Not addressed**: Fresh evidence establishes that the original failure or structural cost still applies, with current severity and, for a partial fix, what changed and what remains.
-- **Incomplete**: Fresh evidence cannot establish Addressed or Not addressed; the status names the missing evidence or operational limitation.
-- **Deferred**: A selected concern the user explicitly chose not to revalidate in one follow-up run. It is never reported as addressed and is not carried into later runs.
+- **Incomplete**: Fresh evidence cannot establish Addressed or Not addressed; the status names the missing evidence or operational limitation. It is a per-concern follow-up status, distinct from an incomplete run and from incomplete coverage.
+- **Deferred**: A selected concern the user explicitly chose not to revalidate in one follow-up run. It is never reported as addressed; a later follow-up shows it as prior context and does not apply it automatically.
 - **Thread state**: The GitHub state of a concern's recorded comment (open, resolved, outdated, not published, or unknown). It is reported separately and never changes a follow-up status.
 
 ## Structural review

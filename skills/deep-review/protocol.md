@@ -226,7 +226,7 @@ Follow-up revalidation independently revalidates selected concerns from a preser
 
 Target resolution, caller-checkout overlap, the clean-status requirement, PR discussion isolation, and the confirmation gate are the full review's ("Gate and resolve"). The new head is the resolved target's head.
 
-For a PR or branch target, read every `run-state.json` directly under the record root's run directories and match records whose record identity has the same repository and target kind and key. The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record, so a focused follow-up that rechecked only a subset can never narrow the concern inventory. Report the source record's completeness status and how many older full-review records match. List unreadable, schema-invalid, and identity-less records as skipped, with reasons.
+For a PR or branch target, read every `run-state.json` directly under the record root's run directories and match records whose record identity has the same repository and target kind and key. The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record, so a focused follow-up that rechecked only a subset can never narrow the concern inventory. Latest means the greatest `completed_at`; when two matching full-review records tie, discovery is ambiguous and requires explicit selection. Report the source record's completeness status and how many older full-review records match. List unreadable, schema-invalid, and identity-less records as skipped, with reasons.
 
 A commit-range target, no matching full-review record, or a user preference uses explicit selection by run ID (a run directory in the record root) or record path. Explicit selection may name a record without identity fields, such as one preserved before record identity existed; the confirmation shows the missing identity, and the user confirms it. Explicitly selecting a follow-up record resolves through its lineage to its source full-review record; when that source record cannot be read, stop and report it, because the concern inventory cannot be recovered.
 
@@ -243,7 +243,7 @@ Selection is one of:
 - explicit canonical IDs such as `H2,H5`;
 - published comment URLs or IDs, mapped to concerns only through the source record's recorded comment identifiers.
 
-A requested ID or comment with no preserved original concern, or with incomplete original evidence (no hypothesis, original outcome and evidence, or original reviewed head SHA), is reported as incomplete coverage with the reason. It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.
+A requested ID or comment with no preserved original concern, with incomplete original evidence (no hypothesis, original outcome and evidence, or original reviewed head SHA), or with ambiguous evidence (a comment identifier recorded for more than one concern, or a run ID or record path that resolves to more than one record) is reported as incomplete coverage with the reason. It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.
 
 ### Confirm once
 

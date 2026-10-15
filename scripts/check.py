@@ -2834,6 +2834,7 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "supply prior status and provenance only",
         # No reconstruction.
         "It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.",
+        "or with ambiguous evidence",
         "mapped to concerns only through the source record's recorded comment identifiers",
         # Scout skip.
         "Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran.",
