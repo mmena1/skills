@@ -29,6 +29,47 @@ FOLLOW_UP_ROWS = {
     "record preservation under a write restriction",
 }
 CONCERN_OUTCOMES = {"Finding", "Unresolved"}
+# references/output-template.md: the receipt status vocabulary, and the follow-up marking of full-review-only rows.
+STATUSES = {"PASS", "FAIL", "NOT EXERCISED"}
+FULL_REVIEW_ONLY_EVIDENCE = "Not run: full review only"
+# Scenarios no synthetic record models an observation for, so a PASS would be an inferred pass.
+NEVER_OBSERVED = {
+    "capacity-bounded static validation", "insufficient scout capacity", "scout failure", "validator partial failure",
+    "PR head change", "partial fix", "missing prior evidence", "head change during revalidation",
+    "follow-up validator capacity", "record discovery in a later session",
+    "discovery when the newest record is a narrower follow-up", "record preservation from a linked worktree",
+    "record preservation under a write restriction",
+}
+
+
+def passes_only_where_observed(test: unittest.TestCase, record: dict) -> None:
+    """Every status is in the template's vocabulary, and a PASS needs the observation it claims in the record."""
+    rows = record["runtime_acceptance_receipt"]["rows"]
+    finals = final_outcomes(record)
+    statuses = [o.get("status") for o in finals.values()]
+    follow_up = record["follow_up"] or {}
+    threads = {t["concern"]: t["state"] for t in follow_up.get("thread_states", [])}
+    backing = {
+        "zero hypotheses": not record["hypotheses"] and record["record"]["mode"] == "full",
+        "surviving hypotheses": bool(record["hypotheses"]),
+        "multiple selected scouts": len(record["scouts"]) > 1,
+        "validator probes": bool(record["baseline"]["restorations"])
+        and any(o["phase"] == "writable" for o in record["validator_outcomes"]),
+        "PR-review-overlap": bool(record["pr_discussion"]["retrieval_complete"] and record["pr_discussion"]["dispositions"]),
+        "cleanup": record["cleanup"]["status"] != "pending",
+        "fixed concern": "Addressed" in statuses,
+        "persisting defect": "Not addressed" in statuses,
+        "explicitly deferred concern": bool(follow_up.get("deferred")),
+        "resolved thread with a persisting defect": any(
+            finals[c].get("status") == "Not addressed" and threads.get(c) == "resolved" for c in threads if c in finals),
+        "multiple selected concerns": len(follow_up.get("selected_concerns", [])) - len(follow_up.get("deferred", [])) > 1,
+    }
+    for row, value in rows.items():
+        test.assertIn(value["status"], STATUSES, row)
+        if row in NEVER_OBSERVED:
+            test.assertEqual(value["status"], "NOT EXERCISED", row)
+        if value["status"] == "PASS":
+            test.assertTrue(backing.get(row, False), f"{row} is PASS without the observation it needs")
 
 
 def final_outcomes(record: dict) -> dict:
@@ -57,6 +98,13 @@ class FullReviewFidelityTests(unittest.TestCase):
                 rows = synthetic_records.build(profile)["runtime_acceptance_receipt"]["rows"]
                 self.assertEqual(set(rows), FULL_REVIEW_ROWS)
 
+    def test_the_receipt_passes_only_observed_scenarios(self):
+        for profile in ("large", "medium"):
+            with self.subTest(profile=profile):
+                record = synthetic_records.build(profile)
+                passes_only_where_observed(self, record)
+                self.assertEqual(record["runtime_acceptance_receipt"]["rows"]["surviving hypotheses"]["status"], "PASS")
+
     def test_read_back_uses_the_pr_wide_comments_endpoint(self):
         for profile in ("large", "medium"):
             with self.subTest(profile=profile):
@@ -84,7 +132,11 @@ class FollowUpFidelityTests(unittest.TestCase):
         rows = self.record["runtime_acceptance_receipt"]["rows"]
         self.assertEqual(set(rows), FULL_REVIEW_ROWS | FOLLOW_UP_ROWS)
         for row in FULL_REVIEW_ONLY_ROWS:
-            self.assertEqual(rows[row]["status"], "not run", row)
+            self.assertEqual(rows[row], {"status": "NOT EXERCISED", "evidence": FULL_REVIEW_ONLY_EVIDENCE}, row)
+
+    def test_the_receipt_passes_only_observed_scenarios(self):
+        passes_only_where_observed(self, self.record)
+        self.assertEqual(self.record["runtime_acceptance_receipt"]["rows"]["explicitly deferred concern"]["status"], "PASS")
 
 
 if __name__ == "__main__":

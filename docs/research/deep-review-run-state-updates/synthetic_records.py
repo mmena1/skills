@@ -120,22 +120,29 @@ def _probe_steps(rng: random.Random, number: int, head: str, words: int, label: 
     ]
 
 
-def _receipt_rows(rng: random.Random, words: int, mode: str) -> dict:
+def _receipt_rows(rng: random.Random, words: int, mode: str, observed: set) -> dict:
+    """Passive receipt: PASS only for scenarios this record models an observation of, NOT EXERCISED otherwise.
+
+    Cleanup is not observed yet when the receipt is written; the cleanup step records it.
+    """
     rows = {}
     for row in ROWS + (FOLLOW_UP_ROWS if mode == "follow-up" else ()):
         if mode == "follow-up" and row in FULL_REVIEW_ONLY_ROWS:
-            rows[row] = {"status": "not run", "evidence": "Follow-up mode runs no scouts."}
+            rows[row] = {"status": "NOT EXERCISED", "evidence": "Not run: full review only"}
+        elif row in observed:
+            rows[row] = {"status": "PASS", "evidence": _prose(rng, words // 4)}
         else:
-            rows[row] = {"status": rng.choice(("PASS", "NOT EXERCISED")), "evidence": _prose(rng, words // 4)}
+            rows[row] = {"status": "NOT EXERCISED", "evidence": "Not observed in this run."}
     return rows
 
 
-def _closing_steps(rng: random.Random, run_id: str, words: int, mode: str, receipt_extra: dict, report: dict) -> list[list[dict]]:
+def _closing_steps(rng: random.Random, run_id: str, words: int, mode: str, observed: set,
+                   receipt_extra: dict, report: dict) -> list[list[dict]]:
     return [
         [{"op": "set", "path": "/runtime_acceptance_receipt", "value": {
             "harness": "Example CLI 1.0", **receipt_extra,
             "validators": ["deep-review-validator-static", "deep-review-validator-probe"],
-            "rows": _receipt_rows(rng, words, mode),
+            "rows": _receipt_rows(rng, words, mode, observed),
         }}],
         [{"op": "set", "path": "/final_report", "value": report}],
     ]
@@ -169,7 +176,9 @@ def _publication_steps(rng: random.Random, concerns: list[str], head: str, words
 
 def _ending_steps(run_id: str, completeness: str) -> list[list[dict]]:
     return [
-        [{"op": "set", "path": "/cleanup/status", "value": "worktree removed and registration verified gone"}],
+        [{"op": "set", "path": "/cleanup/status", "value": "worktree removed and registration verified gone"},
+         {"op": "set", "path": "/runtime_acceptance_receipt/rows/cleanup", "value": {
+             "status": "PASS", "evidence": "Only this run's worktree was removed, and its registration is gone."}}],
         [{"op": "set", "path": "/record/completed_at", "value": "2026-10-15T10:50:00Z"},
          {"op": "set", "path": "/record/completeness", "value": completeness}],
         [{"op": "set", "path": "/preservation/record_directory",
@@ -214,7 +223,10 @@ def _full_steps(shape: dict, rng: random.Random, run_id: str) -> list[list[dict]
         "hypothesis": concerns[index % len(concerns)], "disposition": rng.choice(("new", "already reported")),
         "reason": _prose(rng, words // 2), "link": f"https://github.com/example/repository/pull/42#discussion_r{index}",
     }} for index in range(shape["dispositions"])])
-    out += _closing_steps(rng, run_id, words, "full", {
+    observed = {"surviving hypotheses", "PR-review-overlap"}
+    observed |= {"multiple selected scouts"} if len(lenses) > 1 else set()
+    observed |= {"validator probes"} if needs_probe else set()
+    out += _closing_steps(rng, run_id, words, "full", observed, {
         "skill_commit": base[:7], "lenses": {lens: f"deep-review-scout-{lens}" for lens in lenses}}, {
         "hypotheses_discovered": shape["hypotheses"], "hypotheses_after_dedupe": shape["hypotheses"],
         "summary": _prose(rng, words * 3),
@@ -256,16 +268,27 @@ def _follow_up_steps(shape: dict, rng: random.Random, run_id: str) -> list[list[
         + [{"op": "append", "path": "/follow_up/deferred", "value": {"concern": c["id"], "reason": _prose(rng, 8)}}
            for c in deferred])
     needs_probe = {concern["id"] for concern in revalidated[: shape["probes"]]}
+    status = {}
     for concern in revalidated:
-        status = "needs probe" if concern["id"] in needs_probe else rng.choice(("Addressed", "Not addressed"))
+        status[concern["id"]] = "needs probe" if concern["id"] in needs_probe else rng.choice(("Addressed", "Not addressed"))
         out.append([{"op": "append", "path": "/validator_outcomes", "value": {
             "hypothesis": concern["id"], "phase": "static", "agent": "deep-review-validator-static",
-            "status": status, "evidence": _prose(rng, words * 2)}}])
+            "status": status[concern["id"]], "evidence": _prose(rng, words * 2)}}])
     for concern_id in sorted(needs_probe):
-        out += _probe_steps(rng, int(concern_id[1:]), head, words, "status", ("Addressed", "Not addressed"))
-    out.append([{"op": "append", "path": "/follow_up/thread_states", "value": {
-        "concern": c["id"], "state": rng.choice(("open", "resolved", "outdated", "not published"))}} for c in selected])
-    out += _closing_steps(rng, run_id, words, "follow-up", {"skill_commit": base[:7], "scouts": "not run"}, {
+        probe = _probe_steps(rng, int(concern_id[1:]), head, words, "status", ("Addressed", "Not addressed"))
+        status[concern_id] = probe[1][0]["value"]["status"]
+        out += probe
+    threads = {c["id"]: rng.choice(("open", "resolved", "outdated", "not published")) for c in selected}
+    out.append([{"op": "append", "path": "/follow_up/thread_states", "value": {"concern": concern, "state": state}}
+                for concern, state in threads.items()])
+    observed = {"explicitly deferred concern"} if deferred else set()
+    observed |= {"validator probes"} if needs_probe else set()
+    observed |= {"multiple selected concerns"} if len(revalidated) > 1 else set()
+    observed |= {"fixed concern"} if "Addressed" in status.values() else set()
+    observed |= {"persisting defect"} if "Not addressed" in status.values() else set()
+    if any(status[c] == "Not addressed" and threads[c] == "resolved" for c in status):
+        observed.add("resolved thread with a persisting defect")
+    out += _closing_steps(rng, run_id, words, "follow-up", observed, {"skill_commit": base[:7], "scouts": "not run"}, {
         "label": "Follow-up revalidation: not a full PR review", "summary": _prose(rng, words * 2),
         "statuses": [{"concern": c["id"], "status": "Deferred" if c in deferred else "revalidated"} for c in selected],
     })
