@@ -27,7 +27,7 @@ Describe the enforcement mechanism specified by the active harness in `SKILL.md`
 |---|---|---|
 | Zero hypotheses | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Surviving hypotheses | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
-| Capacity-bounded static validation | PASS / FAIL / NOT EXERCISED | [hypothesis count, declared capacity limit if any, queue order, and observed completion] |
+| Capacity-bounded static validation | PASS / FAIL / NOT EXERCISED | [from recorded invocation transitions: bound and source, peak reserved plus running occupancy, canonical queue and accepted native IDs, refusals, terminal outcomes/failures, unattempted hypotheses, and observed delayed/duplicate notifications] |
 | Multiple selected scouts | PASS / FAIL / NOT EXERCISED | [observed selected scout launches and whether dispatch completed before waiting for any scout to complete] |
 | Insufficient scout capacity | PASS / FAIL / NOT EXERCISED | [strict-preflight counts or an actual launch refusal; report no available count when capacity is observed only at launch] |
 | Validator probes | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
@@ -36,6 +36,8 @@ Describe the enforcement mechanism specified by the active harness in `SKILL.md`
 | PR-review-overlap | PASS / FAIL / NOT EXERCISED | [discussion retrieval, independent inputs, dispositions/links, and publication re-check when observed] |
 | PR head change | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Cleanup | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
+
+Derive capacity results from the consolidated invocation record using "Static invocation accounting" in `protocol.md`. State which lifecycle paths actually occurred; scenario/replay evidence is separate, historical FAIL records stay unchanged, and unobserved paths remain `NOT EXERCISED`.
 
 ### Action policy
 

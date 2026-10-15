@@ -20,6 +20,12 @@ Normal reviews exercise only paths they encounter. Keep rare failures and transi
 
 Cross-harness acceptance passes only when collected receipts and targeted smoke evidence show every harness preserves the protocol's state meanings, failure behavior, publication safeguards, and single-worktree invariant. Different hypotheses or wording across harnesses are expected and do not fail behavioral equivalence.
 
+## Static capacity lifecycle evidence
+
+The capacity row includes "Static invocation accounting" in `protocol.md` for full and follow-up runs, using the active harness's capacity and refusal contract unchanged. Derive exercised capacity results from the consolidated queue and invocation entries: bound and source, peak reserved plus running occupancy, reservation/native/hypothesis identity bindings, canonical accepted attempts, terminal outcomes or failures, refused non-starts, and final unattempted accounting. Record whether near-simultaneous, out-of-order, delayed, or duplicate notifications actually occurred and how their identified transitions affected occupancy and refill. Counts inferred from notification totals or completed outcomes alone are insufficient.
+
+Apply `references/static-capacity-scenarios.md` when changing dispatch bookkeeping. Its worked scenario/replay evidence is separate from observed native execution; it cannot turn a runtime row into PASS. Keep historical FAIL records unchanged and unobserved behavior `NOT EXERCISED`. Targeted native smoke coverage remains required under the contract above, including the four-slot queued-replacement case and important lifecycle gaps absent from passive receipts. Run bounded smoke cases against the native static-validator mechanism without changing models, role allocation, global concurrency, or writable-probe permissions. Preserve actual invocation entries with each receipt, and report missing harness access or unexercised paths explicitly.
+
 ## Enforcement mechanism in new receipts
 
 Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's read-only or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
