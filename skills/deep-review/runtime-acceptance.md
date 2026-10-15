@@ -74,6 +74,44 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Alternative with an equal or greater burden | A hypothesis whose alternative adds modes, hides policy, or scatters knowledge is Disproved on that ground. |
 | Structural review without a design-guidance skill | Selecting `structural` passes preflight, and the scout admits and the validators adjudicate without any supplied design contract. |
 
+## Follow-up revalidation matrix
+
+`/deep-review follow-up` emits the follow-up receipt described in `references/output-template.md`: every full-review row, with the full-review-only scout rows marked not run, followed by these rows. The full-review matrix above is unchanged. Rows record only observed behavior; a row a run did not exercise stays `NOT EXERCISED`.
+
+| Scenario | Devin expected result | Claude Code expected result | Codex expected result |
+| --- | --- | --- | --- |
+| Fixed concern | The follow-up adjudication returns Addressed from fresh evidence at the new head and cites the responsible change | Same | Same |
+| Persisting defect | The follow-up adjudication returns Not addressed from fresh evidence with current severity; the original outcome is not used as evidence | Same | Same |
+| Partial fix | Not addressed states what changed and what remains | Same | Same |
+| Missing prior evidence | A requested ID or comment without a preserved original concern or complete original evidence is reported as incomplete coverage with its reason; nothing is reconstructed and the run does not widen into a full review | Same | Same |
+| Explicitly deferred concern | A concern the user deferred at the confirmation launches no validator and is reported as Deferred with its reason, separately from Addressed | Same | Same |
+| Resolved thread with a persisting defect | Thread state is retrieved after validation from recorded comment identifiers and shown as resolved in its own column, while the concern stays Not addressed | Same | Same |
+| Head change during revalidation | Reviewed and current SHAs are reported, every status is stale, and a rerun is required | Same | Same |
+| Multiple selected concerns | Each selected concern receives one independent follow-up adjudication in canonical ID order under the static capacity rules; no scout runs | Same | Same |
+| Record discovery in a later session | A new session finds the source record under the record root by repository identity and target kind and key | Same | Same |
+| Discovery when the newest record is a narrower follow-up | The latest matching full-review record stays the source and the full concern inventory is offered; the newer follow-up record supplies only prior status and provenance | Same | Same |
+| Record preservation from a linked worktree | Records started from a linked worktree, or a subdirectory, are preserved under the same canonical `<git-common-dir>/deep-review/records/<run-id>/` and verified byte for byte | Same | Same |
+| Record preservation under a write restriction | A denied or restricted write leaves outcomes, report, and publication unchanged, does not block worktree cleanup, keeps the run directory, and reports the exact retained paths | Same | Same |
+
+Observed follow-up acceptance per harness. No harness is accepted for a row without an observed run; update a cell only from a real follow-up receipt or a targeted smoke run.
+
+| Scenario | Devin | Claude Code | Codex |
+| --- | --- | --- | --- |
+| Fixed concern | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Persisting defect | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Partial fix | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Missing prior evidence | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Explicitly deferred concern | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Resolved thread with a persisting defect | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Head change during revalidation | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Multiple selected concerns | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Record discovery in a later session | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Discovery when the newest record is a narrower follow-up | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Record preservation from a linked worktree | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+| Record preservation under a write restriction | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
+
+The 2026-10-15 Claude Code write into a Git common directory recorded under "Smoke runs" was a direct copy in scratch repositories, not a coordinator run, so it does not change the Record preservation from a linked worktree row.
+
 ## Concurrency clarification, 2026-10-09 (issue #80)
 
 The one-parent-message or response grouping requirement is intentionally retired. The coordinator dispatches all selected scouts before waiting for any scout to complete, allowing concurrent execution. Separate parent responses and intervening launch acknowledgments are acceptable. Passive receipts record observed dispatch and waiting behavior; native response IDs, call grouping, private-log parsing, and additional trace collection are not required.
@@ -115,6 +153,7 @@ Targeted smoke runs record agent discovery and launch evidence that passive rece
 | 2026-10-08 | Devin CLI 3000.11.3 (9c803229faa4), macOS | `6ccd9f3` | Issue #71 check 6, missing selected native role | PASS | Runtime. Only the throwaway installation's `deep-review-scout-docs` link was removed. The smoke session exposed six profiles, named that exact missing docs agent, and stopped before analysis with zero child launches, no worktree/context creation, and no substitute profile or model. Capacity was not inferred as passed. |
 | 2026-10-08 | Devin CLI 3000.11.3 (9c803229faa4), macOS | `6ccd9f3` | Issue #71 check 7, complete coordinator pipeline compatibility | NOT EXERCISED | The full coordinator stopped at unverified capacity before scouting. The separate bounded scout and static-handoff tests below do not establish a complete protocol run, its capacity-bounded queue, or its passive pipeline receipt. No full-review pass is inferred from them. |
 | 2026-10-08 | Devin CLI 3000.11.3 (9c803229faa4), macOS | `6ccd9f3` | Supplemental natural-hypothesis handoff between native scouts and static validator | PASS | Runtime, phase-level only. The bounded docs scout naturally emitted `docs-H1`; conventions returned No hypotheses. The sole concern became H1, retaining its original ID and origin, and exactly one foreground `deep-review-validator-static` child `71ad27b6` independently returned a low Finding against the same pinned worktree. No synthetic hypothesis, additional validator, writable probe, publication, or fix was used. This is not acceptance of the blocked full pipeline. |
+| 2026-10-15 | Claude Code 2.1.300, Linux (cloud session, `auto` mode) | Not applicable: scratch repositories | Issue #122 record root: a direct copy into `<git-common-dir>/deep-review/records/<run-id>/` from a linked worktree | PASS | Runtime, direct copy only, not a coordinator run. In a scratch repository with one linked worktree, `git rev-parse --path-format=absolute --git-common-dir` from the worktree printed the main repository's `.git`. A Bash `mkdir -p` and `cp` of a `run-state.json` into `.git/deep-review/records/run-x/` ran without a permission prompt, `cmp` reported the copy byte-equal, and `git status --porcelain --ignored` in the main checkout listed nothing, so the record is untracked and invisible to the working tree. Claude Code documents `.git` as a protected directory whose writes the `auto` mode classifier reviews, so other modes may prompt or deny; the protocol's preservation failure path covers that. |
 
 Claude Code smoke receipt for mmena1/skills#20 (skill `9712de3`, native agents launched: `deep-review-scout` for `docs` and `conventions`):
 

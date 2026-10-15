@@ -2760,33 +2760,38 @@ def validate_deep_review_audience_contract(skill: Path) -> None:
                 fail(f"the audience check accepted a removed {relative} publication rule")
 
 
+def scenario_matrix_names(text: str) -> list[str] | None:
+    """Scenario names of the first runtime matrix in text, or None when that table is malformed."""
+    lines = text.splitlines()
+    header = "| Scenario | Devin expected result | Claude Code expected result | Codex expected result |"
+    if header not in lines:
+        return []
+    names = []
+    for line in lines[lines.index(header) + 1:]:
+        if not line.startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            continue
+        if len(cells) != 4:
+            return None
+        names.append(cells[0])
+    return names
+
+
 def deep_review_scenario_problems(documents: dict[str, str]) -> list[str]:
-    """Keep the protocol, receipt template, and runtime matrix scenario names aligned."""
-    matrix_lines = documents["runtime-acceptance.md"].splitlines()
-    matrix_header = "| Scenario | Devin expected result | Claude Code expected result | Codex expected result |"
-    try:
-        header_index = matrix_lines.index(matrix_header)
-    except ValueError:
-        matrix_scenarios = []
-    else:
-        matrix_scenarios = []
-        for line in matrix_lines[header_index + 1:]:
-            if not line.startswith("|"):
-                break
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
-                continue
-            if len(cells) != 4:
-                return ["skills/deep-review/runtime-acceptance.md: malformed runtime acceptance scenario table"]
-            matrix_scenarios.append(cells[0])
+    """Keep the full-review protocol, receipt template, and runtime matrix scenario names aligned."""
+    matrix_scenarios = scenario_matrix_names(documents["runtime-acceptance.md"])
+    if matrix_scenarios is None:
+        return ["skills/deep-review/runtime-acceptance.md: malformed runtime acceptance scenario table"]
 
     protocol_scenarios = [
         line[2:].split(": whether ", 1)[0]
-        for line in documents["protocol.md"].splitlines()
+        for line in markdown_section(documents["protocol.md"], "## Runtime acceptance receipt").splitlines()
         if line.startswith("- ") and ": whether " in line
     ]
     receipt_scenarios = []
-    for line in documents["references/output-template.md"].splitlines():
+    for line in documents["references/output-template.md"].partition(DEEP_REVIEW_FOLLOW_UP_HEADING)[0].splitlines():
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) == 3 and cells[1] == "PASS / FAIL / NOT EXERCISED":
             receipt_scenarios.append(cells[0])
@@ -2805,6 +2810,166 @@ def deep_review_scenario_problems(documents: dict[str, str]) -> list[str]:
         for relative, found in scenarios.items()
         if not found or found != expected_scenarios
     ]
+
+
+DEEP_REVIEW_FOLLOW_UP_RULES = {
+    "SKILL.md": (
+        "Only a leading literal `follow-up` token selects it; every other invocation is the unchanged full review",
+        "skip reviewer selection, the scout capacity check, and the scout wave, and state in the report that no scouts ran",
+        "giving each invocation exactly one original concern record and never GitHub discussion",
+        "A preservation failure never changes a review's outcomes, report, or publication and never blocks worktree cleanup",
+    ),
+    "protocol.md": (
+        # Entry token.
+        "A leading literal `follow-up` token selects follow-up mode. Every invocation without it is the unchanged full review",
+        # Canonical absolute record root.
+        "`<git-common-dir>/deep-review/records/<run-id>/`",
+        "`git rev-parse --path-format=absolute --git-common-dir`",
+        "resolve symlinks, normalize separators and case to the platform's native form, and reject a result that is not an existing directory",
+        "Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.",
+        "It never removes unpreserved records and is never silent about a preservation failure.",
+        "Worktree cleanup proceeds whether or not preservation succeeded.",
+        # Full-review source selection.
+        "The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record",
+        "supply prior status and provenance only",
+        # No reconstruction.
+        "It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.",
+        "mapped to concerns only through the source record's recorded comment identifiers",
+        # Scout skip.
+        "Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran.",
+        # Discussion isolation for follow-up validators.
+        "Follow-up validators never receive GitHub discussion, thread state, author claims, or prior follow-up statuses.",
+        "The original outcome is context, never evidence",
+        "Deferred concerns are not revalidated and are reported as deferred, never as addressed.",
+        # Separate thread state.
+        "GitHub thread state (open, resolved, outdated, not published, or unknown) is a separate column.",
+        "a resolved thread never makes a concern addressed",
+        # Not-a-full-review label and read-only GitHub.
+        'labeled "Follow-up revalidation: not a full PR review"',
+        "It never shows PASS or a `No findings` headline",
+        "Follow-up never replies to, edits, resolves, or reopens an existing thread.",
+    ),
+    "reviewers/validator.md": (
+        "You receive no GitHub discussion, thread state, author claims, or prior follow-up statuses, and you must not retrieve them.",
+        "The original outcome is context, never evidence.",
+        "Never fetch it.",
+    ),
+    "references/output-template.md": (
+        "**Follow-up revalidation: not a full PR review.**",
+        "code outside the selected concerns was not reviewed",
+        "Scouts: none ran (follow-up mode)",
+        "| GitHub thread state |",
+        "a resolved thread never makes a concern Addressed",
+    ),
+    "references/pr-review-comments.md": (
+        "Each approved payload entry records the canonical concern ID it publishes",
+        "whenever the submission response or a read-back provides them",
+    ),
+}
+DEEP_REVIEW_FULL_ONLY_SCENARIOS = (
+    "Zero hypotheses", "Surviving hypotheses", "Multiple selected scouts", "Insufficient scout capacity", "Scout failure",
+)
+DEEP_REVIEW_FOLLOW_UP_HEADING = "\n## Follow-up revalidation variant\n"
+DEEP_REVIEW_PROTOCOL_SCENARIO = r"(?m)^- ([^:\n]+): whether "
+DEEP_REVIEW_TEMPLATE_SCENARIO = r"(?m)^\| ([^|\n]+?) \| PASS / FAIL / NOT EXERCISED \|"
+DEEP_REVIEW_OBSERVATION_SCENARIO = r"(?m)^\| ([^|\n]+?)(?: \| (?:PASS|FAIL|NOT EXERCISED)){3} \|$"
+
+
+def markdown_section(text: str, heading: str) -> str:
+    """The body of one Markdown heading up to the next heading of the same or a higher level."""
+    level = len(heading) - len(heading.lstrip("#"))
+    start = text.find(f"\n{heading}\n")
+    if start < 0:
+        return ""
+    body = text[start + len(heading) + 2:]
+    end = re.search(rf"(?m)^#{{1,{level}}} ", body)
+    return body[:end.start()] if end else body
+
+
+def deep_review_follow_up_scenario_lists(documents: dict[str, str]) -> dict[str, list[str] | None]:
+    """Follow-up receipt scenarios, read from each document's own follow-up section."""
+    follow_up_template = documents["references/output-template.md"].partition(DEEP_REVIEW_FOLLOW_UP_HEADING)[2]
+    matrix_section = markdown_section(documents["runtime-acceptance.md"], "## Follow-up revalidation matrix")
+    lists = {
+        "protocol.md": re.findall(DEEP_REVIEW_PROTOCOL_SCENARIO,
+                                  markdown_section(documents["protocol.md"], "### Follow-up runtime acceptance")),
+        "references/output-template.md": re.findall(DEEP_REVIEW_TEMPLATE_SCENARIO, follow_up_template),
+        "runtime-acceptance.md": scenario_matrix_names(matrix_section),
+        "runtime-acceptance.md observations": re.findall(DEEP_REVIEW_OBSERVATION_SCENARIO, matrix_section),
+    }
+    return {relative: None if names is None else [name.strip().lower() for name in names]
+            for relative, names in lists.items()}
+
+
+def deep_review_follow_up_problems(documents: dict[str, str]) -> list[str]:
+    """Check the deterministic follow-up clauses and that the follow-up receipt stays separate and consistent."""
+    problems = []
+    for relative, rules in DEEP_REVIEW_FOLLOW_UP_RULES.items():
+        for rule in rules:
+            if rule not in documents.get(relative, ""):
+                problems.append(f"deep-review/{relative}: missing follow-up contract {rule!r}")
+    follow_up_lists = deep_review_follow_up_scenario_lists(documents)
+    follow_up = follow_up_lists["references/output-template.md"]
+    for relative, found in follow_up_lists.items():
+        if not found or found != follow_up:
+            problems.append(f"deep-review/{relative}: follow-up runtime acceptance scenarios differ from references/output-template.md")
+    full_template, _, follow_up_template = documents["references/output-template.md"].partition(DEEP_REVIEW_FOLLOW_UP_HEADING)
+    full = [name.strip().lower() for name in re.findall(DEEP_REVIEW_TEMPLATE_SCENARIO, full_template)]
+    if set(full) & set(follow_up or []):
+        problems.append("deep-review follow-up receipt rows must not reuse full-review scenario names")
+    for scenario in DEEP_REVIEW_FULL_ONLY_SCENARIOS:
+        if scenario.lower() not in full or scenario not in follow_up_template:
+            problems.append(f"deep-review follow-up receipt must mark full-review-only row {scenario!r} as not run")
+    report = follow_up_template.split("```markdown", 1)[-1].split("\n```", 1)[0]
+    for forbidden in ("Headline takeaway", "No findings", "| Already reported"):
+        if forbidden in report:
+            problems.append(f"deep-review follow-up report must not carry the full-review {forbidden!r} presentation")
+    hint = re.search(r'(?m)^argument-hint: "([^"\n]*)"$', documents["SKILL.md"].split("\n---\n", 1)[0])
+    if not hint or not hint.group(1).startswith("[follow-up] "):
+        problems.append("deep-review argument-hint must lead with the optional `follow-up` token")
+    if "follow-up" not in documents.get("agents/openai.yaml", "").partition("short_description:")[2].split("\n", 1)[0]:
+        problems.append("deep-review Codex short_description must name follow-up revalidation like argument-hint")
+    return problems
+
+
+def validate_deep_review_follow_up_contract(skill: Path, roles: dict[str, generate_agents.Role]) -> None:
+    documents = {relative: (skill / relative).read_text(encoding="utf-8") for relative in (
+        "SKILL.md", "agents/openai.yaml", "protocol.md", "runtime-acceptance.md", "reviewers/validator.md",
+        "references/output-template.md", "references/pr-review-comments.md",
+    )}
+    problems = deep_review_follow_up_problems(documents)
+    if problems:
+        fail(problems[0])
+    # Both validator agents embed the follow-up adjudication, so no new role is needed.
+    isolation = DEEP_REVIEW_FOLLOW_UP_RULES["reviewers/validator.md"][0]
+    for name in ("validator-static", "validator-probe"):
+        if isolation not in roles[name].body:
+            fail(f"deep-review role {name!r} does not embed the follow-up adjudication")
+    for relative, rules in DEEP_REVIEW_FOLLOW_UP_RULES.items():
+        for rule in rules:
+            mutated = {**documents, relative: documents[relative].replace(rule, "")}
+            if not deep_review_follow_up_problems(mutated):
+                fail(f"the follow-up check accepted a removed {relative} follow-up rule")
+    mutations = {
+        "a follow-up row in the full-review receipt": (
+            "references/output-template.md", "| Cleanup | PASS / FAIL / NOT EXERCISED |",
+            "| Fixed concern | PASS / FAIL / NOT EXERCISED | x |\n| Cleanup | PASS / FAIL / NOT EXERCISED |",
+        ),
+        "a malformed follow-up matrix": ("runtime-acceptance.md", "| Partial fix | Not addressed", "| Partial fix | | Not addressed"),
+        "a missing follow-up matrix row": ("runtime-acceptance.md", "| Partial fix | Not addressed", "| Partial fixes | Not addressed"),
+        "a follow-up row accepted without observation": ("runtime-acceptance.md", "| Partial fix | NOT EXERCISED | NOT EXERCISED |", "| Partial fix | NOT EXERCISED | ACCEPTED |"),
+        "a missing protocol follow-up row": ("protocol.md", "- partial fix: whether", "- partial repair: whether"),
+        "a PASS headline in the follow-up report": ("references/output-template.md", "**Status counts:**", "**Headline takeaway:** No findings\n**Status counts:**"),
+        "a full-review-only row left unmarked": ("references/output-template.md", "Insufficient scout capacity, and Scout failure", "and Scout failure"),
+        "a full-review argument-hint": ("SKILL.md", 'argument-hint: "[follow-up] ', 'argument-hint: "'),
+        "Codex metadata without follow-up": ("agents/openai.yaml", "or follow-up revalidation", ""),
+    }
+    for label, (relative, old, new) in mutations.items():
+        if old not in documents[relative]:
+            fail(f"the follow-up check mutation for {label} no longer applies")
+        mutated = {**documents, relative: documents[relative].replace(old, new, 1)}
+        if not deep_review_follow_up_problems(mutated):
+            fail(f"the follow-up check accepted {label}")
 
 
 def validate_deep_review() -> None:
@@ -2850,6 +3015,7 @@ def validate_deep_review() -> None:
             fail(f"the runtime scenario check self-test could not mutate {relative}")
         if not deep_review_scenario_problems(mutated_scenarios):
             fail(f"the runtime scenario check accepted divergent scenario names in {relative}")
+    validate_deep_review_follow_up_contract(skill, roles)
 
     contents = {path.read_text(encoding="utf-8"): path for path in shared}
     generated = skill / "harnesses"

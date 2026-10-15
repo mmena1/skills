@@ -10,6 +10,12 @@ The operational validation flow is:
 
 `Needs probe` is an internal transitional state only and is never exposed in reports or publication.
 
+## Entry point
+
+`/deep-review [target]` runs the full review this protocol defines. `/deep-review follow-up [target] [record=<run ID | path>] [selection]` runs follow-up revalidation as defined in "Follow-up revalidation" below. A leading literal `follow-up` token selects follow-up mode. Every invocation without it is the unchanged full review, and a branch literally named `follow-up` is reviewed through an unambiguous ref such as `refs/heads/follow-up`.
+
+After the `follow-up` token, an argument that is `all`, `published`, a comma-separated list of canonical IDs such as `H2,H5`, or a PR review comment URL is the selection; `record=` names the source record explicitly; any other first argument is the target. A bare comment ID is a selection only after an explicit target, because a bare number before it is a PR number.
+
 ## Gate and resolve
 
 1. Resolve the repository root with `git rev-parse --show-toplevel`; stop outside Git.
@@ -118,6 +124,25 @@ Context capture is deterministic protocol machinery, not a task for the model to
 
 The coordinator persists protocol state in one coordinator-owned `run-state.json` (or an equivalent single run-state record when the harness requires another serialization) rather than one file per pipeline stage. That state records the exact pinned baseline identity and restoration status; scout completion and provenance; canonical hypotheses, original IDs, origins, deduplication evidence, and context references; every completed validator outcome and evidence; PR discussion retrieval completeness, timestamps, and per-item overlap dispositions with reasons and links; incomplete-run and unattempted-hypothesis status; runtime acceptance receipt; final report data; cleanup status; and, when publication occurs, the exact publication payload with the submission outcome and its identifiers, and the read-back verification outcome with its source, time, and diagnostic evidence. The context snapshot remains separate because it is an immutable evidence bundle with manifests. A user-facing `final-report.md` may be preserved when useful, and a `publication-receipt.json` is created only when publication occurs and contains the exact payload together with its publication receipt, which records the submission outcome and the verification outcome separately. Separate intermediate files for scout output, canonical hypotheses, or individual validator outcomes are not created unless a concrete runtime constraint requires them and that constraint is recorded in the run state.
 
+The run directory has a unique name, for example a UTC timestamp followed by a short random suffix, and that name is the run's **run ID**. `run-state.json` begins with a **record identity** so a later session can match it against a resolved target:
+
+```json
+"record": {
+  "format_version": 1,
+  "run_id": "<run directory name>",
+  "mode": "full | follow-up",
+  "repository": "<owner/name of the primary remote, or the canonical record root when there is none>",
+  "target": {"kind": "pr | branch | range", "key": "<owner/name#number | refs/heads/<name> | <base SHA>..<head SHA>>"},
+  "base_sha": "<base SHA>",
+  "reviewed_head_sha": "<reviewed head SHA>",
+  "completed_at": "<UTC ISO 8601 time the run finished>",
+  "completeness": "complete | incomplete | stale",
+  "lineage": {"source_run_id": "<source full-review run ID>", "follow_up_run_ids": ["<earlier follow-up run ID>"]}
+}
+```
+
+`lineage` is present only in a follow-up record. It names the source full-review run ID and every earlier follow-up run ID the follow-up built on. Each approved publication payload entry records the canonical concern ID it publishes, and the publication record keeps the created comment identifiers whenever the submission response or a read-back provides them, as `references/pr-review-comments.md` describes.
+
 ## Runtime acceptance receipt
 
 Every real review emits a passive runtime acceptance receipt from coordinator-observed state. The coordinator records the harness identity and version; the shared receipt also records the reviewed skill commit or version, each selected lens with the native agent used for it, the validator agents that ran, and one status for every acceptance scenario: `PASS`, `FAIL`, or `NOT EXERCISED`.
@@ -174,6 +199,96 @@ For a confirmed associated PR, include the output template's optional audience n
 
 Use `references/pr-review-comments.md` for publication. Findings may be drafted as established defects. User-selected Unresolved items require explicit per-item approval and must be questions describing evidence and remaining uncertainty. Run the ambiguity check from that reference before presenting each comment for approval. Preserve semantic anchors, changed-line validation, exact payload validation, privacy boundaries, freshness, field-complete read-back verification, and per-comment approval. Verification failure or an ambiguous submission never authorizes posting the review or its comments again.
 
+## Preserved review records
+
+Every run that created a run state preserves its records under the **record root**, `<git-common-dir>/deep-review/records/<run-id>/`. The record root is shared by every worktree of the clone, survives worktree and run-directory removal, is never tracked, and follows the same rule in every environment.
+
+`<git-common-dir>` is the canonical absolute path of the caller repository's Git common directory:
+
+1. Run `git rev-parse --path-format=absolute --git-common-dir` from the caller checkout where that option is available. Otherwise run `git rev-parse --git-common-dir`; it may print a relative path such as `.git` or `../.git`, which is relative to the directory the command ran in, so resolve it against that directory.
+2. Canonicalize the result: resolve symlinks, normalize separators and case to the platform's native form, and reject a result that is not an existing directory.
+
+An ordinary checkout, any of its linked worktrees, and any subdirectory of either all resolve to the same record root. Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.
+
+A preserved record holds `run-state.json`, `final-report.md` when produced, and `publication-receipt.json` when produced. Preservation uses the fixed direct copy operation, the same `cp` operation (or selected byte-for-byte equivalent) that context capture uses, with narrowly scoped authorization for that exact record directory. It never overwrites an existing record directory. It copies `run-state.json` last, so a partial record has no run state, and verifies byte equality of every copied file before the run directory is removed.
+
+Preservation never changes a review. A denied authorization, a write restriction on the Git common directory, or any other preservation failure leaves the run's analysis, outcomes, report, and publication unchanged and does not block worktree cleanup. The coordinator then reports that records were not preserved and why, keeps the run directory with its records, and names the exact retained paths, including any partial record directory. It never removes unpreserved records and is never silent about a preservation failure.
+
 ## Cleanup
 
-After every exit path, preserve final report and evidence, obtain narrowly scoped authorization for the exact coordinator-created worktree cleanup path, remove only that worktree with the narrowest Git worktree mechanism, and verify its registration is gone. Remove the matching context snapshot and run directory only after preservation checks pass. Report exact leftovers when cleanup is interrupted.
+After every exit path, preserve the run's records as described in "Preserved review records", obtain narrowly scoped authorization for the exact coordinator-created worktree cleanup path, remove only that worktree with the narrowest Git worktree mechanism, and verify its registration is gone. Worktree cleanup proceeds whether or not preservation succeeded. Remove the matching context snapshot and run directory only after preservation is verified; when it is not, keep the run directory and report its exact path. Report the preserved record path, and exact leftovers when cleanup is interrupted.
+
+## Follow-up revalidation
+
+Follow-up revalidation independently revalidates selected concerns from a preserved prior review record against a newly pinned head. It is not a full PR review and never claims comprehensive coverage. It reports each selected concern as Addressed, Not addressed, Incomplete, or Deferred.
+
+### Resolve and discover
+
+Target resolution, caller-checkout overlap, the clean-status requirement, PR discussion isolation, and the confirmation gate are the full review's ("Gate and resolve"). The new head is the resolved target's head.
+
+For a PR or branch target, read every `run-state.json` directly under the record root's run directories and match records whose record identity has the same repository and target kind and key. The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record, so a focused follow-up that rechecked only a subset can never narrow the concern inventory. Report the source record's completeness status and how many older full-review records match. List unreadable, schema-invalid, and identity-less records as skipped, with reasons.
+
+A commit-range target, no matching full-review record, or a user preference uses explicit selection by run ID (a run directory in the record root) or record path. Explicit selection may name a record without identity fields, such as one preserved before record identity existed; the confirmation shows the missing identity, and the user confirms it. Explicitly selecting a follow-up record resolves through its lineage to its source full-review record; when that source record cannot be read, stop and report it, because the concern inventory cannot be recovered.
+
+Follow-up records whose lineage names the chosen source supply prior status and provenance only. For each concern, the confirmation and report show its latest prior follow-up status, any prior deferral, and the run IDs that produced them, as context, never as evidence.
+
+### Concerns and selection
+
+The **concern inventory** is the source record's Finding and Unresolved outcomes, keyed by canonical ID. Disproved hypotheses and hypotheses not validated due to review failure are never concerns; they are listed as excluded, with reasons.
+
+Selection is one of:
+
+- omitted or `all`: every concern;
+- `published`: every concern with a recorded published comment;
+- explicit canonical IDs such as `H2,H5`;
+- published comment URLs or IDs, mapped to concerns only through the source record's recorded comment identifiers.
+
+A requested ID or comment with no preserved original concern, or with incomplete original evidence (no hypothesis, original outcome and evidence, or original reviewed head SHA), is reported as incomplete coverage with the reason. It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.
+
+### Confirm once
+
+One confirmation, with no separate scope question, shows the source record with its run ID, path, completeness, and reviewed head; the new head; the exact selected set; the excluded set and incomplete coverage with reasons; each selected concern's prior follow-up context; and the deferred set. If the new head equals the source record's reviewed head, say so and require explicit confirmation to continue.
+
+At that confirmation, the user may mark selected concerns **deferred**, with an optional reason. Deferred concerns are not revalidated and are reported as deferred, never as addressed. A deferral applies only to that run; a later follow-up shows it as prior context and does not apply it automatically.
+
+### Focused validation
+
+Follow-up mode skips reviewer selection, the scout capacity check, and the scout wave, and the report states that no scouts ran. Preflight still verifies that both validator agents are installed. Every other mechanism runs unchanged against the new head: freshness, one immutable target-bound context snapshot with no scout manifests, one pinned coordinator-owned worktree with its exact baseline, workspace authorizations, one late-bound `reviewers/validator-manifest` derived from the selected concerns' context references, the static phase with its existing queue and capacity rules in canonical ID order, the sequential writable phase with baseline restoration, operational-failure handling, and cleanup.
+
+Each `deep-review-validator-static` and `deep-review-validator-probe` invocation runs the follow-up adjudication in `reviewers/validator.md` and receives exactly one original concern record (canonical ID, hypothesis, original outcome and evidence, and original reviewed head SHA), the new pinned worktree, and the base and new head SHAs. It may inspect the diff from the original head to the new head when the original head object is present locally, and must not fetch it. Follow-up validators never receive GitHub discussion, thread state, author claims, or prior follow-up statuses.
+
+The follow-up adjudication returns, from fresh evidence at the new head:
+
+- **Addressed**: fresh evidence, such as a removed path, a new guard, invariant, contract, or test, or a bounded check, establishes that the original failure or structural cost no longer applies, and cites the change responsible.
+- **Not addressed**: fresh evidence establishes that it still applies, with current severity and, for a partial fix, what changed and what remains.
+- **Incomplete**: fresh evidence cannot establish either, and the outcome names the missing evidence or operational limitation.
+- **Needs probe**: the existing internal transition and schema; it is never reported.
+
+Statuses come only from the follow-up adjudication. The original outcome is context, never evidence: an original Finding is not presumed to persist, and an original Unresolved item is not presumed fixed. A concern not attempted because of operational failure is Incomplete as not validated due to review failure. A head change before presentation makes every status stale; report reviewed and current SHAs and require a rerun.
+
+### Report, thread state, and publication
+
+Use the follow-up variant in `references/output-template.md`, labeled "Follow-up revalidation: not a full PR review". It never shows PASS or a `No findings` headline and states that code outside the selected concerns was not reviewed.
+
+GitHub thread state (open, resolved, outdated, not published, or unknown) is a separate column. Retrieve it only after validation finishes and only for recorded comment identifiers. A retrieval failure leaves it unknown without changing any code-level status, and a resolved thread never makes a concern addressed.
+
+Follow-up is read-only toward GitHub by default. A new comment the user requests for a Not addressed concern is drafted from its fresh evidence and goes through the existing `references/pr-review-overlap.md` and `references/pr-review-comments.md` gates unchanged. Follow-up never replies to, edits, resolves, or reopens an existing thread.
+
+The follow-up run state carries a record identity with mode `follow-up` and its full lineage, preserves each selected concern's original record verbatim, and records each status, deferral, and thread state. It is preserved at cleanup like every other run.
+
+### Follow-up runtime acceptance
+
+The follow-up receipt keeps every full-review row and marks the full-review-only rows (zero hypotheses, surviving hypotheses, multiple selected scouts, insufficient scout capacity, and scout failure) as not run. It adds these rows, recorded under the same observed-only rules:
+
+- fixed concern: whether fresh evidence citing the responsible change produced Addressed;
+- persisting defect: whether fresh evidence produced Not addressed with current severity;
+- partial fix: whether Not addressed named what changed and what remains;
+- missing prior evidence: whether a requested concern without preserved original evidence became incomplete coverage without reconstruction;
+- explicitly deferred concern: whether the user's deferral skipped revalidation and was reported apart from Addressed;
+- resolved thread with a persisting defect: whether the resolved thread state stayed separate and the concern stayed Not addressed;
+- head change during revalidation: whether every status became stale with reviewed and current SHAs reported;
+- multiple selected concerns: whether each selected concern received one independent follow-up adjudication in canonical ID order;
+- record discovery in a later session: whether a new session found the source record by repository and target;
+- discovery when the newest record is a narrower follow-up: whether the latest full-review record stayed the source and the follow-up supplied only prior context;
+- record preservation from a linked worktree: whether records reached the canonical record root of the clone's Git common directory;
+- record preservation under a write restriction: whether outcomes stayed unchanged and the run directory was retained with exact paths reported.
