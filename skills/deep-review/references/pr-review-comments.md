@@ -32,10 +32,41 @@ Read the selected guide before drafting. Audience changes wording only: preserve
 7. If the preferred anchor is not commentable, use only the smallest relevant changed line or compact range as an explicit fallback, preserving scope and rationale. If no relevant changed location exists, do not publish inline.
 8. Get per-comment approval with scope and anchor.
 9. Immediately before posting, re-fetch complete PR discussion and re-check overlap under `pr-review-overlap.md`, together with PR state and head SHA. If the head changed, stop and rerun the review. Remove newly overlapping open concerns; route any changed comment body or anchor through validation and per-comment approval again, then repeat this freshness/overlap check. Submit no review when every comment is suppressed, and report that result.
-10. Submit one review with an empty top-level body unless the user explicitly requests a summary:
-   `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT` and the approved `comments` array.
-11. Validate the final payload after any coordinate change and verify the expected comment count after overlap suppression. Update the final report and run state with actual publication and overlap dispositions.
+10. Before submitting, record in run state the final approved and overlap-filtered payload, the pinned head SHA, the authenticated account, and the submission start time. Submit one review with an empty top-level body unless the user explicitly requests a summary:
+   `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT`, `commit_id` set to the pinned head SHA, and the approved `comments` array. Never omit `commit_id`: GitHub defaults an omitted value to the PR's latest commit, which can be a revision that was not reviewed. Submit it at most once per approved payload; see "Submission outcome".
+11. Validate the final payload after any coordinate change. After submission, run "Read-back verification" and update the final report and run state with the actual publication, verification, and overlap dispositions.
+
+## Submission outcome
+
+Record the submission outcome independently of read-back verification, with the response status, returned review ID and `commit_id`, and the request and response times.
+
+| Outcome | Meaning |
+| --- | --- |
+| `submitted` | A success response returned a review ID. |
+| `rejected` | A definitive error response states that no review was created. |
+| `ambiguous` | Anything else: a timeout, dropped connection, server error, unreadable body, or success without a review ID. |
+
+Never post the review or any of its comments a second time because verification failed or was incomplete, or because the outcome is `ambiguous`. A `rejected` review is reported with the response and is never replayed automatically; posting again is a new attempt that repeats step 9 and the per-comment approval for any changed payload.
+
+For `ambiguous`, reconcile with read-only calls only. Retrieve the PR's reviews and comments completely, then take as candidates every review by the authenticated account at the pinned head SHA within the submission window, whether or not its comments match. The window runs from the recorded submission start time to the time of the reconciliation read, with a margin for clock skew between the local clock and GitHub's `submitted_at`. Accept the review only if there is exactly one candidate and it verifies against the exact approved payload under "Read-back verification". Retry a transient retrieval failure a small bounded number of times, such as three. With no candidate, several candidates, a lone candidate that does not verify, or a retrieval that stays incomplete, keep the outcome `ambiguous`, record the evidence, and stop for explicit human action. Absence from an incomplete or lagging read is not proof that nothing was published.
+
+## Read-back verification
+
+Verification confirms the received comments against the approved payload. It never decides whether to submit again.
+
+1. Read comments from `gh api --paginate "/repos/{owner}/{repo}/pulls/{pull_number}/comments?per_page=100"`, the PR-wide endpoint. Do not use the review-specific comments endpoint as the source, because it can omit anchor fields. Pagination must complete; a failed page, a rate limit, or an unreadable body is a retrieval failure. Retry a transient retrieval failure with read-only calls a small bounded number of times before treating it as one.
+2. Select only comments whose `pull_request_review_id` equals the returned review ID. Other reviews' and unrelated comments are never part of the receipt. Without a returned review ID, the publication cannot be identified and verification is incomplete unless reconciliation under "Submission outcome" established the review.
+3. Compare each expected comment with the selected comments on `body`, `path`, `side`, `line`, and, for a range, `start_line` and `start_side`. A comment whose payload sets no range expects none. If `line` or `start_line` is null because the comment became outdated, use `original_line` or `original_start_line`. Also compare the review's `commit_id` and each comment's `original_commit_id` with the pinned head SHA; the review's value comes from the submission response or, when reconciled, from the matched review. Compare bodies as raw strings, so leading, trailing, and interior whitespace stays significant (it can change how Markdown renders, such as an indented code block). The only allowed transformation is line-ending normalization, and any other API transformation must be established before it is excused. Compare as a multiset, one received comment per expected comment; a matching count is never sufficient.
+4. Classify each expected and selected comment pair as equal (every compared field present and equal), conflicting (a present field differs), or unknown (no present field differs but a compared field is missing). Then decide:
+   - `verified`: the expected comments can be paired one-to-one with the selected comments, all equal, with no selected comment left unpaired.
+   - `mismatch`: no pairing is consistent even if every unknown pair were equal, including a different number of selected comments. Re-read once before concluding a count difference, because a fresh review can lag. Record each difference as expected versus received. A `commit_id` or `original_commit_id` that differs from the pinned head SHA is a mismatch recorded as stale, naming the pinned and received SHAs; the review stays reported as published but unverified, and nothing is posted again.
+   - `verification incomplete`: any pairing is consistent only because a missing field might match, or retrieval or identification failed. A missing field is never a mismatch.
+5. Record the verification outcome with the read-back source and pagination state, the read time, and diagnostic evidence: matched, missing, conflicting, and extra comments, with missing field names and any retrieval error. A known `submitted` outcome stays reported as published whatever the verification outcome. Report `verification incomplete` as unverified, and `mismatch` with its differences, as separate from the submission result.
 
 ## Wording verification
 
 When changing audience routing or tone instructions, use `comment-audience-scenarios.md` to verify generated wording separately from the deterministic contract checks in `scripts/check.py`. This is maintenance verification, not an additional publication gate.
+
+## Verification scenarios
+
+When changing the submission outcome or read-back verification rules, use `publication-verification-scenarios.md` to check the outcomes for omitted fields, mismatches, ranges, pagination, other reviews' comments, partial failures, and ambiguous submissions. This is maintenance verification, not an additional publication gate.
