@@ -20,6 +20,10 @@ Work from whatever is already in the conversation context. If the user passes a 
 
 If the source is a spec with an `Implementation Decisions` section that proposes modules, require an **Approved** verdict from `/design-review` before drafting or publishing tickets. If that verdict is absent or is **Rework**, stop and send the spec back through `/design-review`. This gate keeps `ready-for-agent` reserved for executable tickets.
 
+Classify the source separately from the tickets' governing authority. A source issue becomes a governing parent/spec only when its full body and comments establish the approval required by the upstream workflow and it governs the proposed slices. Approval of the breakdown alone does not approve the source as a parent/spec. An informational, unapproved, missing, or unresolvable source grants no parent authority: on a standalone-capable tracker, draft standalone follow-ups with an informational `## Source` reference, and report any source lookup or approval gap. Use only verified context to draft them; when the available context cannot support a complete brief, stop rather than invent requirements. The spec design-review gate above still applies.
+
+This classification applies to publishing new follow-ups. A ticket's already-declared direct or native parent continues to fail closed when unapproved, missing, or unresolvable; never remove or reclassify that parent to obtain standalone authority.
+
 ### 2. Explore the codebase (optional)
 
 If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
@@ -68,9 +72,13 @@ Publish the approved tickets. **How** depends on the tracker `/setup-skills` con
 
 On a real tracker, publish every ticket without a parent/spec only after the user has approved the proposed breakdown, using the parentless issue template below: a complete Agent Brief as `docs/agents/issue-tracker.md` defines it, followed by the blocking references. That issue-body brief is the ticket's standalone implementation authority, so write no separate authority comment. On GitHub, the brief is trusted only when the publishing account is a human with effective repository permission `write` (including `maintain`) or `admin`; verify this with the tracker's permission check. `author_association` is supplemental context only. If permission is missing or cannot be verified, still publish the approved tickets, but report that standalone authority was not established for those issues and keep every one of them out of the frontier below, in the planned or non-ready state, even when it is unblocked. Tickets with a parent/spec keep the issue template and their parent's approval; never infer authority from a ready label. When `docs/agents/issue-tracker.md` states that standalone authority is unsupported, as the local-markdown tracker does, every ticket gets its parent/spec: never use the parentless template or add an Agent Brief there, and if no approved parent/spec exists, stop and ask for one instead of publishing parentless tickets.
 
+For an approved, resolvable governing spec that is not a tracker issue, such as a local spec file, use a direct `## Parent` spec reference as the normal authority mechanism, including on GitHub when native sub-issues are supported. Read the referenced spec and verify its approval before publishing. This is not a native-operation fallback and requires no synthetic parent issue. A governing spec reference that is unapproved, missing, or unresolvable fails closed; never reclassify it as informational or downgrade its tickets to standalone authority.
+
+For each ticket whose verified, approved governing parent is an issue on that tracker, use the native sub-issue operation defined in `docs/agents/issue-tracker.md` when that capability is available, and verify the resulting parent relationship. On GitHub, native linking requires a governing GitHub issue. Use the configured parent-reference fallback for issue parents only when native sub-issue support is confirmed unavailable. Permission, API, validation, network, and other operational failures are failures, not evidence that the capability is unavailable. Stop publication before frontier promotion on a native-operation or verification failure and report the failed operation, error, every issue already created, and which parent relationships are confirmed or unverified. Do not silently fall back or claim a relationship or fallback succeeded. An informational source gets only the `## Source` reference, never a native parent link or a governing `## Parent` reference.
+
 After every ticket and blocking edge exists, compute the initial **frontier**: every open, unblocked, unclaimed ticket whose authority is established. A parentless ticket qualifies only when its issue-body brief is trusted, so an untrusted publishing account leaves no parentless ticket ready. Put only frontier tickets in the implementation-ready state configured by `docs/agents/issue-tracker.md`. Put blocked tickets in that tracker's configured planned or non-ready state. For a purely linear chain, only the first ticket begins ready.
 
-Do NOT close or modify any parent issue.
+Do not close or edit the governing parent's body or approval record. Creating the approved native sub-issue relationships is the parent update this publication step authorizes.
 
 <local-ticket-template>
 
@@ -95,7 +103,7 @@ Use this issue template for a ticket with a parent/spec:
 
 ## Parent
 
-A reference to the parent issue on the tracker (if the source was an existing issue, otherwise omit this section).
+A reference to the verified, approved governing parent/spec. An existing source issue belongs here only when that authority was established.
 
 ## What to build
 
@@ -142,5 +150,13 @@ What should happen once the ticket is done, from the user's perspective, includi
 - A reference to each blocking ticket, or "None (can start immediately)".
 
 </parentless-issue-template>
+
+When a standalone follow-up has an informational source, append this section outside its Agent Brief. Omit it when there is no source reference:
+
+```markdown
+## Source
+
+Informational source: <issue reference>. This reference grants no governing parent authority.
+```
 
 In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
