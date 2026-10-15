@@ -2,12 +2,16 @@
 
 ## Review run
 
-- **Review run**: One coordinated execution of multiple read-only scouts, capacity-bounded static hypothesis adjudications, and sequential writable probe adjudications.
+- **Review run**: One coordinated execution of multiple read-only scouts, capacity-bounded static hypothesis adjudications, and sequential writable probe adjudications. A follow-up revalidation run executes only the validation phases.
 - **Review workspace**: The coordinator-owned disposable area belonging to one review run.
 - **Review target**: The committed PR, branch, or commit range being reviewed. When no target is supplied, the caller's current branch is the target; a detached caller has no implicit target.
 - **Caller checkout**: The repository and checked-out branch from which a run starts. It is launch context, not necessarily the review target.
 - **PR gate review**: A review that requires a clean caller checkout only when the checkout overlaps the review target. A different target may be reviewed from a dirty checkout, but working-tree changes never become review input.
 - **Run state**: The consolidated coordinator-owned record of baseline, provenance, hypotheses, validation outcomes, report data, incomplete status, and cleanup status that must survive disposable worktree changes.
+- **Run ID**: The unique name of a run's directory, which also names its preserved record.
+- **Record identity**: The header of a run state that lets a later session match it to a target: format version, run ID, mode (`full` or `follow-up`), repository identity, target kind and key, base and reviewed head SHAs, completion time, completeness status, and, for a follow-up, its lineage.
+- **Record root**: `<git-common-dir>/deep-review/records/`, where `<git-common-dir>` is the canonical absolute path of the caller repository's Git common directory. Every worktree of a clone shares it, and it is never tracked.
+- **Preserved record**: A run's `run-state.json`, and its `final-report.md` and `publication-receipt.json` when produced, copied byte for byte under the record root before the run directory is removed.
 - **Operational instructions**: Instructions from the materialized target that govern behavior. Ignored context is supplemental evidence unless supported repository configuration explicitly designates it otherwise.
 
 ## Context
@@ -32,6 +36,23 @@
 - **fix-now**: A Finding with one clearly correct remedy and a small, unambiguous fix.
 - **discuss**: An Unresolved item or a Finding whose remedy needs the author's design or tradeoff judgment.
 - **follow-up**: A Finding with one clearly correct remedy that is too large or out of scope for the current change.
+
+## Follow-up revalidation
+
+- **Follow-up revalidation**: A `/deep-review follow-up` run that independently revalidates selected concerns from a preserved prior review record against a newly pinned head. It runs no scouts and is not a full PR review. It is unrelated to the `follow-up` Action, which classifies a Finding.
+- **Source record**: The preserved full-review record whose concerns a follow-up revalidates: the latest full-review record matching the target, or one the user selects explicitly. A follow-up record is never a source record.
+- **Lineage**: The source full-review run ID and every earlier follow-up run ID a follow-up record built on. Follow-up records in a source's lineage supply prior status and provenance only, including the comments they published and the concerns those comments map to.
+- **Concern**: A Finding or Unresolved outcome in the source record. Disproved hypotheses and hypotheses not validated due to review failure are never concerns.
+- **Concern inventory**: Every concern in the source record, keyed by canonical ID. A follow-up record never narrows it.
+- **Original concern record**: One concern exactly as the source record preserves it: canonical ID, hypothesis, original outcome and evidence, and original reviewed head SHA. It is the only concern input a follow-up validator receives.
+- **Incomplete coverage**: A requested concern or comment with no preserved original concern, or with incomplete or ambiguous original evidence. It is reported with its reason and never reconstructed.
+- **Follow-up validator capacity**: The static validator concurrency a harness declares for follow-up revalidation, from a validator-only capacity read or a fixed conservative bound, because follow-up runs no scout capacity check.
+- **Follow-up adjudication**: The validator's judgment of one original concern record from fresh evidence at the new head, returning Addressed, Not addressed, Incomplete, or the internal `Needs probe` transition.
+- **Addressed**: Fresh evidence establishes that the original failure or structural cost no longer applies and cites the change responsible.
+- **Not addressed**: Fresh evidence establishes that the original failure or structural cost still applies, with current severity and, for a partial fix, what changed and what remains.
+- **Incomplete**: Fresh evidence cannot establish Addressed or Not addressed; the status names the missing evidence or operational limitation. It is a per-concern follow-up status, distinct from an incomplete run and from incomplete coverage.
+- **Deferred**: A selected concern the user explicitly chose not to revalidate in one follow-up run. It is never reported as addressed; a later follow-up shows it as prior context and does not apply it automatically.
+- **Thread state**: The GitHub state of a concern's recorded comment (open, resolved, outdated, not published, or unknown). It is reported separately and never changes a follow-up status.
 
 ## Structural review
 

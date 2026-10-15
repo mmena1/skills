@@ -112,3 +112,55 @@ Unresolved outcomes are always Action: discuss and are not Findings.
 
 **Comment audience:** `human` (default) or `agent`; include `audience: agent` when requesting publication. Omitting audience uses human wording without an extra confirmation step.
 ```
+
+## Follow-up revalidation variant
+
+Use this variant, never the full template above, for `/deep-review follow-up`. It never shows PASS or a `No findings` headline. Omit the Comment audience note when no confirmed PR is associated.
+
+```markdown
+## Deep Review Follow-up
+
+**Follow-up revalidation: not a full PR review.** Only the selected concerns were revalidated; code outside the selected concerns was not reviewed.
+
+Reviewed: [confirmed target]
+Source record: [run ID] at [record path]; completeness [complete / incomplete / stale / missing identity confirmed by the user]; older matching full-review records [count]; skipped records [path and reason for each, or none]
+Prior follow-ups: [run IDs whose lineage names the source record, or none]
+Base / original reviewed head / new reviewed head / current head: [base] / [source record's reviewed SHA] / [reviewed SHA] / [current SHA]
+Scouts: none ran (follow-up mode)
+Validation: [run / not needed / incomplete]
+Context snapshot: [target-bound files/manifests, omitted optional files, warnings, or "empty"]
+Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validator agents: [validator agents that ran, or none]
+Records: [preserved record path / not preserved: reason and exact retained paths]
+
+**Coverage:** Selected [canonical IDs]; Excluded [canonical IDs with reasons]; Deferred [canonical IDs with reasons]; Incomplete coverage [requested IDs or comments with reasons]
+**Status counts:** Addressed [count], Not addressed [count], Incomplete [count], Deferred [count]
+**Status:** current | stale: every status is stale, rerun required | **Revalidation incomplete**: [validator failure and affected concerns]
+
+| Concern | Original concern | Status | Fresh evidence | Prior follow-up context | GitHub thread state |
+|---|---|---|---|---|---|
+| H[number] | [source run ID] H[number]: [title], original [Finding / Unresolved] at [path:line] | Addressed / Not addressed / Incomplete / Deferred | [Addressed: evidence and responsible change; Not addressed: evidence, current severity, and for a partial fix what changed and what remains; Incomplete: missing evidence or operational limitation; Deferred: the user's reason, or none given] | [latest prior status and any prior deferral, with run IDs, or none] | open / resolved / outdated / not published / unknown |
+
+### Runtime acceptance receipt
+
+Include every row of the full-review receipt first. Mark Zero hypotheses, Surviving hypotheses, Multiple selected scouts, Insufficient scout capacity, and Scout failure `NOT EXERCISED` with the evidence `Not run: full review only`. Then add:
+
+| Scenario | Status | Observed evidence |
+|---|---|---|
+| Fixed concern | PASS / FAIL / NOT EXERCISED | [concern, fresh evidence, and the cited responsible change] |
+| Persisting defect | PASS / FAIL / NOT EXERCISED | [concern, fresh evidence, and current severity] |
+| Partial fix | PASS / FAIL / NOT EXERCISED | [what changed and what remains] |
+| Missing prior evidence | PASS / FAIL / NOT EXERCISED | [requested ID or comment, the missing evidence, and that nothing was reconstructed] |
+| Explicitly deferred concern | PASS / FAIL / NOT EXERCISED | [deferral, its reason, and that no validator ran for it] |
+| Resolved thread with a persisting defect | PASS / FAIL / NOT EXERCISED | [resolved thread state beside the Not addressed status] |
+| Head change during revalidation | PASS / FAIL / NOT EXERCISED | [reviewed and current SHAs and the stale statuses] |
+| Multiple selected concerns | PASS / FAIL / NOT EXERCISED | [one follow-up adjudication per selected concern in canonical ID order] |
+| Follow-up validator capacity | PASS / FAIL / NOT EXERCISED | [the harness's validator-only capacity read or fixed bound, slots used, and any refusal handled as backpressure] |
+| Record discovery in a later session | PASS / FAIL / NOT EXERCISED | [source record found by repository and target key] |
+| Discovery when the newest record is a narrower follow-up | PASS / FAIL / NOT EXERCISED | [latest full-review source chosen; follow-up record used only for prior context] |
+| Record preservation from a linked worktree | PASS / FAIL / NOT EXERCISED | [caller worktree and the canonical record root reached] |
+| Record preservation under a write restriction | PASS / FAIL / NOT EXERCISED | [restriction observed, unchanged outcomes, and exact retained paths] |
+
+GitHub thread state comes only from recorded comment identifiers, retrieved after validation. A retrieval failure leaves it `unknown`, and a resolved thread never makes a concern Addressed.
+
+**Comment audience:** `human` (default) or `agent`; a new comment is only for a Not addressed concern the user selects and goes through the existing overlap and publication gates.
+```

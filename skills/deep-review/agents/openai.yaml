@@ -1,6 +1,6 @@
 interface:
   display_name: "Deep Review"
-  short_description: "Strict multi-agent PR-gate review"
+  short_description: "Strict multi-agent PR-gate review or follow-up revalidation"
   default_prompt: "Review this committed target with Deep Review."
 
 policy:

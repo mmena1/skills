@@ -30,11 +30,12 @@ Read the selected guide before drafting. Audience changes wording only: preserve
 5. For every comment, declare scope: point, method/design, or compact range. Record the smallest semantically representative source anchor and rationale.
 6. Validate each payload mechanically against the current head: path, side, changed-line/range eligibility, and complete range fields. Also validate semantic representativeness. Reject mismatches rather than widening anchors.
 7. If the preferred anchor is not commentable, use only the smallest relevant changed line or compact range as an explicit fallback, preserving scope and rationale. If no relevant changed location exists, do not publish inline.
-8. Get per-comment approval with scope and anchor.
+8. Get per-comment approval with scope and anchor. Each approved payload entry records the canonical concern ID it publishes, such as `H2`; a follow-up comment records its source run ID with that ID.
 9. Immediately before posting, re-fetch complete PR discussion and re-check overlap under `pr-review-overlap.md`, together with PR state and head SHA. If the head changed, stop and rerun the review. Remove newly overlapping open concerns; route any changed comment body or anchor through validation and per-comment approval again, then repeat this freshness/overlap check. Submit no review when every comment is suppressed, and report that result.
 10. Before submitting, record in run state the final approved and overlap-filtered payload, the pinned head SHA, the authenticated account, and the submission start time. Submit one review with an empty top-level body unless the user explicitly requests a summary:
    `gh api POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews` with `event: COMMENT`, `commit_id` set to the pinned head SHA, and the approved `comments` array. Never omit `commit_id`: GitHub defaults an omitted value to the PR's latest commit, which can be a revision that was not reviewed. Submit it at most once per approved payload; see "Submission outcome".
 11. Validate the final payload after any coordinate change. After submission, run "Read-back verification" and update the final report and run state with the actual publication, verification, and overlap dispositions.
+12. Record each created comment's identifiers (comment `id`, `node_id`, and `html_url`, plus the review `id`) beside the canonical concern ID it publishes whenever the submission response or a read-back provides them, and record them as unavailable otherwise. A later follow-up maps published comments to concerns only through these recorded identifiers.
 
 ## Submission outcome
 
