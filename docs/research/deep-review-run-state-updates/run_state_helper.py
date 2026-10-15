@@ -181,6 +181,14 @@ def resolve(record, parts: list[str], path: str):
     return target
 
 
+def read_current(run_dir: Path, expect: str) -> bytes:
+    """Read the record under the run lock, refusing it unless it is the state the caller last saw."""
+    current = read_record(run_dir)
+    if hashlib.sha256(current).hexdigest() != expect:
+        raise Refusal("stale record: --expect-sha256 does not match the current run state")
+    return current
+
+
 def apply_op(record: dict, op) -> None:
     if not isinstance(op, dict):
         raise Refusal("malformed update: each op is an object")
@@ -191,6 +199,9 @@ def apply_op(record: dict, op) -> None:
     path = op["path"]
     *parents, leaf = tokens(path)
     if op["op"] == "set":
+        for prefix in APPEND_ONLY + WRITE_ONCE:
+            if path != prefix and covers(path, prefix):
+                raise Refusal(f"{path} contains protected {prefix}; set fields below it instead")
         for prefix in APPEND_ONLY:
             if covers(prefix, path):
                 raise Refusal(f"{prefix} is append-only")
@@ -248,9 +259,7 @@ def command_init(run_dir: Path) -> dict:
 def command_update(run_dir: Path, expect: str, text: str) -> dict:
     ops = parse_updates(text)
     with RunLock(run_dir):
-        current = read_record(run_dir)
-        if hashlib.sha256(current).hexdigest() != expect:
-            raise Refusal("stale record: --expect-sha256 does not match the current run state")
+        current = read_current(run_dir, expect)
         record = json.loads(current)
         for op in ops:
             apply_op(record, op)
@@ -267,9 +276,7 @@ def command_finalize_receipt(run_dir: Path, expect: str, text: str) -> dict:
     except json.JSONDecodeError as error:
         raise Refusal(f"malformed receipt document: {error}") from None
     with RunLock(run_dir):
-        current = read_record(run_dir)
-        if hashlib.sha256(current).hexdigest() != expect:
-            raise Refusal("stale record: --expect-sha256 does not match the current run state")
+        current = read_current(run_dir, expect)
         payload = json.loads(current)["publication"]["payload"]
         if payload is None:
             raise Refusal("no publication payload is recorded; a receipt exists only when publication occurs")

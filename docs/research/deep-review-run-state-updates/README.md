@@ -10,7 +10,7 @@ Research date: 2026-10-15. Investigation for [issue #121](https://github.com/mme
 | --- | --- |
 | [`synthetic_records.py`](synthetic_records.py) | Deterministic synthetic run-state records of about 72 KB and 30 KB, built from an empty skeleton by an ordered list of persistence steps. |
 | [`run_state_helper.py`](run_state_helper.py) | Throwaway prototype of candidate B. Research only. |
-| [`test_run_state_helper.py`](test_run_state_helper.py) | 23 runnable tests that demonstrate every property this report claims for B. |
+| [`test_run_state_helper.py`](test_run_state_helper.py) | 24 runnable tests that demonstrate every property this report claims for B. |
 | [`benchmark.py`](benchmark.py) | Replays every step for both records and measures candidates A, B, and C. |
 
 Run from the repository root:
@@ -80,7 +80,7 @@ Large record, 73,163 bytes, 32 steps:
 | A, whole-record rewrite plus read-back comparison | 1,209.8 KiB | 1,209.8 KiB | 64 | 7.9 KiB | 2,427.5 KiB | 100.0% |
 | B, fixed helper | 76.7 KiB | 3.1 KiB | 33 | 0.5 KiB | 80.2 KiB | 3.3% |
 | C, native targeted edit | 87.1 KiB | 0.0 KiB | 33 | 7.9 KiB | 95.0 KiB | 3.9% |
-| C plus one validity check per step | 87.1 KiB | 0.1 KiB | 65 | 7.9 KiB | 95.1 KiB | 3.9% |
+| C plus one validity check per step | 89.6 KiB | 0.1 KiB | 65 | 7.9 KiB | 97.5 KiB | 4.0% |
 
 Medium record, 31,117 bytes, 17 steps:
 
@@ -90,7 +90,17 @@ Medium record, 31,117 bytes, 17 steps:
 | A, whole-record rewrite plus read-back comparison | 282.9 KiB | 282.9 KiB | 34 | 3.9 KiB | 569.8 KiB | 100.0% |
 | B, fixed helper | 33.0 KiB | 1.7 KiB | 18 | 0.5 KiB | 35.2 KiB | 6.2% |
 | C, native targeted edit | 34.6 KiB | 0.0 KiB | 18 | 3.9 KiB | 38.5 KiB | 6.8% |
-| C plus one validity check per step | 34.6 KiB | 0.0 KiB | 35 | 3.9 KiB | 38.5 KiB | 6.8% |
+| C plus one validity check per step | 35.9 KiB | 0.0 KiB | 35 | 3.9 KiB | 39.8 KiB | 7.0% |
+
+Per update, from the same runs:
+
+| Per update, emitted by the coordinator | Large mean | Large largest step | Medium mean | Medium largest step |
+| --- | --- | --- | --- | --- |
+| A, whole-record rewrite | 37.8 KiB | 71.4 KiB | 16.6 KiB | 30.4 KiB |
+| B, fixed helper | 2.3 KiB | 22.7 KiB | 1.8 KiB | 8.9 KiB |
+| C, native targeted edit | 2.6 KiB | 23.3 KiB | 1.9 KiB | 9.0 KiB |
+
+A with comparison reads back as many bytes as it emits. B reads back about 94 bytes per update, the helper's digest and size. C reads back only the edit tool's short success message, plus 3 bytes read and about 80 bytes of command emitted when a validity check follows. The largest step for B and C is the one that records all canonical hypotheses at once, which is new information either way. At finalization, A and C emit the whole receipt, 7.9 KiB and 3.9 KiB including the payload, while B emits only the receipt metadata and reads back its digest, 0.5 KiB.
 
 How to read these numbers:
 
@@ -105,20 +115,20 @@ How to read these numbers:
 | --- | --- | --- | --- |
 | Atomic replacement | Not established. It depends on each harness's write tool, which no source found documents. | **Demonstrated.** Sibling temporary file, `fsync`, then rename. An injected hard exit after a partial write leaves the previous record byte-identical, and an injected failure removes the temporary file. | Not established, for the same reason as A. It is no worse than today. |
 | Unrelated-field preservation | The model re-transcribes every byte at every step, so the whole record is exposed to transcription error each time. | **Demonstrated byte-for-byte.** The serializer is deterministic, and a one-field update changes exactly one line of a 73 KB record. Replaying all steps reproduces the reference record exactly. | Byte-for-byte outside the replaced string, by construction. Observed once below. Only the edited region is exposed to transcription. |
-| Schema and update validation | None. | **Demonstrated.** It refuses malformed documents, unknown operations, whole-record and unknown-field writes, type violations, and writes to fixed-key objects. Recorded evidence arrays are append-only, the baseline identity and payload are write-once, and a multi-operation update applies all or none. | None built in. A read-only JSON validity check catches syntax errors, not schema errors. |
+| Schema and update validation | None. | **Demonstrated.** It refuses malformed documents, unknown operations, whole-record and unknown-field writes, type violations, and writes to fixed-key objects. Recorded evidence arrays are append-only, the baseline identity and payload are write-once, a set on an ancestor that contains either is refused, and a multi-operation update applies all or none. | None built in. A read-only JSON validity check catches syntax errors, not schema errors. |
 | Concurrent or stale change | None. A rewrite silently overwrites a concurrent change. | **Demonstrated.** A SHA-256 compare-and-swap refuses a stale update, and a held `flock` refuses a second writer. The kernel releases the lock on exit, so a killed helper leaves no stale lock. The first prototype's `O_EXCL` lock file failed that test. | None. Observed below: an edit made after an external change succeeded and silently kept both changes. |
 | Traversal, symlink escapes, run-path confinement | Governed only by the harness's permission rules. | **Demonstrated.** It refuses `..` paths, run directories outside the declared root, a symlinked run directory, a symlinked ancestor that escapes the root, a symlinked record (leaving its target untouched), and directories it did not initialize. It writes nothing outside its own files and deletes nothing. | Governed only by the harness's permission rules. |
 | Exact payload in the receipt | The model re-emits the payload into the receipt. | **Demonstrated.** The receipt is derived from the recorded payload with its SHA-256, and an existing receipt is never replaced. | Same as A. |
 
 The concurrency rows matter less than they look. The protocol makes the run state coordinator-owned, and no scout or validator writes it, so the realistic risk is a retry or crash, not a race between writers.
 
-**Supplemental observation, not verified execution.** In this investigation's own Claude Code 2.1.300 session (a cloud session in auto mode, not a deep-review coordinator and not a user's own permission settings), candidate C's mechanics were exercised on the large synthetic record in a scratch directory. One `Edit` replaced the cleanup status. The result was byte-identical to the reference record with only that field changed, and it stayed valid JSON. The `Edit` call succeeded with no prior `Read` tool call on that file. After an external `sed` changed another field, a second `Edit` succeeded and kept both changes, with no stale-file refusal. The prototype's tests also invoked candidate B through `Bash` in the same session. Neither observation meets the brief's definition of verified execution.
+**Supplemental observation, not verified execution.** In this investigation's own Claude Code 2.1.300 session (a cloud session in auto mode, not a deep-review coordinator and not a user's own permission settings), candidate C's mechanics were exercised on the large synthetic record in a scratch directory. One `Edit` replaced the cleanup status. The result was byte-identical to the reference record with only that field changed, and it stayed valid JSON. The file had been written by a `python3` command run through `Bash` and inspected only with `grep` and `sha256sum` (`c254bb78…e0491` before editing), never with the `Read` tool. The first `Edit` call nevertheless returned "has been updated successfully", although this session's `Edit` tool description says a prior `Read` is required, so that requirement was not enforced here. After an external `sed` changed `cleanup.leftovers`, a second `Edit` returned the same success message with a note that the file had changed on disk. Afterwards `grep` showed both the second edit and the external change, and `python3 -m json.tool` accepted the file. There was no stale-file refusal. The prototype's tests also invoked candidate B through `Bash` in the same session. Neither observation meets the brief's definition of verified execution.
 
 ## Maintenance burden
 
 | | A | B | C |
 | --- | --- | --- | --- |
-| Code | None. | 308-line helper and 286-line test file in this prototype. A shipped version would also need Windows locking and symlink handling (`msvcrt.locking`; Windows has no `O_NOFOLLOW`), which is more code. | None. One to three sentences of protocol text. |
+| Code | None. | 315-line helper and 290-line test file in this prototype. A shipped version would also need Windows locking and symlink handling (`msvcrt.locking`; Windows has no `O_NOFOLLOW`), which is more code. | None. One to three sentences of protocol text. |
 | New invocation surface | None. | A shipped executable inside the skill directory. The coordinator must resolve its installed path, which differs by harness (`~/.agents/skills` for Codex and Devin, `~/.claude/skills` for Claude Code) and by link or copy installation. It needs a Python interpreter at review time. The installers require Python 3.11 only when installing skills with native agents, which does not guarantee one on a later or remote review host. | None. It uses the native file-edit tool family A already uses. |
 | Permission surface | The harness's write tool. | One new shell command to approve on every harness, separately from the shell writes the protocol already needs. | The harness's edit tool, the same permission class as A. |
 | Test burden | None. | Its own test suite, which cannot be added to `scripts/check.py` under this brief, so it needs a new CI step. Every future change to the protocol's run-state contents must also change the helper's schema, creating a second source of truth. | Runtime acceptance only. |
@@ -170,14 +180,14 @@ No candidate relaxes any of these, and none changes the record's schema, content
 
 - **Savings.** C removes 96.1 percent of the bytes of A with comparison on the large record and 93.2 percent on the medium one. Against A without comparison, the figures are 92.2 and 86.6 percent. B saves about another 0.6 percentage points.
 - **Cost.** C costs one to three sentences of protocol text and no new permission surface on any harness. B would cost about 600 lines of code and tests before Windows support, a new shipped executable with harness-specific path resolution, a runtime Python requirement, one new approval per harness, an `Edit`-rule bypass on Claude Code, unreliable print-mode behavior on Devin, and a second schema that can drift from the protocol.
-- **Tradeoffs accepted with C.** There is no atomicity guarantee and no schema validation, both unchanged from today. Concurrent changes go undetected, which matters little for a single-writer record. An edit can produce malformed JSON. Where a harness allows a read-only command without extra approval, one validity check per step catches that for about 4 bytes of output and one extra tool call.
+- **Tradeoffs accepted with C.** There is no atomicity guarantee and no schema validation, both unchanged from today. Concurrent changes go undetected, which matters little for a single-writer record. An edit can produce malformed JSON. Where a harness allows a read-only command without extra approval, one validity check per step catches that for 3 bytes of output, about 80 bytes of command, and one extra tool call per step.
 - **Decline condition for C.** If the native runtime verification gate shows that a harness cannot perform targeted edits on the run-state path under its normal permissions, revise this to adapt per harness, or decline for that harness. A failing harness keeps C non-viable there.
 
 ### Proposed skill text
 
 The only proposed skill change clarifies how the record is updated. It would sit in `skills/deep-review/protocol.md` after the paragraph that defines `run-state.json`:
 
-> The coordinator creates the run state once and then updates it in place with the harness's targeted file-edit tool, changing only the fields each step adds or changes. It never re-emits, reconstructs, or re-reads the whole record to make or confirm an update.
+> The coordinator creates the run state once and then updates it in place with the harness's targeted file-edit tool, changing only the fields each step adds or changes. It does not re-emit or reconstruct the whole record to make an update, or re-read it only to confirm one. It may re-read the record when it needs current content to place an edit, for example after context compaction or a refused edit.
 
 The record's schema, contents, coordinator ownership, and semantics stay unchanged.
 
@@ -196,11 +206,11 @@ Proposed text for maintainer triage. It is not filed.
 
 > **Title:** Clarify that deep-review updates its run state in place
 >
-> **Summary:** Add one clarification to `skills/deep-review/protocol.md` so the coordinator creates `run-state.json` once and updates it with the harness's targeted file-edit tool, never re-emitting, reconstructing, or re-reading the whole record to make or confirm an update.
+> **Summary:** Add one clarification to `skills/deep-review/protocol.md` so the coordinator creates `run-state.json` once and updates it with the harness's targeted file-edit tool. It never re-emits or reconstructs the whole record to make an update or re-reads it only to confirm one, and it may still re-read the record to place an edit after context compaction or a refused edit.
 >
 > **Narrow interface:** Protocol text only (see "Proposed skill text" in `docs/research/deep-review-run-state-updates/README.md`). No helper, script, schema, content, ownership, or semantic change. `SKILL.md`, `harnesses/roles.toml`, reviewer bodies, and installers are untouched.
 >
-> **Expected savings:** On synthetic 72 KB and 30 KB records, bytes through the coordinator's context fall to 3.9 and 6.8 percent of whole-record rewriting with comparison, from about 2.4 MiB to 95 KiB and from 570 KiB to 39 KiB.
+> **Expected savings:** On synthetic 72 KB and 30 KB records, bytes through the coordinator's context fall to 3.9 and 6.8 percent of whole-record rewriting with comparison, from about 2.4 MiB to 95 KiB and from 570 KiB to 39 KiB. Per update, the mean emission falls from 37.8 KiB to 2.6 KiB and from 16.6 KiB to 1.9 KiB. Each re-read needed to place an edit adds at most one record.
 >
 > **Validation scenarios:** `python scripts/check.py` and `git diff --check` pass. The native runtime verification gate in the research report passes on Codex, Devin, and Claude Code, with harness version and evidence recorded in `skills/deep-review/runtime-acceptance.md`. Each run shows targeted edits only after the initial write and a valid, complete final record.
 >

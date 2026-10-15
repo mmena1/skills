@@ -164,6 +164,13 @@ class ValidationTests(HelperTestCase):
         self.assert_refused(digest, ops=[{"op": "set", "path": "/baseline/identity/head_sha", "value": "0" * 40}], reason="write-once")
         self.assert_refused(digest, ops=[{"op": "set", "path": "/publication/payload", "value": "{}"}], reason="write-once")
 
+    def test_protected_fields_cannot_be_replaced_through_an_ancestor(self):
+        digest = self.build_large()
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/publication", "value": {"payload": "REPLACED"}}], reason="protected")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/baseline", "value": {"identity": None, "restorations": []}}], reason="protected")
+        self.assert_refused(digest, ops=[{"op": "set", "path": "/pr_discussion", "value": {
+            "retrieval_complete": True, "retrieved_at": None, "dispositions": []}}], reason="protected")
+
     def test_an_update_applies_all_of_its_ops_or_none(self):
         digest = self.init()
         self.assert_refused(digest, ops=[
