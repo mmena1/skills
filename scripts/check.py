@@ -2629,7 +2629,8 @@ DEEP_REVIEW_PUBLICATION_RULES = {
         "Record the submission outcome independently of read-back verification",
         "Never post the review or any of its comments a second time because verification failed or was incomplete",
         "reconcile with read-only calls only",
-        "exactly one review matches the authenticated account, the pinned head SHA, the submission window",
+        "every review by the authenticated account at the pinned head SHA within the submission window, whether or not its comments match",
+        "Accept the review only if there is exactly one candidate and it verifies",
         "stop for explicit human action",
         "the PR-wide endpoint",
         "Pagination must complete",
@@ -2649,6 +2650,8 @@ DEEP_REVIEW_PUBLICATION_RULES = {
         "Page failure",
         "Success without review ID",
         "Timeout",
+        "Two candidates",
+        "Lone candidate that differs",
         "zero additional review or comment POSTs",
     ),
     "references/pr-review-overlap.md": (
