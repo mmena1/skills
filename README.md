@@ -113,6 +113,7 @@ These skills keep their invocation classification and are installed only with th
 
 - [`portfolio`](./skills/experimental/portfolio/SKILL.md): Get a read-only development portfolio overview and likely next steps from GitHub.
 - [`portfolio-sync`](./skills/experimental/portfolio-sync/SKILL.md): Add open issues and pull requests missing from the portfolio Project, after a reviewed dry run.
+- [`retro`](./skills/experimental/retro/SKILL.md): Review a session for evidence-backed improvements to the agent environment.
 
 ## Invocation verification
 
