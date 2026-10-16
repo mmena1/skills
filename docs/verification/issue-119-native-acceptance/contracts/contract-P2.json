@@ -1,0 +1,46 @@
+{
+  "pinned_target": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt",
+  "base": "0dafac5aafa04c2cb3788335c7754eb1b399f26f",
+  "head": "0dafac5aafa04c2cb3788335c7754eb1b399f26f",
+  "exact_restoration_baseline": "0dafac5aafa04c2cb3788335c7754eb1b399f26f",
+  "baseline_tree": "3eff41f3f000ddff28f73443a845d872cd0bf058",
+  "declarations": {
+    "AGENTS.md": "92542046758af0ea1fb35be6df1421eaa2a311e8cab82c16e15399abac104de4",
+    "pyproject.toml": "a83106c36940eb31fc0ddfaa60f0f61c32f5784c00b9eecace96e65fb61ef531"
+  },
+  "lockfile": {
+    "requirements.lock": "8ce8bd6f3e398aa387561aba76ccc1748ef3cdfa5dc20b781e87b76434903618"
+  },
+  "selected_groups": null,
+  "native_convention": "AGENTS.md: /usr/bin/python3 (declared >=3.11) venv at .venv plus pip offline from vendor/ with --require-hashes against requirements.lock; no manager; no dependency groups",
+  "owned_paths": {
+    "environment": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt/.venv",
+    "temp_and_build": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/owned-tmp",
+    "worktree": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt"
+  },
+  "caches": "pip cache disabled (PIP_NO_CACHE_DIR=1); no other manager state",
+  "setup_run": false,
+  "required_dependency_checks": "fixturedep installed version equals the lock (1.0.0) and its installed source matches the vendored sdist hash in requirements.lock; no other third-party distributions are declared",
+  "code_origin_check": "app must be imported from the pinned worktree /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt/app.py; fixturedep from the owned .venv",
+  "inadmissible_hints": [
+    "The caller suggested reusing its main checkout environment at /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/caller/.venv. Per the reference this is an inadmissible hint, not a validation input."
+  ],
+  "invocation": "P2",
+  "hypothesis": "H2",
+  "process_gate": {
+    "satisfied_by": "verified effective sandbox",
+    "verification_record": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/contracts/gate-verification.json",
+    "rule": "Run every target-controlled command (venv creation/setup with executable install hooks, production imports, verification commands that import target or installed code, and the bounded check) only through: /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/tools/sbx-run --cwd <dir inside the worktree> -- <command>. Commands run directly by native tools are NOT inside the boundary.",
+    "explicit_user_authorization": null,
+    "residual_risk": "Read-only visibility of the fixture root, /usr and /etc; /etc/hosts static names resolve but network is unreachable."
+  },
+  "setup_commands": [
+    "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/tools/sbx-run --cwd /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt -- /usr/bin/python3 -m venv .venv",
+    "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/tools/sbx-run --cwd /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt -- .venv/bin/python -m pip install --no-index --find-links vendor --require-hashes -r requirements.lock"
+  ],
+  "execution": "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/tools/sbx-run --cwd /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt -- .venv/bin/python -B -c \"import app; print(app.label(3))\"",
+  "known_limitations": [
+    "No setup or verification has run for this invocation.",
+    "A previous sequential invocation (P1) created /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt/.venv; exact-baseline restoration removed it. Its interpreter path and verification record are not proof for this invocation."
+  ]
+}

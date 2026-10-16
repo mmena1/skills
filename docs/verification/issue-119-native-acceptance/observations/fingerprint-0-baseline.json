@@ -1,0 +1,35 @@
+{
+  "caller_checkout_excluding_git_and_venv": {
+    "sha256": "8154156ea46c3fed9292b8b524da22a3eac5ef0cc6ecbb6fc964cb90f61d2b99",
+    "entries": 7
+  },
+  "caller_git_excluding_worktree_admin": {
+    "sha256": "b5c3da7bf9c149a091255221e3d55868d637fa7f069c206a4baa12102ac08d73",
+    "entries": 53
+  },
+  "caller_venv": {
+    "sha256": "16b93daa041b065a8fa1ee5ba5de426513a9b6f90f82454a441458d2d38232a7",
+    "entries": 1040
+  },
+  "sim_home": {
+    "sha256": "d8ef1bc84f7184103be099c086e7d9cb8e27352b29658bad1577f5037c3657bc",
+    "entries": 1
+  },
+  "shared_tmp": {
+    "sha256": "d8ef1bc84f7184103be099c086e7d9cb8e27352b29658bad1577f5037c3657bc",
+    "entries": 1
+  },
+  "contracts": {
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "entries": 0
+  },
+  "context": {
+    "sha256": "71dc1abfc0f8b02c1348a24932564c341a58ae9a443ceda924c3633630ef59ea",
+    "entries": 3
+  },
+  "tools": {
+    "sha256": "ba32ab342e0fdac43097568b3ad5c1ef35112934f0ee822354f4b3205b96dfa9",
+    "entries": 4
+  },
+  "marker_files_anywhere_in_fixture": []
+}

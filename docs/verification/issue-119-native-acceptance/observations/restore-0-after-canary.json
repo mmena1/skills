@@ -1,0 +1,49 @@
+{
+  "base": "0dafac5aafa04c2cb3788335c7754eb1b399f26f",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "<root>/review-wt",
+        "reset",
+        "--hard",
+        "--quiet",
+        "0dafac5aafa04c2cb3788335c7754eb1b399f26f"
+      ],
+      "rc": 0,
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "<root>/review-wt",
+        "clean",
+        "-ffdxq"
+      ],
+      "rc": 0,
+      "stderr": ""
+    }
+  ],
+  "pre_restore_status": {
+    "entries": 2,
+    "by_top_level_path": {
+      "CANARY_MARKER [??]": 1,
+      "CANARY_MARKER.child [??]": 1
+    },
+    "note": "per-file list summarized for publication; counts are exact"
+  },
+  "owned_tmp_disposed_entries": [
+    "CANARY_MARKER",
+    "CANARY_MARKER.child"
+  ],
+  "verify": {
+    "head": "0dafac5aafa04c2cb3788335c7754eb1b399f26f",
+    "tree": "3eff41f3f000ddff28f73443a845d872cd0bf058",
+    "status_porcelain_ignored": "",
+    "owned_tmp_entries": [],
+    "venv_present": false
+  },
+  "exact_baseline_verified": true
+}

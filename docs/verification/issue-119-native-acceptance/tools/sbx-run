@@ -1,0 +1,26 @@
+#!/bin/bash
+# Coordinator-owned process boundary for the issue #119 controlled acceptance run.
+# Usage: sbx-run --cwd <dir inside the owned worktree> -- <command> [args...]
+#
+# Policy (applies to the command and every child):
+#   - new mount, network, PID, IPC and UTS namespaces; network has only an unconfigured loopback
+#   - pivot_root into a tmpfs root that is remounted read-only; only /usr and /etc (read-only),
+#     a private /proc, /dev/{null,zero,random,urandom}, a private empty /tmp tmpfs, and this run's
+#     fixture root (read-only) are visible; /root, /home, /opt, /mnt, /run, /var and the rest of
+#     the host /tmp do not exist
+#   - writable: the owned review worktree (except its .git link file) and the owned temp dir only
+#   - all capabilities dropped (bounding, inheritable, ambient), no_new_privs set
+#   - environment cleared to a fixed allowlist; HOME is the simulated home (read-only)
+set -euo pipefail
+TOOLS=$(cd "$(dirname "$0")" && pwd -P)
+FIX=$(dirname "$TOOLS")
+[ "${1:-}" = "--cwd" ] || { echo "usage: sbx-run --cwd DIR -- CMD..." >&2; exit 64; }
+CWD=$2; shift 2
+[ "${1:-}" = "--" ] && shift
+[ $# -gt 0 ] || { echo "sbx-run: no command" >&2; exit 64; }
+case "$(realpath -m "$CWD")" in
+  "$FIX/review-wt"|"$FIX/review-wt/"*) ;;
+  *) echo "sbx-run: cwd must be inside $FIX/review-wt" >&2; exit 64 ;;
+esac
+exec unshare --mount --net --pid --ipc --uts --fork --propagation private -- \
+  /bin/bash "$TOOLS/sbx-inner" "$FIX" "$(realpath -m "$CWD")" "$@"
