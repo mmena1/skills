@@ -120,6 +120,31 @@ The one-parent-message or response grouping requirement is intentionally retired
 
 The historical #71 Codex and #80 grouping FAIL records below evaluated the former requirement. They remain unchanged as historical evidence, but their separate-response grouping no longer represents a functional review failure under the current contract. This clarification does not establish a full-pipeline PASS or erase other failures and unexercised paths. No Codex runtime patch or Code Mode workaround is required or pursued for #80. The separate Devin #77 investigation and its historical evidence are unchanged.
 
+## Devin concurrency clarification, 2026-10-16 (issue #77)
+
+[PR #84](https://github.com/mmena1/skills/pull/84), merged 2026-10-09, retired the one-message requirement across harnesses. The current rule dispatches every selected native scout before waiting for any scout to complete. Separate parent messages, model responses, and intervening launch acknowledgments are acceptable. The selected roles still use the same pinned review target, every scout result is collected, and existing launch, incomplete-run, failure, validation, and publication safeguards remain unchanged.
+
+The existing 2026-10-08 Devin bounded smoke ran exactly docs and conventions on the same pinned target. Their recorded child inference intervals overlap: docs 21:44:18.189734 to 21:45:06.193012 UTC; conventions 21:44:25.657966 to 21:44:46.698218 UTC. This evidence establishes no current functional concurrency defect: separate launch messages are not a violation of dispatch-before-completion-wait. No actual violation of that rule is established by the recorded evidence. The parent's historical claim that both launches shared one assistant message remains inaccurate, and its recorded correction stands.
+
+The historical grouping FAIL evaluated the retired requirement and remains FAIL in the original record; it is not relabeled PASS. This bounded smoke and the separate natural-H1 static handoff are phase-level evidence, not a complete coordinator run or full-pipeline acceptance. This clarification assesses existing recorded evidence only. It requires no same-message dispatch proof, response-ID grouping, private-log parsing, additional trace collection, runtime patch, or new smoke.
+
+## Current Devin coverage and remaining acceptance, 2026-10-16 (issue #77)
+
+This summary supersedes only the forward-looking Devin conclusions in the historical #71 coverage tables and "Remaining acceptance by harness" narrative below, not their observations or statuses. Issue [#71](https://github.com/mmena1/skills/issues/71) closed on 2026-10-16 for completed evidence delivery, not cross-harness runtime acceptance. Earlier statements that #71 remains open describe its historical disposition. No historical narrative, dated smoke row, receipt, evidence table, or raw artifact is rewritten by this clarification.
+
+| Devin area | Current evidence and obligation |
+| --- | --- |
+| Discovery and upgrades | Existing 2026-10-08 PASS evidence covers fresh discovery, generic-scout upgrade, and standalone migration. No new run is claimed. |
+| Model and effort | All seven roles have existing runtime evidence for harness-reported model/High Thinking variants. Independent server-echoed effort remains NOT EXERCISED; static configuration is not runtime proof. |
+| Selected scout dispatch | The bounded two-scout overlap establishes no current functional concurrency defect. Same-message grouping is retired, not a current blocker or rerun requirement. Full coordinator two-scout execution remains NOT EXERCISED. |
+| Scout admission | Issue [#76](https://github.com/mmena1/skills/issues/76) closed through merged [PR #92](https://github.com/mmena1/skills/pull/92). Devin now uses launch-time admission, with no numeric available-capacity preflight requirement. The historical unknown-capacity FAIL and disabled-subagents zero-capacity PASS remain unchanged. Disabled subagents removed the launch tools, so that stop does not prove actual launch-refusal handling, which remains NOT EXERCISED. |
+| Missing native role | The existing missing-role stop has PASS evidence; this does not establish successful admission or a complete coordinator run. |
+| Coordinator pipeline | Complete enabled Devin coordinator/pipeline acceptance remains NOT EXERCISED. The separate natural-H1 native static handoff passed only at phase level and does not establish the capacity-bounded queue, backpressure, or passive full-pipeline receipt. |
+
+The reviewed #76/#92 records and this document do not supply the new enabled full two-lens coordinator/pipeline smoke receipt required by #76's maintainer merge gate. Their closure and merge do not establish that gate passed. That outstanding native verification evidence remains separate work; #77 neither completes it nor changes or reopens #71, #76, or other issues.
+
+Capacity-bounded validator queue/backpressure, writable-probe behavior, scout/validator failure transitions, publication safeguards (including PR-review overlap and head changes), and Windows/copy-fallback runtime behavior remain NOT EXERCISED for Devin. Full-pipeline and cross-harness acceptance remain incomplete. No new runtime coverage or PASS is claimed, and unrelated Codex/Claude Code acceptance work is unchanged.
+
 ## Smoke runs
 
 Targeted smoke runs record agent discovery and launch evidence that passive receipts cannot provide.
