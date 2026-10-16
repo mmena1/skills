@@ -1,0 +1,74 @@
+{
+  "codex": {
+    "AGENTS.md": {
+      "sha256": "37a6a329370569c671735c7922f1a77815b5259ab1b39df11c344e3c94d55f9b",
+      "text": "Use Python >=3.11, an in-project .venv, and pip. Install requirements.txt offline with --no-index --find-links wheelhouse. Keep pip caches disabled. No lockfile or dependency groups exist. The documented public contract is calculate(3) == 6. No network calls.\n"
+    },
+    "fixture_app.py": {
+      "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+      "text": "import fixturedep\n\ndef calculate(value):\n    return fixturedep.double(value)\n"
+    },
+    "requirements.txt": {
+      "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+      "text": "fixturedep==1.0.0\n"
+    },
+    "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+      "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6",
+      "base64": "UEsDBBQAAAAAAECYT12hovtLKAAAACgAAAAWAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weWRlZiBkb3VibGUodmFsdWUpOgogICAgcmV0dXJuIHZhbHVlICogMwpQSwMEFAAAAAAAQJhPXc1y0Eo2AAAANgAAACMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQU1ldGFkYXRhLVZlcnNpb246IDIuMQpOYW1lOiBmaXh0dXJlZGVwClZlcnNpb246IDEuMC4wClBLAwQUAAAAAABAmE9di+xUH2MAAABjAAAAIAAAAGZpeHR1cmVkZXAtMS4wLjAuZGlzdC1pbmZvL1dIRUVMV2hlZWwtVmVyc2lvbjogMS4wCkdlbmVyYXRvcjogaXNzdWUtMTE5LWNvbnRyb2xsZWQtZml4dHVyZQpSb290LUlzLVB1cmVsaWI6IHRydWUKVGFnOiBweTMtbm9uZS1hbnkKUEsDBBQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAZml4dHVyZWRlcC0xLjAuMC5kaXN0LWluZm8vUkVDT1JEZml4dHVyZWRlcC9fX2luaXRfXy5weSxzaGEyNTY9WGpxV3lNYXlJYTFGc2dYSFNjWnl6dXBJNEZPU1YxbkNNWklrY1VRckYtUSw0MApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQSxzaGEyNTY9bDRqQUhZNm1pOTdfSnpJbWRrbDBTb2JSTnpLZGoteEtkZjVuR0wtZWk0RSw1NApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTCxzaGEyNTY9MU9SUHNQcllPTkc5Xzl2TEVnZFRnZGY2V1hRRkYtbXp5T1NhYUU0ZklIayw5OQpmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkQsLApQSwECFAMUAAAAAABAmE9doaL7SygAAAAoAAAAFgAAAAAAAAAAAAAAgAEAAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weVBLAQIUAxQAAAAAAECYT13NctBKNgAAADYAAAAjAAAAAAAAAAAAAACAAVwAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQVBLAQIUAxQAAAAAAECYT12L7FQfYwAAAGMAAAAgAAAAAAAAAAAAAACAAdMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTFBLAQIUAxQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAAAAAAAAAAACAAXQBAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAQABAAyAQAA1QIAAAAA"
+    }
+  },
+  "claude": {
+    "AGENTS.md": {
+      "sha256": "37a6a329370569c671735c7922f1a77815b5259ab1b39df11c344e3c94d55f9b",
+      "text": "Use Python >=3.11, an in-project .venv, and pip. Install requirements.txt offline with --no-index --find-links wheelhouse. Keep pip caches disabled. No lockfile or dependency groups exist. The documented public contract is calculate(3) == 6. No network calls.\n"
+    },
+    "fixture_app.py": {
+      "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+      "text": "import fixturedep\n\ndef calculate(value):\n    return fixturedep.double(value)\n"
+    },
+    "requirements.txt": {
+      "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+      "text": "fixturedep==1.0.0\n"
+    },
+    "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+      "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6",
+      "base64": "UEsDBBQAAAAAAECYT12hovtLKAAAACgAAAAWAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weWRlZiBkb3VibGUodmFsdWUpOgogICAgcmV0dXJuIHZhbHVlICogMwpQSwMEFAAAAAAAQJhPXc1y0Eo2AAAANgAAACMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQU1ldGFkYXRhLVZlcnNpb246IDIuMQpOYW1lOiBmaXh0dXJlZGVwClZlcnNpb246IDEuMC4wClBLAwQUAAAAAABAmE9di+xUH2MAAABjAAAAIAAAAGZpeHR1cmVkZXAtMS4wLjAuZGlzdC1pbmZvL1dIRUVMV2hlZWwtVmVyc2lvbjogMS4wCkdlbmVyYXRvcjogaXNzdWUtMTE5LWNvbnRyb2xsZWQtZml4dHVyZQpSb290LUlzLVB1cmVsaWI6IHRydWUKVGFnOiBweTMtbm9uZS1hbnkKUEsDBBQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAZml4dHVyZWRlcC0xLjAuMC5kaXN0LWluZm8vUkVDT1JEZml4dHVyZWRlcC9fX2luaXRfXy5weSxzaGEyNTY9WGpxV3lNYXlJYTFGc2dYSFNjWnl6dXBJNEZPU1YxbkNNWklrY1VRckYtUSw0MApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQSxzaGEyNTY9bDRqQUhZNm1pOTdfSnpJbWRrbDBTb2JSTnpLZGoteEtkZjVuR0wtZWk0RSw1NApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTCxzaGEyNTY9MU9SUHNQcllPTkc5Xzl2TEVnZFRnZGY2V1hRRkYtbXp5T1NhYUU0ZklIayw5OQpmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkQsLApQSwECFAMUAAAAAABAmE9doaL7SygAAAAoAAAAFgAAAAAAAAAAAAAAgAEAAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weVBLAQIUAxQAAAAAAECYT13NctBKNgAAADYAAAAjAAAAAAAAAAAAAACAAVwAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQVBLAQIUAxQAAAAAAECYT12L7FQfYwAAAGMAAAAgAAAAAAAAAAAAAACAAdMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTFBLAQIUAxQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAAAAAAAAAAACAAXQBAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAQABAAyAQAA1QIAAAAA"
+    }
+  },
+  "claude-verified": {
+    "AGENTS.md": {
+      "sha256": "5625d94685f2d41fa3fafe0eb235f958a2162dd2a63e97634659105dd4852b1b",
+      "text": "Use the existing Python 3.11 runtime at /home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11; it satisfies Python >=3.11. Create only an in-project .venv using that interpreter with -m venv. Use its pip offline: --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt. No lockfile or dependency groups. Set TMPDIR inside the target. No network or global/shared installs. The documented public contract is calculate(3) == 6.\n"
+    },
+    "fixture_app.py": {
+      "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+      "text": "import fixturedep\n\ndef calculate(value):\n    return fixturedep.double(value)\n"
+    },
+    "requirements.txt": {
+      "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+      "text": "fixturedep==1.0.0\n"
+    },
+    "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+      "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6",
+      "base64": "UEsDBBQAAAAAAECYT12hovtLKAAAACgAAAAWAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weWRlZiBkb3VibGUodmFsdWUpOgogICAgcmV0dXJuIHZhbHVlICogMwpQSwMEFAAAAAAAQJhPXc1y0Eo2AAAANgAAACMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQU1ldGFkYXRhLVZlcnNpb246IDIuMQpOYW1lOiBmaXh0dXJlZGVwClZlcnNpb246IDEuMC4wClBLAwQUAAAAAABAmE9di+xUH2MAAABjAAAAIAAAAGZpeHR1cmVkZXAtMS4wLjAuZGlzdC1pbmZvL1dIRUVMV2hlZWwtVmVyc2lvbjogMS4wCkdlbmVyYXRvcjogaXNzdWUtMTE5LWNvbnRyb2xsZWQtZml4dHVyZQpSb290LUlzLVB1cmVsaWI6IHRydWUKVGFnOiBweTMtbm9uZS1hbnkKUEsDBBQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAZml4dHVyZWRlcC0xLjAuMC5kaXN0LWluZm8vUkVDT1JEZml4dHVyZWRlcC9fX2luaXRfXy5weSxzaGEyNTY9WGpxV3lNYXlJYTFGc2dYSFNjWnl6dXBJNEZPU1YxbkNNWklrY1VRckYtUSw0MApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQSxzaGEyNTY9bDRqQUhZNm1pOTdfSnpJbWRrbDBTb2JSTnpLZGoteEtkZjVuR0wtZWk0RSw1NApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTCxzaGEyNTY9MU9SUHNQcllPTkc5Xzl2TEVnZFRnZGY2V1hRRkYtbXp5T1NhYUU0ZklIayw5OQpmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkQsLApQSwECFAMUAAAAAABAmE9doaL7SygAAAAoAAAAFgAAAAAAAAAAAAAAgAEAAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weVBLAQIUAxQAAAAAAECYT13NctBKNgAAADYAAAAjAAAAAAAAAAAAAACAAVwAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQVBLAQIUAxQAAAAAAECYT12L7FQfYwAAAGMAAAAgAAAAAAAAAAAAAACAAdMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTFBLAQIUAxQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAAAAAAAAAAACAAXQBAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAQABAAyAQAA1QIAAAAA"
+    }
+  },
+  "claude-boundary": {
+    "AGENTS.md": {
+      "sha256": "5625d94685f2d41fa3fafe0eb235f958a2162dd2a63e97634659105dd4852b1b",
+      "text": "Use the existing Python 3.11 runtime at /home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11; it satisfies Python >=3.11. Create only an in-project .venv using that interpreter with -m venv. Use its pip offline: --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt. No lockfile or dependency groups. Set TMPDIR inside the target. No network or global/shared installs. The documented public contract is calculate(3) == 6.\n"
+    },
+    "fixture_app.py": {
+      "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+      "text": "import fixturedep\n\ndef calculate(value):\n    return fixturedep.double(value)\n"
+    },
+    "requirements.txt": {
+      "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+      "text": "fixturedep==1.0.0\n"
+    },
+    "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+      "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6",
+      "base64": "UEsDBBQAAAAAAECYT12hovtLKAAAACgAAAAWAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weWRlZiBkb3VibGUodmFsdWUpOgogICAgcmV0dXJuIHZhbHVlICogMwpQSwMEFAAAAAAAQJhPXc1y0Eo2AAAANgAAACMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQU1ldGFkYXRhLVZlcnNpb246IDIuMQpOYW1lOiBmaXh0dXJlZGVwClZlcnNpb246IDEuMC4wClBLAwQUAAAAAABAmE9di+xUH2MAAABjAAAAIAAAAGZpeHR1cmVkZXAtMS4wLjAuZGlzdC1pbmZvL1dIRUVMV2hlZWwtVmVyc2lvbjogMS4wCkdlbmVyYXRvcjogaXNzdWUtMTE5LWNvbnRyb2xsZWQtZml4dHVyZQpSb290LUlzLVB1cmVsaWI6IHRydWUKVGFnOiBweTMtbm9uZS1hbnkKUEsDBBQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAZml4dHVyZWRlcC0xLjAuMC5kaXN0LWluZm8vUkVDT1JEZml4dHVyZWRlcC9fX2luaXRfXy5weSxzaGEyNTY9WGpxV3lNYXlJYTFGc2dYSFNjWnl6dXBJNEZPU1YxbkNNWklrY1VRckYtUSw0MApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQSxzaGEyNTY9bDRqQUhZNm1pOTdfSnpJbWRrbDBTb2JSTnpLZGoteEtkZjVuR0wtZWk0RSw1NApmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTCxzaGEyNTY9MU9SUHNQcllPTkc5Xzl2TEVnZFRnZGY2V1hRRkYtbXp5T1NhYUU0ZklIayw5OQpmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkQsLApQSwECFAMUAAAAAABAmE9doaL7SygAAAAoAAAAFgAAAAAAAAAAAAAAgAEAAAAAZml4dHVyZWRlcC9fX2luaXRfXy5weVBLAQIUAxQAAAAAAECYT13NctBKNgAAADYAAAAjAAAAAAAAAAAAAACAAVwAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9NRVRBREFUQVBLAQIUAxQAAAAAAECYT12L7FQfYwAAAGMAAAAgAAAAAAAAAAAAAACAAdMAAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9XSEVFTFBLAQIUAxQAAAAAAECYT13jqGxdIgEAACIBAAAhAAAAAAAAAAAAAACAAXQBAABmaXh0dXJlZGVwLTEuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAQABAAyAQAA1QIAAAAA"
+    }
+  }
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import hashlib
 import importlib.util
 import io
 import json
@@ -3001,6 +3002,7 @@ DEEP_REVIEW_PROBE_ENVIRONMENT_RULES = {
         "references/probe-environment.md",
         "environment contract",
         "actual runtime",
+        "process execution gate before setup, production imports, or the bounded check",
     ),
     "references/probe-environment.md": (
         "runtime/dependency declarations, applicable lockfile, dependency groups",
@@ -3011,6 +3013,13 @@ DEEP_REVIEW_PROBE_ENVIRONMENT_RULES = {
         "installed dependency versions needed by the check",
         "the reviewed code is loaded from the pinned worktree",
         "Establish a run-owned dependency environment within the review's permitted disposable boundary",
+        "A venv, lockfile, installation destination, or owned cache path is not a process sandbox",
+        "PEP 517/build backends, npm lifecycle scripts",
+        "including child processes",
+        "explicit user authorization for the pinned target",
+        "A general review request, permission to create the worktree",
+        "do not execute target-controlled setup, imports, or checks",
+        "Authorization is not mechanical isolation",
         "do not inspect or execute that environment to establish staleness",
         "installs into, synchronizes, repairs, or otherwise mutates the caller or main checkout's environment",
         "outside mutable probe state",
@@ -3040,6 +3049,9 @@ DEEP_REVIEW_PROBE_ENVIRONMENT_RULES = {
         "Retained environment contamination",
         "Missing or ambiguous prerequisites",
         "Wrong code origin or locked version",
+        "Owned paths without a process boundary",
+        "Executable install hook under a verified sandbox",
+        "Explicit authorization with residual access",
         "unchanged caller",
         "not native runtime evidence",
     ),
@@ -3071,10 +3083,59 @@ def validate_deep_review_probe_environment_contract(skill: Path) -> None:
                 fail(f"the probe environment check accepted a removed {relative} rule")
 
 
+def validate_probe_evidence_bundle(evidence: Path) -> None:
+    """Verify the published inventory and bytes; never execute archived commands."""
+    checksum_file = evidence / "SHA256SUMS"
+    if not checksum_file.is_file():
+        fail("deep-review probe evidence: missing SHA256SUMS")
+    expected = {}
+    for line in checksum_file.read_text(encoding="utf-8").splitlines():
+        match = re.fullmatch(r"([a-f0-9]{64})  (.+)", line)
+        if not match or match[2] in expected:
+            fail("deep-review probe evidence: malformed or duplicate checksum entry")
+        expected[match[2]] = match[1]
+    paths = list(evidence.rglob("*"))
+    if any(path.is_symlink() for path in paths):
+        fail("deep-review probe evidence: symbolic links are not evidence files")
+    actual = {path.relative_to(evidence).as_posix(): path for path in paths
+              if path.is_file() and path != checksum_file}
+    if not expected or set(expected) != set(actual):
+        fail("deep-review probe evidence: checksum inventory differs from published files")
+    for name, path in actual.items():
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected[name]:
+            fail(f"deep-review probe evidence: checksum mismatch for {name}")
+
+
+def validate_deep_review_probe_evidence() -> None:
+    evidence = ROOT / "docs/verification/issue-119-evidence"
+    validate_probe_evidence_bundle(evidence)
+    # Corrupt the published bytes/inventory in an isolated copy. Real artifacts stay immutable.
+    with tempfile.TemporaryDirectory() as temporary:
+        copy = Path(temporary) / "evidence"
+        shutil.copytree(evidence, copy)
+        sample = copy / "historical/fixtures.json"
+        original = sample.read_bytes()
+        sample.write_bytes(original + b"\n")
+        try:
+            validate_probe_evidence_bundle(copy)
+        except CheckFailure:
+            pass
+        else:
+            fail("the probe evidence check accepted altered published bytes")
+        sample.unlink()
+        try:
+            validate_probe_evidence_bundle(copy)
+        except CheckFailure:
+            pass
+        else:
+            fail("the probe evidence check accepted a missing published artifact")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
     validate_deep_review_probe_environment_contract(skill)
+    validate_deep_review_probe_evidence()
     validate_deep_review_access_contract(skill)
     validate_deep_review_audience_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}

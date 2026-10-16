@@ -1,0 +1,1470 @@
+{
+  "codex": {
+    "record": {
+      "format_version": 1,
+      "run_id": "skills-119-smoke-noiyxz56-codex",
+      "mode": "bounded-native-writable-probe-smoke",
+      "issue": 119,
+      "base_sha": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "reviewed_head_sha": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "restoration_baseline": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "completeness": "incomplete",
+      "completed_at": "2026-10-16T00:04:51.850269+00:00"
+    },
+    "scope": "Synthetic committed fixture only; no real mtg-copilot, httpx or openai runtime evidence; not full review acceptance",
+    "boundary": {
+      "writes": "/tmp/skills-119-smoke-noiyxz56/codex",
+      "cleanup_only": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+      "network": "forbidden",
+      "enforcement": "instruction-enforced plus inherited danger-full-access / approval never",
+      "shared_environment_mutation": "forbidden"
+    },
+    "controlled_inputs": {
+      "static_completion": "controlled input, not runtime observed",
+      "Needs probe": "controlled input, not runtime observed"
+    },
+    "native_agent": "deep-review-validator-probe",
+    "contract_identities": {
+      "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/SKILL.md": "4d0d754bc42ac88ec81664ca93445cf79256bda4ecae968d7579ea83c576e3a4",
+      "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/protocol.md": "4ed1c13797058c2184ad44dc1b83548e030af526cb439a562905cd2eeba7e642",
+      "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/references/probe-environment.md": "40474593135d883bd10ccd83c8e64c5586072c8970aa5b3cfc5cc30c7bf5a222",
+      "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/reviewers/validator.md": "d58c7974ea2c323e274ea35ec38ca649b82226a73600497b3f7b51bc5a9c9213",
+      "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/harnesses/codex/deep-review-validator-probe.toml": "04f328ace5b1425ff6f9ab81ff8bffad872bd67b09d9cc792beb3ab34fdb3d23"
+    },
+    "declarations": {
+      "AGENTS.md": {
+        "sha256": "37a6a329370569c671735c7922f1a77815b5259ab1b39df11c344e3c94d55f9b",
+        "size": 260
+      },
+      "fixture_app.py": {
+        "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+        "size": 77
+      },
+      "requirements.txt": {
+        "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+        "size": 18
+      },
+      "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+        "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6",
+        "size": 1053
+      }
+    },
+    "caller_before": {
+      "entries": [
+        {
+          "path": "caller",
+          "mode": 493,
+          "inode": 4460,
+          "device": 78,
+          "mtime_ns": 1792108920219340192,
+          "size": 80
+        },
+        {
+          "path": "caller/.venv",
+          "mode": 493,
+          "inode": 4462,
+          "device": 78,
+          "mtime_ns": 1792108920228345294,
+          "size": 160
+        },
+        {
+          "path": "caller/.venv/.gitignore",
+          "mode": 420,
+          "inode": 4469,
+          "device": 78,
+          "mtime_ns": 1792108920228345294,
+          "size": 69,
+          "sha256": "36692e1840f82f75adce103fd03e65b1eaa35f798c885b3b545e3abc14ffcbf0"
+        },
+        {
+          "path": "caller/.venv/bin",
+          "mode": 493,
+          "inode": 4468,
+          "device": 78,
+          "mtime_ns": 1792108920230705394,
+          "size": 200
+        },
+        {
+          "path": "caller/.venv/bin/Activate.ps1",
+          "mode": 420,
+          "inode": 4477,
+          "device": 78,
+          "mtime_ns": 1792108920230109994,
+          "size": 9031,
+          "sha256": "eb8ce20f580877d300c4fed60a7f36daa18715d35c50bb3596d6995d023b4ffe"
+        },
+        {
+          "path": "caller/.venv/bin/activate",
+          "mode": 420,
+          "inode": 4475,
+          "device": 78,
+          "mtime_ns": 1792108920229416294,
+          "size": 2210,
+          "sha256": "9f9c9fe914dbabcea5420eee2d309d9bd76fcb759899453a56d0f848a14ff9f2"
+        },
+        {
+          "path": "caller/.venv/bin/activate.csh",
+          "mode": 420,
+          "inode": 4478,
+          "device": 78,
+          "mtime_ns": 1792108920230705394,
+          "size": 940,
+          "sha256": "554da68aa402905b27a6e1d79c668e9be5233a37d6c9b71b87d8e2e12b8c8a22"
+        },
+        {
+          "path": "caller/.venv/bin/activate.fish",
+          "mode": 420,
+          "inode": 4476,
+          "device": 78,
+          "mtime_ns": 1792108920229747494,
+          "size": 2211,
+          "sha256": "aaab9a4665779353b26a3e8a2fa92bed36e6eea72d51b5ed3caabd0d6c218f73"
+        },
+        {
+          "path": "caller/.venv/bin/python",
+          "mode": 511,
+          "inode": 4472,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/bin/python3",
+          "mode": 511,
+          "inode": 4471,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 16,
+          "link": "/usr/bin/python3"
+        },
+        {
+          "path": "caller/.venv/bin/python3.14",
+          "mode": 511,
+          "inode": 4473,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/bin/\ud835\udf0bthon",
+          "mode": 511,
+          "inode": 4474,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/include",
+          "mode": 493,
+          "inode": 4463,
+          "device": 78,
+          "mtime_ns": 1792108920223340193,
+          "size": 40
+        },
+        {
+          "path": "caller/.venv/lib",
+          "mode": 493,
+          "inode": 4464,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 60
+        },
+        {
+          "path": "caller/.venv/lib/python3.14",
+          "mode": 493,
+          "inode": 4465,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 60
+        },
+        {
+          "path": "caller/.venv/lib/python3.14/site-packages",
+          "mode": 493,
+          "inode": 4466,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 40
+        },
+        {
+          "path": "caller/.venv/lib64",
+          "mode": 511,
+          "inode": 4467,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 3,
+          "link": "lib"
+        },
+        {
+          "path": "caller/.venv/pyvenv.cfg",
+          "mode": 420,
+          "inode": 4470,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 202,
+          "sha256": "a84a7d263663a684fa692a713834ffb8fe2c5b6ea4eb3cb7274c5e11c6a21cef"
+        },
+        {
+          "path": "caller/environment.txt",
+          "mode": 420,
+          "inode": 4461,
+          "device": 78,
+          "mtime_ns": 1792108920185498088,
+          "size": 64,
+          "sha256": "34b11de84f7127f2ab6b5250051216987e9bbb4bd9928c8b4d32d3f6f6380b7b"
+        }
+      ],
+      "sha256": "eafbe9e4b9e39d90e5c58e7cac1fdf5e0d3125e72a1d418e4503f7bc14ccfab2"
+    },
+    "commands": [
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "reset",
+          "--hard",
+          "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "HEAD is now at 9a7cd3c Controlled issue 119 fixture\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "clean",
+          "-fdx"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "reset",
+          "--hard",
+          "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "HEAD is now at 9a7cd3c Controlled issue 119 fixture\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "clean",
+          "-fdx"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "rev-parse",
+          "HEAD^{tree}"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "69a717b2d6daf4adbe9836bed352fd72b260f1a9\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "rev-parse",
+          "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3^{tree}"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "69a717b2d6daf4adbe9836bed352fd72b260f1a9\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "status",
+          "--porcelain=v1",
+          "--untracked-files=all"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "diff",
+          "--exit-code",
+          "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+          "--"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "-C",
+          "/tmp/skills-119-smoke-noiyxz56/codex/target",
+          "clean",
+          "-ndx"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python",
+          "-I",
+          "-B",
+          "-c",
+          "import sys,importlib.util,json; print(json.dumps({\"executable\":sys.executable,\"prefix\":sys.prefix,\"version\":sys.version,\"fixturedep_spec\":repr(importlib.util.find_spec(\"fixturedep\"))}))"
+        ],
+        "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/caller",
+        "exit_code": 0,
+        "stdout": "{\"executable\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python\", \"prefix\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv\", \"version\": \"3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]\", \"fixturedep_spec\": \"None\"}\n",
+        "stderr": ""
+      }
+    ],
+    "cases": {
+      "A": {
+        "before": [
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "69a717b2d6daf4adbe9836bed352fd72b260f1a9\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "status",
+              "--porcelain=v1",
+              "--untracked-files=all"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "diff",
+              "--exit-code",
+              "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+              "--"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "clean",
+              "-ndx"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          }
+        ],
+        "environment_absent": true,
+        "status": "operational_failure",
+        "native_case_exercised": false,
+        "launch": {
+          "native_agent": "deep-review-validator-probe",
+          "task_name": "case_a",
+          "fork_turns": "all",
+          "error": "collab spawn failed: Fatal error: failed to load model context for thread 01a14204-4f85-7320-ae71-f3c1611bb06c: invalid thread-store request: no rollout found for thread id 01a14204-4f85-7320-ae71-f3c1611bb06c",
+          "retry": false,
+          "substitution": false
+        },
+        "outcome": null,
+        "validation": "not validated due to review failure",
+        "environment_provenance": {
+          "contract": "/tmp/skills-119-smoke-noiyxz56/codex/environment-A.json",
+          "setup_attempted": false,
+          "verification_attempted": false,
+          "bounded_check_attempted": false,
+          "owned_environment_created": false
+        },
+        "evidence": "Native launch failure; no runtime evidence exists.",
+        "after_restoration": [
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "69a717b2d6daf4adbe9836bed352fd72b260f1a9\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "rev-parse",
+              "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3^{tree}"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "69a717b2d6daf4adbe9836bed352fd72b260f1a9\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "status",
+              "--porcelain=v1",
+              "--untracked-files=all"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "diff",
+              "--exit-code",
+              "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+              "--"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "git",
+              "-C",
+              "/tmp/skills-119-smoke-noiyxz56/codex/target",
+              "clean",
+              "-ndx"
+            ],
+            "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          }
+        ]
+      },
+      "B": {
+        "status": "not_exercised",
+        "launch_attempted": false,
+        "native_case_exercised": false,
+        "outcome": null,
+        "reason": "Validation stopped after A native invocation failed to start; no retry or substitute permitted.",
+        "environment_provenance": {
+          "contract": "/tmp/skills-119-smoke-noiyxz56/codex/environment-B.json",
+          "setup_attempted": false,
+          "verification_attempted": false,
+          "bounded_check_attempted": false
+        }
+      },
+      "C": {
+        "status": "not_exercised",
+        "launch_attempted": false,
+        "native_case_exercised": false,
+        "outcome": null,
+        "reason": "Validation stopped after A native invocation failed to start; no retry or substitute permitted.",
+        "environment_provenance": {
+          "contract": "/tmp/skills-119-smoke-noiyxz56/codex/environment-C.json",
+          "setup_attempted": false,
+          "verification_attempted": false,
+          "bounded_check_attempted": false
+        }
+      }
+    },
+    "cli_output": {
+      "events": "/tmp/skills-119-smoke-noiyxz56/codex/events.jsonl",
+      "stderr": "/tmp/skills-119-smoke-noiyxz56/codex/stderr.log",
+      "command": "/tmp/skills-119-smoke-noiyxz56/codex/command.json"
+    },
+    "runtime_acceptance": {
+      "scouts": "NOT EXERCISED",
+      "static_validation": "NOT EXERCISED",
+      "full_review": "NOT EXERCISED",
+      "other_managers": "NOT EXERCISED",
+      "real_project_runtime": "NOT EXERCISED",
+      "native_writable_probe_cases": "NOT EXERCISED",
+      "native_probe_launch": "FAIL",
+      "static_wave_completion": "NOT EXERCISED (controlled input only)"
+    },
+    "generated_validator_body_matches_source": true,
+    "caller_runtime_before": {
+      "argv": [
+        "/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sys,importlib.util,json; print(json.dumps({\"executable\":sys.executable,\"prefix\":sys.prefix,\"version\":sys.version,\"fixturedep_spec\":repr(importlib.util.find_spec(\"fixturedep\"))}))"
+      ],
+      "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/caller",
+      "exit_code": 0,
+      "stdout": "{\"executable\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python\", \"prefix\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv\", \"version\": \"3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]\", \"fixturedep_spec\": \"None\"}\n",
+      "stderr": ""
+    },
+    "failure": "collab spawn failed: Fatal error: failed to load model context for thread 01a14204-4f85-7320-ae71-f3c1611bb06c: invalid thread-store request: no rollout found for thread id 01a14204-4f85-7320-ae71-f3c1611bb06c",
+    "preserved_before_restoration": true,
+    "caller_after": {
+      "entries": [
+        {
+          "path": "caller",
+          "mode": 493,
+          "inode": 4460,
+          "device": 78,
+          "mtime_ns": 1792108920219340192,
+          "size": 80
+        },
+        {
+          "path": "caller/.venv",
+          "mode": 493,
+          "inode": 4462,
+          "device": 78,
+          "mtime_ns": 1792108920228345294,
+          "size": 160
+        },
+        {
+          "path": "caller/.venv/.gitignore",
+          "mode": 420,
+          "inode": 4469,
+          "device": 78,
+          "mtime_ns": 1792108920228345294,
+          "size": 69,
+          "sha256": "36692e1840f82f75adce103fd03e65b1eaa35f798c885b3b545e3abc14ffcbf0"
+        },
+        {
+          "path": "caller/.venv/bin",
+          "mode": 493,
+          "inode": 4468,
+          "device": 78,
+          "mtime_ns": 1792108920230705394,
+          "size": 200
+        },
+        {
+          "path": "caller/.venv/bin/Activate.ps1",
+          "mode": 420,
+          "inode": 4477,
+          "device": 78,
+          "mtime_ns": 1792108920230109994,
+          "size": 9031,
+          "sha256": "eb8ce20f580877d300c4fed60a7f36daa18715d35c50bb3596d6995d023b4ffe"
+        },
+        {
+          "path": "caller/.venv/bin/activate",
+          "mode": 420,
+          "inode": 4475,
+          "device": 78,
+          "mtime_ns": 1792108920229416294,
+          "size": 2210,
+          "sha256": "9f9c9fe914dbabcea5420eee2d309d9bd76fcb759899453a56d0f848a14ff9f2"
+        },
+        {
+          "path": "caller/.venv/bin/activate.csh",
+          "mode": 420,
+          "inode": 4478,
+          "device": 78,
+          "mtime_ns": 1792108920230705394,
+          "size": 940,
+          "sha256": "554da68aa402905b27a6e1d79c668e9be5233a37d6c9b71b87d8e2e12b8c8a22"
+        },
+        {
+          "path": "caller/.venv/bin/activate.fish",
+          "mode": 420,
+          "inode": 4476,
+          "device": 78,
+          "mtime_ns": 1792108920229747494,
+          "size": 2211,
+          "sha256": "aaab9a4665779353b26a3e8a2fa92bed36e6eea72d51b5ed3caabd0d6c218f73"
+        },
+        {
+          "path": "caller/.venv/bin/python",
+          "mode": 511,
+          "inode": 4472,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/bin/python3",
+          "mode": 511,
+          "inode": 4471,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 16,
+          "link": "/usr/bin/python3"
+        },
+        {
+          "path": "caller/.venv/bin/python3.14",
+          "mode": 511,
+          "inode": 4473,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/bin/\ud835\udf0bthon",
+          "mode": 511,
+          "inode": 4474,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 7,
+          "link": "python3"
+        },
+        {
+          "path": "caller/.venv/include",
+          "mode": 493,
+          "inode": 4463,
+          "device": 78,
+          "mtime_ns": 1792108920223340193,
+          "size": 40
+        },
+        {
+          "path": "caller/.venv/lib",
+          "mode": 493,
+          "inode": 4464,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 60
+        },
+        {
+          "path": "caller/.venv/lib/python3.14",
+          "mode": 493,
+          "inode": 4465,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 60
+        },
+        {
+          "path": "caller/.venv/lib/python3.14/site-packages",
+          "mode": 493,
+          "inode": 4466,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 40
+        },
+        {
+          "path": "caller/.venv/lib64",
+          "mode": 511,
+          "inode": 4467,
+          "device": 78,
+          "mtime_ns": 1792108920228251994,
+          "size": 3,
+          "link": "lib"
+        },
+        {
+          "path": "caller/.venv/pyvenv.cfg",
+          "mode": 420,
+          "inode": 4470,
+          "device": 78,
+          "mtime_ns": 1792108920228400094,
+          "size": 202,
+          "sha256": "a84a7d263663a684fa692a713834ffb8fe2c5b6ea4eb3cb7274c5e11c6a21cef"
+        },
+        {
+          "path": "caller/environment.txt",
+          "mode": 420,
+          "inode": 4461,
+          "device": 78,
+          "mtime_ns": 1792108920185498088,
+          "size": 64,
+          "sha256": "34b11de84f7127f2ab6b5250051216987e9bbb4bd9928c8b4d32d3f6f6380b7b"
+        }
+      ],
+      "sha256": "eafbe9e4b9e39d90e5c58e7cac1fdf5e0d3125e72a1d418e4503f7bc14ccfab2"
+    },
+    "caller_unchanged": true,
+    "caller_runtime_after": {
+      "argv": [
+        "/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sys,importlib.util,json; print(json.dumps({\"executable\":sys.executable,\"prefix\":sys.prefix,\"version\":sys.version,\"fixturedep_spec\":repr(importlib.util.find_spec(\"fixturedep\"))}))"
+      ],
+      "cwd": "/tmp/skills-119-smoke-noiyxz56/codex/caller",
+      "exit_code": 0,
+      "stdout": "{\"executable\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv/bin/python\", \"prefix\": \"/tmp/skills-119-smoke-noiyxz56/codex/caller/.venv\", \"version\": \"3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]\", \"fixturedep_spec\": \"None\"}\n",
+      "stderr": ""
+    },
+    "cleanup": {
+      "status": "verified",
+      "target": "/tmp/skills-119-smoke-noiyxz56/codex/target",
+      "HEAD": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "tree": "69a717b2d6daf4adbe9836bed352fd72b260f1a9",
+      "git_status": "clean",
+      "ignored_artifacts": "none",
+      "owned_environment": "absent; never created",
+      "caller_unchanged": true,
+      "caller_fixture_retained": "untouched for root inspection",
+      "target_fixture_retained": "restored for root inspection",
+      "leftover_mutable_environment_paths": []
+    },
+    "remaining_question": "What fixture_app.calculate(3) returns with the installed declared dependency remains unanswered because native invocation failed to start.",
+    "final_report": {
+      "A": "Operational failure at native launch; no validation/check/setup executed.",
+      "B": "Not exercised after native launch failure.",
+      "C": "Not exercised after native launch failure; no completed inconclusive adjudication claimed.",
+      "limitation": "Not full review acceptance, other manager evidence, or real mtg-copilot behavior."
+    }
+  },
+  "claude": {
+    "record": {
+      "format_version": 1,
+      "run_id": "skills-119-smoke-noiyxz56-claude",
+      "mode": "full",
+      "repository": "controlled-fixture (no remote)",
+      "target": {
+        "kind": "range",
+        "key": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3..9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3"
+      },
+      "base_sha": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "reviewed_head_sha": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "completed_at": "2026-10-16T00:06:25.544289+00:00",
+      "completeness": "incomplete",
+      "completeness_reason": "Smoke only: no scouts or static validators ran; H1 unresolved."
+    },
+    "smoke_scope": "Bounded issue #119 native writable-probe smoke on a synthetic committed fixture. Not a full deep-review, not publication, not mtg-copilot/httpx/openai runtime evidence. No scouts or static validators ran; static completion and Needs probe for H1 are controlled inputs supplied by the user, not runtime claims.",
+    "contract_files": {
+      "skill": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/SKILL.md",
+      "protocol": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/protocol.md",
+      "probe_environment": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/references/probe-environment.md"
+    },
+    "harness": {
+      "identity": "Claude Code (claude -p, stream-json)",
+      "version": "not observed by coordinator",
+      "permission_mode": "dontAsk",
+      "allowed_tools": "Agent,Read,Grep,Glob,Bash,Edit,Write",
+      "coordinator_model": "claude-opus-5-5",
+      "probe_agent": "deep-review-validator-probe (native, defined in agents.json; model claude-sonnet-5-5; tools Read,Grep,Glob,Bash,Edit,Write)",
+      "probe_enforcement": "Edit and Write tools with Bash; no permissionMode set; inherited session policy dontAsk"
+    },
+    "target": {
+      "path": "/tmp/skills-119-smoke-noiyxz56/claude/target",
+      "baseline": "9a7cd3cca7b369f29c7841c7cef90e2cfb3882d3",
+      "tree": "69a717b2d6daf4adbe9836bed352fd72b260f1a9",
+      "declarations": {
+        "AGENTS.md": "37a6a329370569c671735c7922f1a77815b5259ab1b39df11c344e3c94d55f9b",
+        "fixture_app.py": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+        "requirements.txt": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8 (fixturedep==1.0.0)",
+        "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6"
+      },
+      "runtime_constraint": "Python >=3.11, in-project .venv, pip, offline --no-index --find-links wheelhouse, pip caches disabled",
+      "lockfile": "absent (documented)",
+      "dependency_groups": "absent (documented)"
+    },
+    "context": {
+      "manifest": "/tmp/skills-119-smoke-noiyxz56/claude/context/manifest",
+      "core_manifest": "/tmp/skills-119-smoke-noiyxz56/claude/context/core-manifest",
+      "validator_manifest": "/tmp/skills-119-smoke-noiyxz56/claude/context/validator-manifest",
+      "contents": "each is 'Explicitly empty context snapshot.'"
+    },
+    "caller_sentinel": {
+      "path": "/tmp/skills-119-smoke-noiyxz56/claude/caller",
+      "before_snapshot": "/tmp/skills-119-smoke-noiyxz56/claude/smoke-evidence/caller-before.txt",
+      "before_snapshot_sha256": "3c30d72e0989fe10f8b3b7cc62c8ac6bd3f7296291d334ffd37bf93de98b01ca",
+      "venv": "python 3.14.4 -> /usr/bin/python3, no pip, no fixturedep"
+    },
+    "helpers": {
+      "restore": "/tmp/skills-119-smoke-noiyxz56/claude/smoke-evidence/restore.sh (refuses any path but the target)",
+      "snapshot": "/tmp/skills-119-smoke-noiyxz56/claude/smoke-evidence/snapshot.sh"
+    },
+    "hypotheses": [
+      {
+        "canonical_id": "H1",
+        "original_ids": [
+          "bugs-H1"
+        ],
+        "origin": "bugs",
+        "title": "fixture_app.calculate(3) violates its documented result of 6 when using its declared dependency",
+        "file_line": "fixture_app.py:4",
+        "static_outcome": "Needs probe (CONTROLLED INPUT, not a runtime static validator result)",
+        "unresolved_question": "What does the installed declared dependency actually return through the production import path?",
+        "why_static_insufficient": "Runtime dependency resolution/composition must be verified; fixturedep's behaviour lives in an installed wheel.",
+        "cheapest_check": "In the verified environment, import fixture_app and print calculate(3); compare with 6."
+      }
+    ],
+    "pre_A_restoration": "RESTORE_OK HEAD=9a7cd3c... TREE=69a717b... status clean",
+    "probes": [
+      {
+        "case": "A",
+        "hypothesis": "H1",
+        "agent": "deep-review-validator-probe",
+        "agent_id": "aa2ce4611bcedc727",
+        "invocation": "completed (16475 tokens, 4 tool uses, 21.4s)",
+        "pre_restoration": "RESTORE_OK, HEAD/tree match, status clean, no .venv",
+        "contract": "complete; stale caller/.venv hint explicitly forbidden; owned env target/.venv; TMPDIR target/.probe-tmp; PIP_NO_CACHE_DIR/--no-cache-dir; offline --no-index --find-links wheelhouse",
+        "outcome": "Unresolved",
+        "commands_reported": [
+          "git status --porcelain --ignored; sha256sum AGENTS.md requirements.txt wheelhouse/* -> all hashes match contract",
+          "mkdir -p .probe-tmp && export TMPDIR=... PIP_NO_CACHE_DIR=1 PIP_NO_INDEX=1 PIP_DISABLE_PIP_VERSION_CHECK=1 && unset VIRTUAL_ENV PYTHONPATH PYTHONHOME -> ok",
+          "/usr/bin/python3 -m venv .venv -> rc=1 'ensurepip is not available ... apt install python3.14-venv'",
+          ".venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt -> rc=1 'No module named pip'",
+          "ls -A .venv site-packages; .venv/bin/python -V -> Python 3.14.4, site-packages empty; git status shows only '!! .venv/'"
+        ],
+        "verification": "Only Python 3.14.4 (>=3.11) and declaration hashes obtained. pip version, pip check, fixturedep version/origin, fixture_app origin, sys.path NOT verified (setup failed).",
+        "bounded_check": "NOT executed; no mocks/substitutions/workarounds (--without-pip, manual wheel unpack, PYTHONPATH, caller env all declined)",
+        "remaining_question": "What does fixturedep.double(3) return through import fixture_app with fixturedep==1.0.0 installed from the wheel; is it 6?",
+        "needs_confirmation": "Make pip available offline to the owned venv (python3.14-venv/ensurepip or offline pip wheel), or accept a documented deviation with stated limits.",
+        "coordinator_independent_verification": "Before restore: HEAD 9a7cd3c, no tracked diff, only untracked .probe-tmp (empty) and ignored .venv (pyvenv.cfg command '/usr/bin/python3 -m venv .../target/.venv', empty site-packages). Host: 'import ensurepip' -> ModuleNotFoundError; '/usr/bin/python3 -m pip' -> No module named pip; no pip/pip3 on PATH; no /usr/share/python-wheels. Limitation confirmed as a host environment limitation, a completed inconclusive attempt, not an operational failure.",
+        "leftovers_before_restore": [
+          "target/.venv (partial, no pip)",
+          "target/.probe-tmp (empty)"
+        ],
+        "restoration": "RESTORE_OK HEAD 9a7cd3c tree 69a717b status clean; .venv and .probe-tmp removed by git clean -fdx; caller snapshot byte-identical (caller-after-A.txt)"
+      },
+      {
+        "case": "B",
+        "hypothesis": "H1",
+        "agent": "deep-review-validator-probe",
+        "agent_id": "af76bf34baf7b4304",
+        "invocation": "new invocation, completed (17764 tokens, 6 tool uses, 24.6s)",
+        "pre_restoration": "RESTORE_OK after A; A's .venv/.probe-tmp removed; no prior verification supplied or reused",
+        "contract": "complete; same declarations/owned paths/commands as A; 'nothing has run in this invocation'",
+        "outcome": "Unresolved",
+        "commands_reported": [
+          "git rev-parse HEAD / HEAD^{tree} -> 9a7cd3c / 69a717b; status empty; no .venv",
+          "sha256sum AGENTS.md requirements.txt wheelhouse/*.whl -> all match; requirements: fixturedep==1.0.0",
+          "setup chain (export env; /usr/bin/python3 -m venv .venv && pip install ...) -> rc=1 at venv: 'ensurepip is not available ... apt install python3.14-venv'; pip step not run",
+          "/usr/bin/python3 --version -> 3.14.4; .venv/bin/python -m pip --version -> No module named pip; git status -> '!! .venv/'"
+        ],
+        "verification": "Fresh: baseline + declaration hashes + interpreter version only. venv sys.*, pip, pip check, fixturedep metadata/origin, fixture_app origin, sys.path NOT established.",
+        "bounded_check": "NOT executed; no substitutions (no fake modules, mocks, wheel unpack, PYTHONPATH, --target/--user, other interpreters, caller env)",
+        "remaining_question": "What does calculate(3) return with fixturedep==1.0.0 installed from wheelhouse into a verified venv via import fixture_app?",
+        "needs_confirmation": "Offline pip bootstrap for the owned venv (python3.14-venv or another Python>=3.11 with ensurepip), or explicitly approved deviation with claim limits.",
+        "leftovers_before_restore": [
+          "target/.venv (partial, no pip)",
+          "target/.probe-tmp (empty)"
+        ],
+        "coordinator_independent_verification": "Before restore: HEAD 9a7cd3c, no tracked diff, ignored .venv freshly created (pyvenv.cfg command matches target path, empty site-packages), untracked empty .probe-tmp. Consistent with report.",
+        "restoration": "RESTORE_OK HEAD 9a7cd3c tree 69a717b status clean; .venv/.probe-tmp removed; caller snapshot byte-identical (caller-after-B.txt)"
+      },
+      {
+        "case": "C",
+        "hypothesis": "H1",
+        "agent": "deep-review-validator-probe",
+        "agent_id": "a4b111fd17d057ed5",
+        "invocation": "new invocation, completed (15225 tokens, 2 tool uses, 17.7s)",
+        "pre_restoration": "RESTORE_OK after B",
+        "contract": "no verified environment available; all dependency setup forbidden; no imports/interpreter execution; read-only declaration inspection only",
+        "outcome": "Unresolved",
+        "commands_reported": [
+          "Read probe-environment.md",
+          "git -C <wt> rev-parse HEAD; git ls-files; cat AGENTS.md fixture_app.py requirements.txt; sha256sum AGENTS.md requirements.txt wheel -> HEAD 9a7cd3c, all hashes match"
+        ],
+        "verification": "Declaration identities only; no runtime/dependency/code-origin verification possible by contract",
+        "bounded_check": "NOT attempted (forbidden by contract); validator declined reading wheel source via unzip -p as unpacking-by-another-route; no substitutions",
+        "remaining_question": "Does calculate(3) == 6 with fixturedep 1.0.0 installed from the wheel via import fixture_app?",
+        "needs_confirmation": "Run the check in a verified in-project venv built from declarations.",
+        "coordinator_independent_verification": "After return: HEAD 9a7cd3c, status --ignored empty, no .venv or other artifacts; consistent with a read-only invocation.",
+        "restoration": "RESTORE_OK HEAD 9a7cd3c tree 69a717b status clean; caller snapshot byte-identical (caller-after-C.txt)"
+      }
+    ],
+    "pre_B_restoration": "RESTORE_OK (same restoration as post-A), no .venv present",
+    "pre_C_restoration": "RESTORE_OK (post-B restoration), no .venv present",
+    "final_outcomes": {
+      "H1": "Unresolved in A, B, C (no executable evidence obtained in any case)"
+    },
+    "host_limitation": "Host /usr/bin/python3 3.14.4 lacks ensurepip and pip (no pip on PATH, no /usr/share/python-wheels); the documented native venv+pip setup cannot complete offline. Coordinator did not repair host or substitute setup.",
+    "runtime_acceptance_receipt": {
+      "harness": "Claude Code (version not observed)",
+      "skill_source": "/home/martin/.codex/worktrees/47fb/skills (commit not recorded by coordinator)",
+      "lenses": "none selected (smoke)",
+      "validator_agents_ran": [
+        "deep-review-validator-probe x3 (A,B,C)"
+      ],
+      "rows": {
+        "zero hypotheses": "NOT EXERCISED",
+        "surviving hypotheses": "NOT EXERCISED (static phase was a controlled input)",
+        "capacity-bounded static validation": "NOT EXERCISED",
+        "multiple selected scouts": "NOT EXERCISED",
+        "insufficient scout capacity": "NOT EXERCISED",
+        "validator probes": "PASS for the observed parts: baseline restored+verified before each of 3 sequential probes; environment contract supplied each time; environment was NOT verified (setup failed on host in A/B, forbidden in C) and no check executed without verification; provenance+qualified outcomes preserved in run state before each restoration; target .venv/.probe-tmp removed by restoration so no contamination of later probes. Static-wave-completion precondition was a controlled input, not observed.",
+        "scout failure": "NOT EXERCISED",
+        "validator partial failure": "NOT EXERCISED",
+        "PR-review-overlap": "NOT EXERCISED",
+        "PR head change": "NOT EXERCISED",
+        "cleanup": "PARTIAL: target restored to baseline; worktree removal/record preservation NOT EXERCISED (left for root cleanup)"
+      }
+    },
+    "caller_after": {
+      "A": "identical",
+      "B": "identical",
+      "C": "identical",
+      "snapshots": [
+        "smoke-evidence/caller-after-A.txt",
+        "smoke-evidence/caller-after-B.txt",
+        "smoke-evidence/caller-after-C.txt"
+      ]
+    },
+    "cleanup": "Target at exact baseline, clean, no .venv. Caller untouched. No commits, fetches, worktrees, network, or publication. Fixture removal deferred to root."
+  },
+  "claude-verified": {
+    "record": {
+      "format_version": 1,
+      "run_id": "skills-119-smoke-noiyxz56-claude-verified",
+      "mode": "full",
+      "repository": "/tmp/skills-119-smoke-noiyxz56/claude-verified/target (synthetic committed fixture, no remote)",
+      "target": {
+        "kind": "range",
+        "key": "bf022c0b02c24c746d25a3a57078373659415b75..bf022c0b02c24c746d25a3a57078373659415b75"
+      },
+      "base_sha": "bf022c0b02c24c746d25a3a57078373659415b75",
+      "reviewed_head_sha": "bf022c0b02c24c746d25a3a57078373659415b75",
+      "completed_at": "2026-10-15",
+      "completeness": "incomplete"
+    },
+    "scope": "Bounded issue #119 native writable-probe smoke. Not a full deep-review, not publication. No scouts and no static validators ran. Static completion and the H1 Needs probe outcome are controlled inputs supplied by the root, not runtime claims. Synthetic fixture; not mtg-copilot, httpx, or openai runtime evidence.",
+    "contract_sources": {
+      "skill_worktree": "/home/martin/.codex/worktrees/47fb/skills",
+      "skill_head": "388a4242e9b65e9ed5d584038ed30ee2b61ef14a (with uncommitted issue #119 changes)",
+      "SKILL.md": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/SKILL.md",
+      "protocol.md": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/protocol.md",
+      "probe_environment_reference": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/references/probe-environment.md",
+      "validator_agent": {
+        "native_agent": "deep-review-validator-probe",
+        "installed_path": "/tmp/skills-119-smoke-noiyxz56/claude-verified/.claude/agents/deep-review-validator-probe.md",
+        "sha256": "53e97637df901d6e11a04fd7ad2d0609314f963ec49e45416310b0664d382f6a",
+        "matches_generated_source": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/harnesses/claude/deep-review-validator-probe.md (identical sha256)",
+        "pinned_model_in_frontmatter": "claude-sonnet-5-5 (not overridden)"
+      }
+    },
+    "harness": {
+      "identity": "Claude Code (claude -p, stream-json, --setting-sources project, --permission-mode dontAsk, allowedTools Agent,Read,Grep,Glob,Bash,Edit,Write)",
+      "coordinator_model": "claude-opus-5-5",
+      "enforcement": "Writable probe: Edit and Write tools with Bash, under the user's dontAsk permission settings; no probe-specific permission granted."
+    },
+    "baseline": {
+      "worktree": "/tmp/skills-119-smoke-noiyxz56/claude-verified/target",
+      "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+      "tree": "be07171b6d9b335602d1b084f5050f0986bdfc2b",
+      "tracked_files": [
+        "AGENTS.md",
+        "fixture_app.py",
+        "requirements.txt",
+        "wheelhouse/fixturedep-1.0.0-py3-none-any.whl"
+      ],
+      "restoration_authorization": "git reset --hard bf022c0b02c24c746d25a3a57078373659415b75 && git clean -fdx, only in /tmp/skills-119-smoke-noiyxz56/claude-verified/target (authorized by root prompt)"
+    },
+    "declarations": {
+      "AGENTS.md": {
+        "sha256": "5625d94685f2d41fa3fafe0eb235f958a2162dd2a63e97634659105dd4852b1b"
+      },
+      "fixture_app.py": {
+        "sha256": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893"
+      },
+      "requirements.txt": {
+        "sha256": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8"
+      },
+      "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": {
+        "sha256": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6"
+      },
+      "lockfile": "absent (AGENTS.md: no lockfile)",
+      "dependency_groups": "absent (AGENTS.md: no dependency groups)",
+      "runtime_requirement": "Python >=3.11 via exact existing /home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11; /usr/bin/python3 not selected"
+    },
+    "context": {
+      "root": "/tmp/skills-119-smoke-noiyxz56/claude-verified/context",
+      "manifest": "Explicitly empty context snapshot.",
+      "core-manifest": "Explicitly empty context snapshot.",
+      "validator-manifest": "Explicitly empty context snapshot. (late-bound)"
+    },
+    "caller_sentinel": {
+      "path": "/tmp/skills-119-smoke-noiyxz56/claude-verified/caller",
+      "note": "caller .venv has no fixturedep; never install into or repair it",
+      "fingerprint_before": "ffafb7377b6f7006cc23ddc3b4256744984b5dbe310424f91e40d2f057704aca",
+      "fingerprint_method": "sha256 of (sha256sum of all files/links sorted) + (find -printf '%p %y %s %T@' sorted), run from caller/"
+    },
+    "scouts": "NOT RUN (smoke scope)",
+    "static_phase": "NOT RUN; controlled input: complete, H1 = Needs probe",
+    "hypotheses": [
+      {
+        "canonical_id": "H1",
+        "original_ids": [
+          "bugs-H1"
+        ],
+        "origins": [
+          "bugs"
+        ],
+        "title": "fixture_app.calculate(3) violates its documented result of 6 when using its declared dependency",
+        "file_line": "fixture_app.py:1",
+        "static_outcome_controlled_input": "Needs probe",
+        "unresolved_question": "What does the installed declared dependency actually return through the production import path?",
+        "why_static_insufficient": "Runtime dependency resolution/composition must be verified.",
+        "cheapest_check": "Use the verified environment to import fixture_app and print calculate(3), compare with 6.",
+        "context_references": "none"
+      }
+    ],
+    "probe_invocations": [
+      {
+        "invocation": "A",
+        "hypothesis": "H1",
+        "native_agent": "deep-review-validator-probe",
+        "agent_id": "a0cec743ebbf9f748",
+        "pre_launch_restoration": {
+          "commands": "git reset --hard bf022c0b02c24c746d25a3a57078373659415b75 && git clean -fdx (cwd target only)",
+          "verified": {
+            "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+            "tree": "be07171b6d9b335602d1b084f5050f0986bdfc2b",
+            "status_porcelain_ignored": "empty",
+            "entries": [
+              ".git",
+              "AGENTS.md",
+              "fixture_app.py",
+              "requirements.txt",
+              "wheelhouse"
+            ]
+          },
+          "status": "PASS"
+        },
+        "environment_contract_supplied": {
+          "runtime": "/home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11 (not /usr/bin/python3)",
+          "setup_commands": [
+            "mkdir -p target/.tmp",
+            "export TMPDIR=target/.tmp PIP_CONFIG_FILE=/dev/null PIP_NO_INPUT=1 PYTHONNOUSERSITE=1; unset PYTHONPATH PYTHONHOME VIRTUAL_ENV",
+            "<runtime> -m venv .venv",
+            ".venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt"
+          ],
+          "owned_paths": [
+            "target/.venv",
+            "target/.tmp"
+          ],
+          "isolation_basis": "coordinator-owned disposable fixture worktree, restored with reset --hard + clean -fdx after invocation",
+          "caller_env_reuse": "rejected by contract; caller/.venv must not be used, installed into, or repaired",
+          "pre_run_state": "no setup had run; validator performed setup and verification",
+          "reference_supplied": "references/probe-environment.md (contract file path)"
+        },
+        "validator_reported": {
+          "setup_results": "venv created exit 0; pip: 'Processing ./wheelhouse/fixturedep-1.0.0-py3-none-any.whl ... Successfully installed fixturedep-1.0.0' exit 0",
+          "interpreter": "sys.executable target/.venv/bin/python -> realpath /home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11; 3.11.16; base_prefix uv cpython-3.11.16; include-system-site-packages=false",
+          "pip": "24.0 (in .venv)",
+          "fixturedep": "1.0.0 at target/.venv/lib/python3.11/site-packages; INSTALLER=pip; no direct_url.json; installed __init__.py sha256 equals wheel member (5e3a96c8...17e4); wheel sha256 d3305c72...35c6 matches declaration",
+          "pip_check": "No broken requirements found.",
+          "pip_list": "fixturedep 1.0.0, pip 24.0, setuptools 79.0.1; matches requirements.txt fixturedep==1.0.0",
+          "code_origin": {
+            "fixture_app": "target/fixture_app.py (pinned worktree)",
+            "fixturedep": "target/.venv/lib/python3.11/site-packages/fixturedep/__init__.py"
+          },
+          "declaration_hashes_after": "unchanged",
+          "check": ".venv/bin/python -c \"import fixture_app; r=fixture_app.calculate(3); print(r, r==6)\" -> '9 False'",
+          "cause": "installed fixturedep.double is 'return value * 3'",
+          "caller_env_rejection": "caller/.venv is Python 3.14 (not pinned 3.11); its interpreter raised ModuleNotFoundError for fixturedep",
+          "outcome": "Finding",
+          "severity": "medium",
+          "recommendation": "discuss: calculate(3) must return 6 with the declared dependency; author chooses between fixing fixturedep.double and re-releasing the wheel, or removing calculate's reliance on it; no mocks or edits to installed copy",
+          "paths_created": [
+            "target/.tmp (empty)",
+            "target/.venv",
+            "target/__pycache__ (unplanned, outside owned paths, inside disposable target)"
+          ]
+        },
+        "deviations_and_limits": [
+          "Validator ran the caller/.venv interpreter once for a read-only import attempt to document rejection; contract allowed reading only. Coordinator verified caller fingerprint unchanged afterwards.",
+          "Validator used system python3 zipfile module for read-only wheel inspection (not the check path).",
+          "target/__pycache__ created outside the two owned paths (inside the disposable target; removed by restoration).",
+          "Evidence covers only this synthetic fixture at pinned fixturedep 1.0.0."
+        ],
+        "coordinator_observation_before_restoration": {
+          "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+          "status": "?? .venv/ ; ?? __pycache__/",
+          "declaration_hashes": "all four unchanged",
+          "installed_fixturedep_source": "def double(value):\n    return value * 3",
+          "independent_check": "PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python: 3.11.16, fixture_app from target/fixture_app.py, fixturedep from .venv site-packages, version 1.0.0, calculate(3) -> 9",
+          "caller_fingerprint_after": "ffafb7377b6f7006cc23ddc3b4256744984b5dbe310424f91e40d2f057704aca (unchanged)"
+        },
+        "final_outcome": "Finding",
+        "post_restoration": {
+          "commands": "git reset --hard bf022c0b02c24c746d25a3a57078373659415b75 && git clean -fdx (cwd target only)",
+          "git_clean_removed": [
+            ".tmp/",
+            ".venv/",
+            "__pycache__/"
+          ],
+          "verified": {
+            "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+            "tree": "be07171b6d9b335602d1b084f5050f0986bdfc2b",
+            "status_porcelain_ignored": "empty",
+            "absent": [
+              ".venv",
+              ".tmp",
+              "__pycache__"
+            ]
+          },
+          "environment_disposal": "A's .venv and TMPDIR removed; no other owned cache locations (pip --no-cache-dir)",
+          "status": "PASS (also serves as invocation B's pre-launch restoration)"
+        }
+      },
+      {
+        "invocation": "B",
+        "hypothesis": "H1",
+        "native_agent": "deep-review-validator-probe",
+        "agent_id": "ab68da9763f2b7247",
+        "pre_launch_restoration": "invocation A post_restoration (HEAD/tree/empty status verified; .venv, .tmp, __pycache__ absent)",
+        "environment_contract_supplied": {
+          "runtime": "/home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11 (not /usr/bin/python3, including for inspection)",
+          "setup_commands": [
+            "mkdir -p target/.tmp",
+            "export TMPDIR=target/.tmp PIP_CONFIG_FILE=/dev/null PIP_NO_INPUT=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1; unset PYTHONPATH PYTHONHOME VIRTUAL_ENV",
+            "<runtime> -m venv .venv",
+            ".venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt"
+          ],
+          "owned_paths": [
+            "target/.venv",
+            "target/.tmp"
+          ],
+          "changes_from_A": "added PYTHONDONTWRITEBYTECODE=1; forbade executing caller interpreter and /usr/bin/python3; stated prior environment was removed and any leftover counts as contamination; no prior outcome supplied",
+          "pre_run_state": "no setup had run; validator re-established and re-verified"
+        },
+        "validator_reported": {
+          "pre_existing_environment": "none (.venv/.tmp/__pycache__ absent; status empty) - no contamination",
+          "setup_results": "venv rc=0; pip rc=0 'Processing ./wheelhouse/fixturedep-1.0.0-py3-none-any.whl ... Successfully installed fixturedep-1.0.0'",
+          "interpreter": "target/.venv/bin/python -> realpath uv cpython-3.11.16 python3.11; 3.11.16; include-system-site-packages=false",
+          "pip": "24.0",
+          "fixturedep": "1.0.0 at .venv site-packages; INSTALLER=pip; no direct_url.json; RECORD hashes match wheel RECORD; installed __init__.py byte-identical to wheel member (5e3a96c8...17e4); wheel hash matches declaration (inspected via zipfile under contract-permitted python)",
+          "pip_check": "No broken requirements found.",
+          "pip_list": "fixturedep 1.0.0, pip 24.0, setuptools 79.0.1; matches fixturedep==1.0.0",
+          "code_origin": {
+            "fixture_app": "target/fixture_app.py",
+            "fixturedep": "target/.venv/lib/python3.11/site-packages/fixturedep/__init__.py"
+          },
+          "declaration_hashes_after": "unchanged",
+          "check": "calculate(3) -> 9 (expected 6)",
+          "caller_env_rejection": "caller/.venv is Python 3.14.4, --without-pip, empty site-packages; read pyvenv.cfg and listed files only; never executed",
+          "outcome": "Finding",
+          "severity": "medium",
+          "recommendation": "discuss: corrected fixturedep wheel + pin bump, or calculate stops relying on fixturedep.double; no venv patching or sys.path shadowing",
+          "paths_created": [
+            "target/.venv (pip-compiled .pyc inside)",
+            "target/.tmp (empty)"
+          ],
+          "deviations": "none"
+        },
+        "coordinator_observation_before_restoration": {
+          "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+          "status": "?? .venv/ (.tmp empty, untracked-empty not listed); no __pycache__ outside .venv",
+          "declaration_hashes": "all four unchanged",
+          "independent_check": "PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python: 3.11.16 realpath uv cpython-3.11.16; fixture_app from target/fixture_app.py; fixturedep 1.0.0 from .venv site-packages; calculate(3) -> 9",
+          "caller_fingerprint_after": "ffafb7377b6f7006cc23ddc3b4256744984b5dbe310424f91e40d2f057704aca (unchanged)"
+        },
+        "final_outcome": "Finding",
+        "post_restoration": {
+          "commands": "git reset --hard bf022c0b02c24c746d25a3a57078373659415b75 && git clean -fdx (cwd target only)",
+          "git_clean_removed": [
+            ".tmp/",
+            ".venv/"
+          ],
+          "verified": {
+            "head": "bf022c0b02c24c746d25a3a57078373659415b75",
+            "tree": "be07171b6d9b335602d1b084f5050f0986bdfc2b",
+            "status_porcelain_ignored": "empty",
+            "entries": [
+              ".git",
+              "AGENTS.md",
+              "fixture_app.py",
+              "requirements.txt",
+              "wheelhouse"
+            ]
+          },
+          "environment_disposal": "B's .venv and TMPDIR removed",
+          "status": "PASS"
+        }
+      }
+    ],
+    "outcomes": {
+      "H1": {
+        "A": "Finding (medium)",
+        "B": "Finding (medium)",
+        "agreement": "independent invocations agree: calculate(3) returns 9, not 6, through the verified declared dependency fixturedep 1.0.0 (double = value * 3)"
+      }
+    },
+    "caller_sentinel_final": {
+      "fingerprint_after_A": "ffafb7377b6f7006cc23ddc3b4256744984b5dbe310424f91e40d2f057704aca",
+      "fingerprint_after_B_and_restoration": "ffafb7377b6f7006cc23ddc3b4256744984b5dbe310424f91e40d2f057704aca",
+      "status": "unchanged"
+    },
+    "runtime_acceptance_receipt": {
+      "harness": "Claude Code headless (version not queried), coordinator claude-opus-5-5",
+      "skill": "/home/martin/.codex/worktrees/47fb/skills @ 388a4242 + uncommitted issue #119 changes",
+      "validator_agents_ran": [
+        "deep-review-validator-probe (x2, sequential)"
+      ],
+      "enforcement": "Instruction-enforced plus user permission mode dontAsk; probe has Edit/Write/Bash; no probe-specific permission",
+      "rows": {
+        "zero hypotheses": "NOT EXERCISED",
+        "surviving hypotheses": "NOT EXERCISED (static phase was a controlled input)",
+        "capacity-bounded static validation": "NOT EXERCISED",
+        "multiple selected scouts": "NOT EXERCISED",
+        "insufficient scout capacity": "NOT EXERCISED",
+        "validator probes": "PASS (smoke scope: exact baseline restored and verified before A and B; environment contract supplied and verified by each probe before executing the check; provenance and outcomes recorded here before each restoration; A's environment removed and verified absent before B; B re-established and re-verified with no contamination found. Static-wave completion was a controlled input, not observed)",
+        "scout failure": "NOT EXERCISED",
+        "validator partial failure": "NOT EXERCISED",
+        "PR-review-overlap": "NOT EXERCISED",
+        "PR head change": "NOT EXERCISED",
+        "cleanup": "NOT EXERCISED (root retains the run directory and cleans fixtures)"
+      }
+    },
+    "coordinator_notes": [
+      "Coordinator ran /usr/bin/python3 once only to json-parse run-state.json in the run directory (not part of any probe environment or check).",
+      "Coordinator independent spot-checks ran .venv/bin/python with PYTHONDONTWRITEBYTECODE=1 inside the target before each restoration."
+    ],
+    "cleanup": {
+      "worktree_removal": "not performed (target is a root-owned fixture, not a coordinator-created git worktree; root cleans fixtures)",
+      "record_preservation": "not performed (smoke scope; run directory is not a git checkout and root retains it)",
+      "run_directory": "retained: /tmp/skills-119-smoke-noiyxz56/claude-verified"
+    },
+    "final_report": {
+      "completeness_reason": "incomplete as a deep-review by design: no scouts or static validators ran (smoke scope). No PASS, No findings, or publication claimed.",
+      "completed_at": "2026-10-15"
+    }
+  },
+  "claude-boundary": {
+    "kind": "direct native-role handoff smoke, not full review",
+    "baseline": "8332c0548dee843f9198bdff48877b5bc6df5c36",
+    "caller_before": {
+      ".venv/.gitignore": "36692e1840f82f75adce103fd03e65b1eaa35f798c885b3b545e3abc14ffcbf0",
+      ".venv/bin/Activate.ps1": "eb8ce20f580877d300c4fed60a7f36daa18715d35c50bb3596d6995d023b4ffe",
+      ".venv/bin/activate": "6ae37f40dc821ae1bc1443027180c81ff9333135dfb1847779a1aa3ff4042c35",
+      ".venv/bin/activate.csh": "77bd7f0e06305b34d4b30902607e28c7e09d815deaed6908071f382170e869f9",
+      ".venv/bin/activate.fish": "426c79bd8137d6d714f12e76360919f8fb86e7fdf3732f04fd13958e7ca2989a",
+      ".venv/bin/python": "link:python3",
+      ".venv/bin/python3": "link:/usr/bin/python3",
+      ".venv/bin/python3.14": "link:python3",
+      ".venv/bin/\ud835\udf0bthon": "link:python3",
+      ".venv/lib64": "link:lib",
+      ".venv/pyvenv.cfg": "9b64fdd9459a306c0e717d763c10903aaf1f52f74a510768fa413b7b3b0c59c0",
+      "environment.txt": "34b11de84f7127f2ab6b5250051216987e9bbb4bd9928c8b4d32d3f6f6380b7b"
+    },
+    "source_hashes": {
+      "skills/deep-review/reviewers/validator.md": "d58c7974ea2c323e274ea35ec38ca649b82226a73600497b3f7b51bc5a9c9213",
+      "skills/deep-review/references/probe-environment.md": "cdd120ce2ccc38c87c910e04960e69f5bf85649ee84fba159ab4e74aed74bc23"
+    },
+    "contract": {
+      "target": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target",
+      "environment": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target/.venv",
+      "owned_writes": [
+        "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target"
+      ],
+      "caller_hint": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/caller/.venv",
+      "caller_hint_is_not_input": true,
+      "runtime": "/home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11",
+      "setup": "<runtime> -m venv .venv; .venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt",
+      "groups": null,
+      "lockfile": null,
+      "dependencies": "requirements.txt: fixturedep==1.0.0",
+      "declaration_sha256": {
+        "AGENTS.md": "5625d94685f2d41fa3fafe0eb235f958a2162dd2a63e97634659105dd4852b1b",
+        "fixture_app.py": "88955cc92bc726cdbbc6bf68c889d395d7e147125ed3f2346c6067d57c3fb893",
+        "requirements.txt": "d6815eb4efca27c669ea5c9eb85565e298a8cf84c5fd35d8c51b40eddef722b8",
+        "wheelhouse/fixturedep-1.0.0-py3-none-any.whl": "d3305c7278a86404d111900e9c99ba9413233557d92a6c7833c544d52a1e35c6"
+      }
+    },
+    "native_tool_calls": [
+      {
+        "type": "tool_use",
+        "id": "toolu_01TsFuoeJs29B2x5MkFsEjsr",
+        "name": "Read",
+        "input": {
+          "file_path": "/home/martin/.codex/worktrees/47fb/skills/skills/deep-review/references/probe-environment.md"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_01WuPB55k6uf9qitjG3WUXw2",
+        "name": "Read",
+        "input": {
+          "file_path": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/run-state.json"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_012wSktcLAYj5ts1KDwRGBCJ",
+        "name": "Bash",
+        "input": {
+          "command": "cd /tmp/skills-119-smoke-noiyxz56/claude-boundary; cat context/manifest context/core-manifest context/validator-manifest; find target -path target/.git -prune -o -print | head -50"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_01FQYESp2RULzAVQHjzRRvff",
+        "name": "Bash",
+        "input": {
+          "command": "cd /tmp/skills-119-smoke-noiyxz56/claude-boundary/target; cat AGENTS.md requirements.txt fixture_app.py; sha256sum AGENTS.md fixture_app.py requirements.txt wheelhouse/*; git -C . rev-parse HEAD 2>&1; git status --short 2>&1 | head"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_01TYpmgd5aShP8Vvh4QGD7vi",
+        "name": "Bash",
+        "input": {
+          "command": "cd /tmp/skills-119-smoke-noiyxz56/claude-boundary/target; mkdir -p tmp; export TMPDIR=$PWD/tmp PYTHONDONTWRITEBYTECODE=1 PIP_CONFIG_FILE=/dev/null PYTHONNOUSERSITE=1\nRT=/home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11\n$RT -m venv .venv && .venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt 2>&1 | tail -5\necho ---; .venv/bin/python -c \"import sys;print(sys.executable,sys.version);print(sys.prefix)\"; .venv/bin/python -m pip --version; .venv/bin/python -m pip list --format=freeze; .venv/bin/python -m pip check\n.venv/bin/python -c \"\nimport importlib.metadata as m, fixturedep, fixture_app\nprint(m.version('fixturedep'));print(fixturedep.__file__);print(fixture_app.__file__)\"\necho ---CHECK; .venv/bin/python -c \"from fixture_app import calculate; print(repr(calculate(3)))\"\ngit status --short --ignored"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_01BMBgDiRN4KLFkWLcx6ikNp",
+        "name": "Bash",
+        "input": {
+          "command": "cat /tmp/skills-119-smoke-noiyxz56/claude-boundary/target/.venv/lib/python3.11/site-packages/fixturedep/__init__.py"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      }
+    ],
+    "native_result": "### Finding\n- **Hypothesis:** H1 (origin bugs-H1)\n- **File/line:** `fixture_app.py:4`. `calculate` returns `fixturedep.double(value)`, and the installed `fixturedep/__init__.py` line 2 computes `value * 3`.\n- **Severity:** medium\n- **Evidence:** In the verified owned environment, `calculate(3)` returned `9`, not the documented `6`.\n  - **Declarations:** all four sha256 values match `run-state.json`: `AGENTS.md`, `fixture_app.py`, `requirements.txt` and the `fixturedep-1.0.0` wheel. There is no lockfile and there are no dependency groups.\n  - **Pinned state:** `git rev-parse HEAD` in the target gives `8332c054\u2026`, the baseline.\n  - **Setup:**\n    - Environment variables: `TMPDIR=<target>/tmp`, `PYTHONDONTWRITEBYTECODE=1`, `PYTHONNOUSERSITE=1`, `PIP_CONFIG_FILE=/dev/null`.\n    - Commands: `/home/martin/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11 -m venv .venv`, then `.venv/bin/python -m pip install --no-cache-dir --no-index --find-links wheelhouse -r requirements.txt`.\n    - Result: `Successfully installed fixturedep-1.0.0`.\n  - **Verification:**\n    - Interpreter: `.venv/bin/python` is 3.11.16, with prefix `<target>/.venv`. This satisfies Python >=3.11.\n    - pip: 24.0, from the venv.\n    - Installed packages: `fixturedep==1.0.0`, `pip==24.0`, `setuptools==79.0.1`. `fixturedep` matches the pin.\n    - Consistency: `pip check` reports no broken requirements.\n  - **Code origins:** the `fixturedep` import resolves to `<target>/.venv/lib/python3.11/site-packages/fixturedep/__init__.py`. `fixture_app` resolves to `<target>/fixture_app.py`, the pinned worktree copy.\n  - **Check:** `.venv/bin/python -c \"from fixture_app import calculate; print(repr(calculate(3)))\"` printed `9`.\n  - **Cause:** I read the installed `fixturedep.double`. It returns `value * 3`, so the result is the declared dependency's behavior and no mock, stub or import bypass was involved.\n- **Impact:** Production composition with the declared `fixturedep==1.0.0` returns `9` for `calculate(3)`, which violates the documented public contract of `6`. Every input is affected, because the result is triple the input instead of double.\n- **Recommendation:** After the fix, `calculate(3)` must return `6` when run against the declared dependency. The code is one of two places, and the choice needs the author's judgment:\n  - If `fixturedep.double` is meant to double, the fault is in the dependency, and the dependency pin or wheel needs a corrected version.\n  - If the dependency behaves as intended, `calculate` must stop relying on it for doubling, for example by computing `value * 2` itself.\n\n  I did not decide which one. Do not change the contract to `9` unless the author confirms that is intended.\n\n### Environment provenance and claim limits\n- **Owned paths:**\n  - `<target>/.venv`, the environment.\n  - `<target>/tmp`, the temp directory, created and empty.\n  - No bytecode was written, and no pip cache was used.\n  - `git status --short --ignored` shows only `?? .venv/`, and `tmp` is empty. I did not check for leftover `tmp` contents beyond that.\n- **Access:** I did not inspect or execute the caller `.venv` and made no network access. I made no global installs and no source edits. I used no subagents.\n- **Deviations:** none.\n- **Not restored:** I did not clean or restore anything. Root must remove `<target>/.venv` and `<target>/tmp`.\n- **Claim limits:** this is a controlled synthetic dependency. It is not evidence about real httpx, openai or mtg-copilot behavior.",
+    "observed_models": [
+      "claude-sonnet-5-5"
+    ],
+    "caller_after": {
+      ".venv/.gitignore": "36692e1840f82f75adce103fd03e65b1eaa35f798c885b3b545e3abc14ffcbf0",
+      ".venv/bin/Activate.ps1": "eb8ce20f580877d300c4fed60a7f36daa18715d35c50bb3596d6995d023b4ffe",
+      ".venv/bin/activate": "6ae37f40dc821ae1bc1443027180c81ff9333135dfb1847779a1aa3ff4042c35",
+      ".venv/bin/activate.csh": "77bd7f0e06305b34d4b30902607e28c7e09d815deaed6908071f382170e869f9",
+      ".venv/bin/activate.fish": "426c79bd8137d6d714f12e76360919f8fb86e7fdf3732f04fd13958e7ca2989a",
+      ".venv/bin/python": "link:python3",
+      ".venv/bin/python3": "link:/usr/bin/python3",
+      ".venv/bin/python3.14": "link:python3",
+      ".venv/bin/\ud835\udf0bthon": "link:python3",
+      ".venv/lib64": "link:lib",
+      ".venv/pyvenv.cfg": "9b64fdd9459a306c0e717d763c10903aaf1f52f74a510768fa413b7b3b0c59c0",
+      "environment.txt": "34b11de84f7127f2ab6b5250051216987e9bbb4bd9928c8b4d32d3f6f6380b7b"
+    },
+    "caller_unchanged": true,
+    "caller_hint_access_observed": false,
+    "before_restoration": {
+      "head": "8332c0548dee843f9198bdff48877b5bc6df5c36",
+      "status": "?? .venv/\n",
+      "declarations_unchanged": true
+    },
+    "root_independent_observation": {
+      "prefix": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target/.venv",
+      "python": "3.11.16 (main, Sep 29 2026, 14:59:26) [Clang 22.1.3 ]",
+      "dependency_version": "1.0.0",
+      "dependency_origin": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target/.venv/lib/python3.11/site-packages/fixturedep/__init__.py",
+      "code_origin": "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target/fixture_app.py",
+      "actual": 9
+    },
+    "restoration": {
+      "baseline_verified": true,
+      "head": "8332c0548dee843f9198bdff48877b5bc6df5c36",
+      "status": "clean",
+      "removed": "Removing .venv/\nRemoving tmp/\n",
+      "environment_removed": true,
+      "caller_unchanged": true
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "kind": "direct native process-gate regression, not full coordinator acceptance",
+  "native_session": "ae3e5309-d34c-44f7-b488-1f55ef7deef4",
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "baseline": "2f47e51f6784ca9a1ac20cb6b3fb0111c58fe3e5",
+  "exit_code": 0,
+  "actual_native_tools": [
+    "Read",
+    "Read",
+    "Read",
+    "Glob",
+    "Read",
+    "Read",
+    "Read",
+    "Read"
+  ],
+  "target_controlled_setup_import_probe_commands_run": false,
+  "hook_marker_absent": true,
+  "owned_environment_absent": true,
+  "target_clean": true,
+  "outcome": "Unresolved",
+  "limitation": "No verified process boundary or explicit scoped hook/import authorization. Declaration inspection only; not allowed-path sandbox execution or cross-harness/full-review acceptance.",
+  "source_event_sha256": "c2f6bc963457c314bf36930af59318e16472e699ebf4f3ce5a40ecf22fb686e5",
+  "cleanup": {
+    "exact_fixture_root": "/tmp/skills-119-gate-_vkzi_la",
+    "removed": true
+  }
+}

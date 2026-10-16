@@ -1,0 +1,16 @@
+{
+  "removed_exact_fixture_paths": [
+    "/tmp/skills-119-smoke-noiyxz56/claude-boundary/target",
+    "/tmp/skills-119-smoke-noiyxz56/claude-boundary/caller",
+    "/tmp/skills-119-smoke-noiyxz56/claude-verified/target",
+    "/tmp/skills-119-smoke-noiyxz56/claude-verified/caller",
+    "/tmp/skills-119-smoke-noiyxz56/codex-verified/target",
+    "/tmp/skills-119-smoke-noiyxz56/codex-verified/caller",
+    "/tmp/skills-119-smoke-noiyxz56/claude/target",
+    "/tmp/skills-119-smoke-noiyxz56/claude/caller",
+    "/tmp/skills-119-smoke-noiyxz56/codex/target",
+    "/tmp/skills-119-smoke-noiyxz56/codex/caller"
+  ],
+  "fixture_archive": "controlled-fixtures.tar.gz",
+  "evidence_retained": "/tmp/skills-119-smoke-noiyxz56"
+}
