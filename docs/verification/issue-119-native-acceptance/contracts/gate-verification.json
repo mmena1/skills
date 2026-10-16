@@ -1,0 +1,212 @@
+{
+  "kind": "coordinator-verified effective process boundary for target-controlled commands",
+  "mechanism": "tools/sbx-run -> unshare(mount,net,pid,ipc,uts) -> tools/sbx-inner: pivot_root into read-only tmpfs root, bind mounts, then setpriv (all capability sets cleared, no_new_privs) and env -i allowlist",
+  "wrapper_sha256": {
+    "tools/sbx-run": "e818f534cab531409d77bb699bbbc8d6f5129a46e2d64ce5e9df93f03caf90aa",
+    "tools/sbx-inner": "352600d9cb4ec7fe528a5a5361a919fe1d47f53e7644b8e495ea92b21e2eae17",
+    "tools/gate_canary.py": "f508ec195a87d7a0e5c9339dfee14e6cec7fbf342fc19ba3ca6351fcc404d611"
+  },
+  "effective_policy": {
+    "writable": [
+      "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt (except the .git link file, read-only)",
+      "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/owned-tmp",
+      "/tmp (private empty tmpfs, discarded on exit)"
+    ],
+    "readable": [
+      "/usr (ro)",
+      "/etc (ro)",
+      "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run (ro fixture root)",
+      "private /proc",
+      "/dev/{null,zero,random,urandom}"
+    ],
+    "not_present": [
+      "/root",
+      "/home",
+      "/opt",
+      "/mnt",
+      "/run",
+      "/var",
+      "rest of host /tmp"
+    ],
+    "network": "new network namespace with unconfigured loopback only; connects fail ENETUNREACH; /etc/hosts static entries still resolve but cannot be reached",
+    "identity": "uid 0 inside with CapEff/CapPrm/CapBnd/CapAmb/CapInh all zero and NoNewPrivs=1",
+    "environment": "env -i allowlist: PATH, HOME=<fixture>/home (read-only), TMPDIR=<fixture>/owned-tmp, LANG, PIP_NO_CACHE_DIR=1, PIP_CONFIG_FILE=/dev/null, PIP_DISABLE_PIP_VERSION_CHECK=1, PYTHONNOUSERSITE=1",
+    "child_processes": "children inherit the namespaces, mounts, capability bounding set and no_new_privs"
+  },
+  "observations": {
+    "canary_command": "tools/sbx-run --cwd <fixture>/review-wt -- /usr/bin/python3 -I -B <fixture>/tools/gate_canary.py <fixture>",
+    "status": {
+      "Uid": "0\t0\t0\t0",
+      "CapInh": "0000000000000000",
+      "CapPrm": "0000000000000000",
+      "CapEff": "0000000000000000",
+      "CapBnd": "0000000000000000",
+      "CapAmb": "0000000000000000",
+      "NoNewPrivs": "1",
+      "Seccomp": "0"
+    },
+    "env_keys": [
+      "HOME",
+      "LANG",
+      "PATH",
+      "PIP_CONFIG_FILE",
+      "PIP_DISABLE_PIP_VERSION_CHECK",
+      "PIP_NO_CACHE_DIR",
+      "PYTHONNOUSERSITE",
+      "TMPDIR"
+    ],
+    "parent_writes": {
+      "owned_worktree": "written",
+      "owned_tmp": "written",
+      "caller_checkout": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "caller_venv": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "caller_git_metadata": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "worktree_git_link": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "sim_home": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "shared_tmp": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "evidence": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "contracts": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "usr": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "etc": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "root_fs": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "real_home_root": {
+        "errno": 2,
+        "type": "FileNotFoundError"
+      }
+    },
+    "child_rc": 0,
+    "child_writes": {
+      "owned_worktree": "written",
+      "owned_tmp": "written",
+      "caller_checkout": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "caller_venv": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "caller_git_metadata": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "worktree_git_link": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "sim_home": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "shared_tmp": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "evidence": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "contracts": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "usr": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "etc": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "root_fs": {
+        "errno": 30,
+        "type": "OSError"
+      },
+      "real_home_root": {
+        "errno": 2,
+        "type": "FileNotFoundError"
+      }
+    },
+    "network": {
+      "127.0.0.1:45277": {
+        "errno": 101,
+        "type": "OSError"
+      },
+      "8.8.8.8:53": {
+        "errno": 101,
+        "type": "OSError"
+      },
+      "dns": "resolved"
+    },
+    "remount_rw_root": {
+      "rc": 32,
+      "stderr": "mount: /: permission denied.\n       dmesg(1) may have more information after failed mount system call."
+    },
+    "unshare_userns_attempt": {
+      "rc": 1,
+      "stderr": "unshare: write failed /proc/self/uid_map: Operation not permitted"
+    },
+    "visible_paths": {
+      "/root": false,
+      "/home": false,
+      "/opt": false,
+      "/mnt": false,
+      "/run": false,
+      "/var": false,
+      "/tmp/claude-0": true,
+      "/tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run": true
+    },
+    "mounts": [
+      "sbxroot / tmpfs ro,relatime,size=16384k,mode=755 0 0",
+      "sbxtmp /tmp tmpfs rw,relatime,size=262144k 0 0",
+      "/dev/vda /usr ext4 ro,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "/dev/vda /etc ext4 ro,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "/dev/vda /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run ext4 ro,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "/dev/vda /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt ext4 rw,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "/dev/vda /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/owned-tmp ext4 rw,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "/dev/vda /tmp/claude-0/-home-user-skills/86944ff9-c01c-583c-86bf-15cf713a7303/scratchpad/i119-run/review-wt/.git ext4 ro,relatime,discard,no_prefetch_block_bitmaps,resv_strict,resuid=65534,resgid=65534 0 0",
+      "proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0",
+      "sbxdev /dev tmpfs rw,relatime,size=1024k,mode=755 0 0",
+      "devtmpfs /dev/null devtmpfs rw,relatime,size=8229936k,nr_inodes=2057484,mode=755 0 0",
+      "devtmpfs /dev/zero devtmpfs rw,relatime,size=8229936k,nr_inodes=2057484,mode=755 0 0",
+      "devtmpfs /dev/random devtmpfs rw,relatime,size=8229936k,nr_inodes=2057484,mode=755 0 0",
+      "devtmpfs /dev/urandom devtmpfs rw,relatime,size=8229936k,nr_inodes=2057484,mode=755 0 0"
+    ],
+    "host_namespace_sbx_mounts_after_exit": 0,
+    "canary_markers_found_outside_owned_paths": []
+  },
+  "limits": "Verifies this wrapper for commands run through it. The validator's own native tool calls are not inside this boundary. errno 30 = EROFS, 101 = ENETUNREACH, 2 = ENOENT."
+}
