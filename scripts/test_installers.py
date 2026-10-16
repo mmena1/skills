@@ -124,8 +124,9 @@ def create_broken_directory_link(link: Path, target: Path) -> None:
 
 
 def isolated_environment(home: Path, extra_env: dict[str, str] | None) -> dict[str, str]:
-    """Keep Windows Devin agent installs inside the test home."""
+    """Keep inherited Codex and Windows Devin targets out of every test."""
     env = os.environ.copy()
+    env.pop("CODEX_HOME", None)
     env.pop("SKILLS_INSTALLER_FORCE_COPY", None)
     env["APPDATA"] = str(home / "AppData" / "Roaming")
     env.update(extra_env or {})
@@ -152,9 +153,9 @@ def installed_agent_entry(home: Path, harness: str, name: str) -> Path:
     return installed.parent if harness == "devin" else installed
 
 
-def assert_agent(home: Path, harness: str, name: str, skill: Path) -> None:
+def assert_agent(home: Path, harness: str, name: str, skill: Path, *, codex_config: Path | None = None) -> None:
     """The installed agent is exactly what the generator renders from the skill's committed sources."""
-    installed = installed_agent(home, harness, name)
+    installed = codex_config / "agents" / f"{name}.toml" if harness == "codex" and codex_config is not None else installed_agent(home, harness, name)
     expected = generate_agents.render_agents(skill).get(f"harnesses/{harness}/" + AGENT_FILES[harness].format(name=name))
     if expected is None:
         fail(f"{skill.name} does not declare the {harness} agent {name}")
@@ -799,6 +800,190 @@ def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) ->
             fail(f"{label} installer removed a Devin deep-review skill root whose marker names a {case} checkout")
 
 
+def test_codex_environment_target(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    home = temporary / f"{label}-environment-home"
+    target = temporary / f"{label}-Desktop config with spaces"
+    skill = fixture / "skills" / "agent-skill"
+    # A real managed installation in the default directory must not be refreshed or retired.
+    invoke(home, option("codex"), option("experimental"))
+    default_before = snapshot_home(home / ".codex")
+    env = {"CODEX_HOME": str(target)}
+    invoke(home, option("codex"), option("experimental"), extra_env=env)
+    root = target / "agents"
+    scout = root / "agent-skill-scout.toml"
+    scout.unlink()
+    agent_marker(scout, "codex").unlink()
+    create_file_link(scout, skill / "harnesses" / "codex" / scout.name)
+    probe = root / "agent-skill-probe.toml"
+    probe.write_text("stale managed copy\n", encoding="utf-8")
+    foreign = root / "my-agent.toml"
+    foreign.write_text("leave me\n", encoding="utf-8")
+    conflict = root / "lab-skill-probe.toml"
+    agent_marker(conflict, "codex").unlink()
+    conflict.write_text("keep me\n", encoding="utf-8")
+    for _ in range(2):
+        invoke(home, option("codex"), option("experimental"), extra_env=env)
+        for name in ("agent-skill-scout", "agent-skill-probe"):
+            assert_agent(home, "codex", name, skill, codex_config=target)
+            if backups_of(root / f"{name}.toml"):
+                fail(f"{label} backed up a managed link or copy at CODEX_HOME")
+    backups = backups_of(conflict)
+    if len(backups) != 1 or backups[0].read_text(encoding="utf-8") != "keep me\n":
+        fail(f"{label} did not back up an unrelated conflict at CODEX_HOME exactly once")
+    invoke(home, option("codex"), extra_env=env)
+    if conflict.exists() or orphaned_markers(root) or foreign.read_text(encoding="utf-8") != "leave me\n":
+        fail(f"{label} reconciliation at CODEX_HOME failed or changed unrelated content")
+    # A still-selected skill can retire a role at the alternate target.
+    shrinking = fixture / "skills" / f"{label}-target-shrinking"
+    shrinking.mkdir()
+    (shrinking / "SKILL.md").write_text("---\nname: target-shrinking\ndescription: Fixture.\n---\n", encoding="utf-8")
+    try:
+        write_agent_skill(shrinking, "Target reviewer.", ("kept", "retired"))
+        invoke(home, option("codex"), extra_env=env)
+        retired = root / f"{shrinking.name}-retired.toml"
+        assert_agent(home, "codex", f"{shrinking.name}-retired", shrinking, codex_config=target)
+        write_agent_skill(shrinking, "Target reviewer.", ("kept",))
+        invoke(home, option("codex"), extra_env=env)
+        if retired.exists() or agent_marker(retired, "codex").exists():
+            fail(f"{label} retained a retired role at CODEX_HOME")
+        assert_agent(home, "codex", f"{shrinking.name}-kept", shrinking, codex_config=target)
+    finally:
+        shutil.rmtree(shrinking)
+    invoke(home, option("codex"), extra_env=env)
+    before = snapshot_home(target)
+    invoke(home, option("codex"), extra_env=env)
+    if snapshot_home(target) != before or snapshot_home(home / ".codex") != default_before:
+        fail(f"{label} rerun changed the target unexpectedly or touched the default Codex directory")
+    assert_skill(home / ".agents" / "skills" / "stable-skill")
+    fresh_home = temporary / f"{label}-fresh-environment-home"
+    invoke(fresh_home, option("codex"), extra_env=env)
+    if (fresh_home / ".codex").exists():
+        fail(f"{label} created the default Codex directory with CODEX_HOME selected")
+
+
+def test_codex_explicit_target(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    home = temporary / f"{label}-explicit-home"
+    target = temporary / f"{label}-explicit config with spaces"
+    ignored = temporary / f"{label}-ignored-environment"
+    target_option = "--codex-home" if label == "shell" else "-CodexHome"
+    invoke(home, option("codex"))
+    invoke(home, option("codex"), extra_env={"CODEX_HOME": str(ignored)})
+    default_before, ignored_before = snapshot_home(home / ".codex"), snapshot_home(ignored)
+    invoke(home, option("all"), target_option, str(target), extra_env={"CODEX_HOME": str(ignored)})
+    assert_agent(home, "codex", "agent-skill-scout", fixture / "skills" / "agent-skill", codex_config=target)
+    if snapshot_home(home / ".codex") != default_before or snapshot_home(ignored) != ignored_before:
+        fail(f"{label} wrote an unselected Codex configuration directory")
+    assert_skill(home / ".agents" / "skills" / "stable-skill")
+    for harness in ("devin", "claude"):
+        assert_agent(home, harness, "agent-skill-scout", fixture / "skills" / "agent-skill")
+    (target / "agents" / "agent-skill-scout.toml").write_text("stale copy\n", encoding="utf-8")
+    invoke(home, option("codex"), target_option, str(target), extra_env={"CODEX_HOME": str(ignored)})
+    assert_agent(home, "codex", "agent-skill-scout", fixture / "skills" / "agent-skill", codex_config=target)
+    if snapshot_home(home / ".codex") != default_before or snapshot_home(ignored) != ignored_before:
+        fail(f"{label} target refresh changed an unselected Codex directory")
+
+    for harness in ("devin", "claude"):
+        unselected_home = temporary / f"{label}-unselected-{harness}"
+        target_before = snapshot_home(target)
+        # Even an invalid Codex path is unused when another harness alone is selected.
+        invoke(unselected_home, option(harness), target_option, "relative-target",
+               extra_env={"CODEX_HOME": str(target)})
+        if snapshot_home(target) != target_before or (unselected_home / ".codex").exists():
+            fail(f"{label} {harness} selection wrote a Codex target")
+
+
+def test_codex_empty_environment(label: str, fixture: Path, temporary: Path, invoke, option) -> None:
+    home = temporary / f"{label}-empty-codex-home"
+    windows_profile = temporary / f"{label}-unselected-Windows-profile"
+    windows_config = windows_profile / ".codex"
+    windows_config.mkdir(parents=True)
+    (windows_config / "keep.txt").write_text("keep me\n", encoding="utf-8")
+    before = snapshot_home(windows_config)
+    invoke(home, option("codex"), extra_env={"CODEX_HOME": "", "WSL_DISTRO_NAME": "Ubuntu",
+           "WSL_INTEROP": "/run/WSL/test", "USERPROFILE": str(windows_profile)})
+    assert_agent(home, "codex", "agent-skill-scout", fixture / "skills" / "agent-skill")
+    if snapshot_home(windows_config) != before:
+        fail(f"{label} WSL detection alone modified a Windows Codex directory")
+
+
+def test_codex_invalid_target(label: str, temporary: Path, invoke, option) -> None:
+    home = temporary / f"{label}-invalid-home"
+    home.mkdir()
+    (home / "keep.txt").write_text("keep me\n", encoding="utf-8")
+    target_option = "--codex-home" if label == "shell" else "-CodexHome"
+    file_target = temporary / f"{label}-target-file"
+    file_target.write_text("keep target\n", encoding="utf-8")
+    agents_file = temporary / f"{label}-target-agents-file"
+    agents_file.mkdir()
+    (agents_file / "agents").write_text("keep agents\n", encoding="utf-8")
+    targets = [str(file_target), str(file_target / "child"), str(agents_file), "relative-target"]
+    if label == "powershell":
+        for letter in "ZYXWVUTSRQPONMLKJIHGFED":
+            if not Path(f"{letter}:/").exists():
+                targets.append(f"{letter}:/missing-config")
+                break
+    for target in targets:
+        before = snapshot_home(temporary)
+        expect_install_failure(label, "with an invalid Codex target", home, invoke,
+                               option("all"), target_option, target, extra_env={}, mentions="Codex")
+        if snapshot_home(temporary) != before:
+            fail(f"{label} changed a target before rejecting it")
+
+
+def test_codex_target_legacy(label: str, temporary: Path, invoke_from, option) -> None:
+    repository = deep_review_repository(temporary / f"{label}-target-legacy-repository")
+    invoke = invoke_from(repository)
+    checkout = temporary / f"{label}-target-old-checkout"
+    write_legacy_deep_review_checkout(checkout)
+    checkout_before = snapshot_files(checkout)
+    home = temporary / f"{label}-target-legacy-home"
+    ignored = temporary / f"{label}-target-legacy-ignored"
+    target = temporary / f"{label}-target-legacy-config"
+    for location in (home, ignored):
+        install_legacy_deep_review(location, checkout)
+    # Move only the fixture Codex configuration; shared legacy skill roots stay put.
+    shutil.move(str(ignored / ".codex"), target)
+    ignored_config = ignored / ".codex"
+    ignored_config.mkdir()
+    (ignored_config / "keep.txt").write_text("leave me\n", encoding="utf-8")
+    default_before = snapshot_home(home / ".codex")
+    ignored_before = snapshot_home(ignored)
+    target_option = "--codex-home" if label == "shell" else "-CodexHome"
+    for _ in range(2):
+        invoke(home, option("codex"), target_option, str(target), extra_env={"CODEX_HOME": str(ignored_config)})
+        for name in LEGACY_DEEP_REVIEW_CODEX_AGENTS:
+            if name in declared_agents(repository / "skills" / "deep-review", "codex"):
+                assert_agent(home, "codex", name, repository / "skills" / "deep-review", codex_config=target)
+            elif os.path.lexists(target / "agents" / f"{name}.toml"):
+                fail(f"{label} retained a legacy role at the selected target")
+        if list(target.rglob("*.bak-*")):
+            fail(f"{label} backed up recognized legacy agents at the selected target")
+    if (snapshot_files(checkout) != checkout_before or snapshot_home(home / ".codex") != default_before
+            or snapshot_home(ignored) != ignored_before):
+        fail(f"{label} alternate-target migration changed another Codex directory or old checkout")
+
+
+def test_codex_unwritable_target(temporary: Path, invoke) -> None:
+    """A readable Windows directory with denied creation rights fails before any writes."""
+    home = temporary / "powershell-unwritable-home"
+    target = temporary / "powershell-unwritable-config"
+    target.mkdir()
+    powershell = find_powershell()
+    sid = run([powershell, "-NoProfile", "-Command",
+               "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value"],
+              cwd=temporary).stdout.strip()
+    icacls = str(Path(os.environ["SystemRoot"]) / "System32" / "icacls.exe")
+    try:
+        run([icacls, str(target), "/deny", f"*{sid}:(W)"], cwd=temporary)
+        before = snapshot_home(temporary)
+        expect_install_failure("powershell", "with denied target write access", home, invoke,
+                               "-All", "-CodexHome", str(target), extra_env={}, mentions="Codex")
+        if snapshot_home(temporary) != before:
+            fail("PowerShell changed a destination before rejecting an unwritable target")
+    finally:
+        run([icacls, str(target), "/remove:d", f"*{sid}"], cwd=temporary)
+
+
 def test_shell_installer(fixture: Path, temporary: Path) -> None:
     bash = find_bash()
 
@@ -933,6 +1118,11 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
         fail("shell reconciliation changed an unrelated destination")
 
     shell_options = {"all": "--all", "codex": "--codex", "devin": "--devin", "claude": "--claude", "experimental": "--experimental"}
+    test_codex_environment_target("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_codex_explicit_target("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_codex_invalid_target("shell", temporary, invoke, shell_options.__getitem__)
+    test_codex_empty_environment("shell", fixture, temporary, invoke, shell_options.__getitem__)
+    test_codex_target_legacy("shell", temporary, invoke_from, shell_options.__getitem__)
     test_agent_installation("shell", fixture, temporary, invoke, shell_options.__getitem__)
     test_codex_copy_upgrade("shell", fixture, temporary, invoke, shell_options.__getitem__)
     test_agent_role_removal("shell", fixture, temporary, invoke, shell_options.__getitem__)
@@ -1077,6 +1267,12 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
         fail("PowerShell reconciliation changed an unrelated destination")
 
     powershell_options = {"all": "-All", "codex": "-Codex", "devin": "-Devin", "claude": "-Claude", "experimental": "-Experimental"}
+    test_codex_environment_target("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_codex_explicit_target("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_codex_invalid_target("powershell", temporary, invoke, powershell_options.__getitem__)
+    test_codex_unwritable_target(temporary, invoke)
+    test_codex_empty_environment("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
+    test_codex_target_legacy("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_agent_installation("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_codex_copy_upgrade("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
     test_agent_role_removal("powershell", fixture, temporary, invoke, powershell_options.__getitem__)
