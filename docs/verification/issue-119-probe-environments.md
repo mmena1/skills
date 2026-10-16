@@ -1,10 +1,14 @@
 # Issue #119 probe environment verification
 
+**Dated historical report (2026-10-15).** This report records the implementation-time verification and the first review remediation. It is not updated as acceptance evidence accumulates. The current Claude allowed-path and denied-path native acceptance from 2026-10-16 is in the [targeted native acceptance report](issue-119-native-acceptance/README.md).
+
 Authority: the complete trusted issue-body Agent Brief in [#119](https://github.com/mmena1/skills/issues/119), verified parentless, open, unassigned and ready with no native blockers before claim. The author was a human account with current admin permission. Implementation baseline: `388a4242e9b65e9ed5d584038ed30ee2b61ef14a`. Verification date: 2026-10-15 (America/Bogota).
 
 ## Acceptance status after PR review
 
 **Native acceptance is incomplete; PR #130 remains draft.** No narrower acceptance decision is approved. The historical Claude observations below predate the process execution gate added for review comment P1. They establish neither compliance with that gate nor mechanical isolation of executable hooks. Codex has no usable native probe result, Devin was unavailable, and full coordinator execution across supported harnesses has not been observed. Required targeted acceptance remains pending.
+
+Update (2026-10-16): the [targeted native acceptance report](issue-119-native-acceptance/README.md) adds Claude Code 2.1.301 allowed-path evidence through a verified effective sandbox (P1 Finding, then P2 Disproved after exact-baseline restoration and environment re-establishment) and a current denied-path run (P3 Unresolved with no target-controlled execution). It is a direct native validator exercise with the session acting as coordinator. Native coordinator enforcement of the handoff, the explicit-authorization branch, and current Codex and Devin targeted smoke remain `NOT EXERCISED`, so the merge decision stays pending.
 
 Reviewable sanitized artifacts, fixture bytes, source identities and hashes now live in the repository's [evidence bundle](issue-119-evidence/README.md), with a [complete SHA-256 inventory](issue-119-evidence/SHA256SUMS). The original `/tmp` paths below are historical execution locations; retrieving the published artifacts does not require access to that host. Export field selection and its limits are documented in the bundle. These artifacts are bounded observations, not a completed native-acceptance receipt.
 
