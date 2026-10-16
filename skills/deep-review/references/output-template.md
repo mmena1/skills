@@ -30,7 +30,7 @@ Describe the enforcement mechanism specified by the active harness in `SKILL.md`
 | Capacity-bounded static validation | PASS / FAIL / NOT EXERCISED | [hypothesis count, declared capacity limit if any, queue order, and observed completion] |
 | Multiple selected scouts | PASS / FAIL / NOT EXERCISED | [observed selected scout launches and whether dispatch completed before waiting for any scout to complete] |
 | Insufficient scout capacity | PASS / FAIL / NOT EXERCISED | [strict-preflight counts or an actual launch refusal; report no available count when capacity is observed only at launch] |
-| Validator probes | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
+| Validator probes | PASS / FAIL / NOT EXERCISED | [sequential invocations, baseline restoration, environment provenance and verification, substitutions/claim limits, qualified outcomes, and environment disposal or invalidation; unobserved cases stay NOT EXERCISED] |
 | Scout failure | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | Validator partial failure | PASS / FAIL / NOT EXERCISED | [coordinator observation] |
 | PR-review-overlap | PASS / FAIL / NOT EXERCISED | [discussion retrieval, independent inputs, dispositions/links, and publication re-check when observed] |
