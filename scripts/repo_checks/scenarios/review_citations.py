@@ -1,7 +1,8 @@
 """The implementation-review citation group: source anchors and commit attribution against real Git objects.
 
 Builds a disposable repository whose history mirrors the reported incident (a 48-line
-file, earlier tests, a later removal commit, a rename, and a deletion), then exercises
+file, earlier tests, a later removal commit, a pure rename, a rename with an edit, and a
+deletion), then exercises
 the verification model and pins the implementation-review wording it models.
 """
 
@@ -30,13 +31,15 @@ def write_lines(path: Path, lines: list[str]) -> None:
 
 
 def build_history(repo: Path) -> dict[str, str]:
-    """A baseline and three commits that together implement one reviewed change."""
+    """A baseline and four commits that together implement one reviewed change."""
     git(repo, "init", "--quiet")
     buffer = [f"    // buffer line {number}" for number in range(1, 49)]
     buffer[19] = "    legacyFlush();"
     write_lines(repo / "src/VisitorEventBuffer.java", buffer)
     write_lines(repo / "src/Legacy.java", [f"// legacy line {number}" for number in range(1, 31)])
     write_lines(repo / "src/OldName.java", [f"// named line {number}" for number in range(1, 21)])
+    moved = [f"// moved line {number}" for number in range(1, 21)]
+    write_lines(repo / "src/Before.java", moved)
     shas = {"base": commit_all(repo, "baseline")}
 
     buffer[9:9] = ["    void flushOnCapacity() {", "        flush();", "    }"]
@@ -46,6 +49,11 @@ def build_history(repo: Path) -> dict[str, str]:
 
     (repo / "src/OldName.java").rename(repo / "src/NewName.java")
     shas["rename"] = commit_all(repo, "rename the named source")
+
+    (repo / "src/Before.java").unlink()
+    moved[4] = "// moved line 5 edited"
+    write_lines(repo / "src/After.java", moved)
+    shas["move"] = commit_all(repo, "move a source and edit one line")
 
     buffer.remove("    legacyFlush();")
     write_lines(repo / "src/VisitorEventBuffer.java", buffer)
@@ -72,6 +80,10 @@ def validate_review_citations() -> None:
         "Commit-list order or proximity is not evidence.",
         "Do not run git commands; use the provided diff output.",
         "Verify every source anchor and commit attribution before aggregating",
+        "A finding that points at code must carry at least one anchor; one without an anchor is a failed anchor.",
+        "A finding with no code to point at, such as a missing requirement, needs none.",
+        "then read only the file section whose old or new path is the claimed path",
+        "A pure rename section has no added or removed lines, so it supports no claim.",
         "A file location cited in any other form, such as a line named in prose, is a failed anchor too.",
         "checked against the review base, not rejected because the reviewed head lacks it",
         "Never present a failed anchor as verified evidence, drop its finding, or substitute an anchor of your own.",
@@ -92,7 +104,7 @@ def validate_review_citations() -> None:
         repo = Path(temp_value)
         shas = build_history(repo)
         base, head = shas["base"], shas["removal"]
-        commits = [shas["tests"], shas["rename"], shas["removal"]]
+        commits = [shas["tests"], shas["rename"], shas["move"], shas["removal"]]
 
         def anchor(text: str) -> str:
             return anchor_verdict(repo, parse_anchor(text), base=base, head=head)
@@ -169,7 +181,21 @@ def validate_review_citations() -> None:
                 (shas["rename"], "src/Legacy.java", "removed", "// legacy line 5"), "unsupported"),
             "the deletion commit removed the deleted file's lines": (
                 (shas["removal"], "src/Legacy.java", "removed", "// legacy line 5"), "supported"),
+            "the right commit credited under another path it changed": (
+                (shas["tests"], "test/VisitorEventBufferTest.java", "added", feature_line), "unsupported"),
             "a commit outside the reviewed range": ((base, "src/Legacy.java", "added", "// legacy line 5"), "outside-range"),
+            "a pure rename credited with adding the moved lines": (
+                (shas["rename"], "src/NewName.java", "added", "// named line 3"), "unsupported"),
+            "a pure rename credited with testing the moved lines": (
+                (shas["rename"], "src/NewName.java", "tested", "// named line 3"), "unsupported"),
+            "a pure rename credited with removing the old path's lines": (
+                (shas["rename"], "src/OldName.java", "removed", "// named line 3"), "unsupported"),
+            "a rename with an edit added the edited line": (
+                (shas["move"], "src/After.java", "added", "// moved line 5 edited"), "supported"),
+            "a rename with an edit removed the replaced line under the old path": (
+                (shas["move"], "src/Before.java", "removed", "// moved line 5"), "supported"),
+            "a rename with an edit credited with an unchanged line": (
+                (shas["move"], "src/After.java", "added", "// moved line 6"), "unsupported"),
         }
         for label, ((sha, path, change, quote), expected) in claims.items():
             verdict = attribution_verdict(
@@ -178,34 +204,55 @@ def validate_review_citations() -> None:
             if verdict != expected:
                 fail(f"implementation-review commit attribution: {label} gave {verdict!r} (expected {expected!r})")
 
-    # Failed anchors go back to their reviewer once; an uncorrectable one leaves the axis incomplete.
-    def axis(anchors=(), corrections=None, attributions=(), attribution_corrections=None) -> dict:
-        return {"anchors": list(anchors), "corrections": corrections or {}, "attributions": list(attributions),
+    # Every code finding needs an anchor; a failed or missing one goes back to its reviewer once,
+    # and an uncorrectable one leaves the axis incomplete.
+    def finding(*anchors: str, code: bool = True) -> dict:
+        return {"code": code, "anchors": list(anchors)}
+
+    def axis(*findings: dict, corrections=None, attributions=(), attribution_corrections=None) -> dict:
+        return {"findings": list(findings), "corrections": corrections or {}, "attributions": list(attributions),
                 "attribution_corrections": attribution_corrections or {}}
 
+    verified = finding("verified")
     outcomes = {
         "two verified axes": (
-            {"Standards": axis(["verified"]), "Spec": axis(["verified", "verified"])},
+            {"Standards": axis(verified), "Spec": axis(finding("verified", "verified"))},
+            ("complete", {"Standards": "complete", "Spec": "complete"}),
+        ),
+        "a genuinely clean report with no findings": (
+            {"Standards": axis(), "Spec": axis()},
+            ("complete", {"Standards": "complete", "Spec": "complete"}),
+        ),
+        "a finding with no code to point at, such as a missing requirement": (
+            {"Standards": axis(verified), "Spec": axis(finding(code=False))},
+            ("complete", {"Standards": "complete", "Spec": "complete"}),
+        ),
+        "an unanchored code finding": (
+            {"Standards": axis(finding()), "Spec": axis(verified)},
+            ("incomplete", {"Standards": "incomplete", "Spec": "complete"}),
+        ),
+        "an unanchored code finding given a verified anchor on correction": (
+            {"Standards": axis(finding(), corrections={0: "verified"}), "Spec": axis(verified)},
             ("complete", {"Standards": "complete", "Spec": "complete"}),
         ),
         "an uncorrectable Spec reference": (
-            {"Standards": axis(["verified"]), "Spec": axis(["out-of-range"])},
+            {"Standards": axis(verified), "Spec": axis(finding("out-of-range"))},
             ("incomplete", {"Standards": "complete", "Spec": "incomplete"}),
         ),
         "a corrected Spec reference": (
-            {"Standards": axis(["verified"]), "Spec": axis(["out-of-range"], {0: "verified"})},
+            {"Standards": axis(verified), "Spec": axis(finding("out-of-range"), corrections={0: "verified"})},
             ("complete", {"Standards": "complete", "Spec": "complete"}),
         ),
         "a correction that fails verification again": (
-            {"Standards": axis(["verified"]), "Spec": axis(["out-of-range"], {0: "missing-path"})},
+            {"Standards": axis(verified), "Spec": axis(finding("out-of-range"), corrections={0: "missing-path"})},
             ("incomplete", {"Standards": "complete", "Spec": "incomplete"}),
         ),
-        "an uncorrectable Standards reference": (
-            {"Standards": axis(["verified", "missing-path"]), "Spec": axis(["verified"])},
+        "one failed anchor among a finding's verified anchors": (
+            {"Standards": axis(finding("verified", "missing-path")), "Spec": axis(verified)},
             ("incomplete", {"Standards": "incomplete", "Spec": "complete"}),
         ),
         "an uncorrected commit attribution": (
-            {"Standards": axis(["verified"]), "Spec": axis(["verified"], attributions=["unsupported"])},
+            {"Standards": axis(verified), "Spec": axis(verified, attributions=["unsupported"])},
             ("complete", {"Standards": "complete", "Spec": "complete"}),
         ),
     }
@@ -213,12 +260,12 @@ def validate_review_citations() -> None:
         result = review_outcome(axes)
         if result["overall"] != overall or {name: entry["status"] for name, entry in result["axes"].items()} != statuses:
             fail(f"implementation-review aggregation: {label} gave {result}")
-    preserved = review_outcome({"Standards": axis(["verified"]), "Spec": axis(["verified", "out-of-range"])})["axes"]
-    if preserved["Spec"]["unverified"] != [1] or preserved["Standards"]["unverified"]:
-        fail("an incomplete axis must list its unverified anchors and keep the other axis's results")
+    preserved = review_outcome({"Standards": axis(verified), "Spec": axis(verified, finding(), finding("out-of-range"))})["axes"]
+    if preserved["Spec"]["unverified"] != [1, 2] or preserved["Standards"]["unverified"]:
+        fail("an incomplete axis must list its unverified findings and keep the other axis's results")
     undecided = review_outcome({
-        "Standards": axis(["verified"]),
-        "Spec": axis(["verified"], attributions=["supported", "unsupported", "outside-range"], attribution_corrections={2: "supported"}),
+        "Standards": axis(verified),
+        "Spec": axis(verified, attributions=["supported", "unsupported", "outside-range"], attribution_corrections={2: "supported"}),
     })["axes"]["Spec"]
     if undecided["undecided"] != [1]:
         fail(f"an unsupported commit attribution must stay as a cumulative finding with its attribution undecided: {undecided}")

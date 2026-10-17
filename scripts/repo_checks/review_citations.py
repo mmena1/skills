@@ -17,7 +17,7 @@ from .common import fail
 
 BLOB_TYPE_COMMAND = "git cat-file -t <sha>:<path>"
 LINE_COUNT_COMMAND = "git cat-file -p <sha>:<path> | awk 'END { print NR }'"
-COMMIT_PATCH_COMMAND = "git show --format= <commit> -- <path>"
+COMMIT_PATCH_COMMAND = "git show --format= --find-renames <commit>"
 
 ANCHOR = re.compile(r"`(?P<path>[^`]+):(?P<lines>[^`:]+)`(?: \((?P<side>new|old)\))?$")
 HUNK_HEADER = re.compile(r"^@@ -(?P<old>\d+)(?:,\d+)? \+(?P<new>\d+)(?:,\d+)? @@")
@@ -67,6 +67,7 @@ def hunk_coordinates(diff: str) -> list[dict]:
 
     for line in diff.split("\n"):
         if line.startswith("diff --git "):
+            old_path = new_path = None
             in_hunk = False
             continue
         if not in_hunk:
@@ -123,27 +124,34 @@ def attribution_verdict(repo: Path, claim: dict, *, commits: list[str]) -> str:
     """Check that one commit added, tested, or removed the quoted line: "supported", "unsupported", or "outside-range".
 
     Only the named commit's own patch counts; the cumulative diff and commit-list order are not evidence.
+    The whole patch is read with rename detection before the claimed path's section is selected, so a
+    pure rename contributes no added or removed lines.
     """
     if claim["commit"] not in commits:
         return "outside-range"
-    patch = git(repo, *documented(COMMIT_PATCH_COMMAND, commit=claim["commit"], path=claim["path"])).decode(errors="replace")
+    patch = git(repo, *documented(COMMIT_PATCH_COMMAND, commit=claim["commit"])).decode(errors="replace")
     marker = "-" if claim["change"] == "removed" else "+"
-    changed = [entry["text"][1:] for entry in hunk_coordinates(patch) if entry["text"].startswith(marker)]
+    changed = [
+        entry["text"][1:] for entry in hunk_coordinates(patch)
+        if claim["path"] in (entry["old_path"], entry["new_path"]) and entry["text"].startswith(marker)
+    ]
     return "supported" if any(claim["quote"] in line for line in changed) else "unsupported"
 
 
 def review_outcome(axes: dict) -> dict:
-    """Aggregate per-axis verdicts after at most one correction per failed anchor or attribution.
+    """Aggregate per-axis verdicts after at most one correction per failed finding or attribution.
 
-    An anchor still unverified after its correction leaves its axis, and the review,
+    A finding that points at code needs at least one anchor, and every anchor it carries
+    must verify. One still failing after its correction leaves its axis, and the review,
     incomplete while the other axis keeps its results. An attribution still unsupported
     stays as a cumulative finding with its commit attribution undecided.
     """
     result: dict = {"axes": {}}
     for name, axis in axes.items():
         unverified = [
-            index for index, verdict in enumerate(axis["anchors"])
-            if verdict != "verified" and axis["corrections"].get(index) != "verified"
+            index for index, finding in enumerate(axis["findings"])
+            if ((finding["code"] and not finding["anchors"]) or any(verdict != "verified" for verdict in finding["anchors"]))
+            and axis["corrections"].get(index) != "verified"
         ]
         undecided = [
             index for index, verdict in enumerate(axis["attributions"])

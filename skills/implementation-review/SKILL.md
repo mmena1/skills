@@ -93,13 +93,13 @@ The Standards report is always applicable. The Spec report is applicable when an
 
 Wait until every applicable sub-agent returns a report before aggregating.
 
-Verify every source anchor and commit attribution before aggregating, mechanically and against the pinned SHAs. Check each anchor at the reviewed head for `(new)` and at the review base for `(old)`, using that side's SHA as `<sha>`:
+Verify every source anchor and commit attribution before aggregating, mechanically and against the pinned SHAs. A finding that points at code must carry at least one anchor; one without an anchor is a failed anchor. A finding with no code to point at, such as a missing requirement, needs none. Check each anchor at the reviewed head for `(new)` and at the review base for `(old)`, using that side's SHA as `<sha>`:
 
 1. Reject an anchor with no side, a line that is not a positive integer, or an end before its start. A file location cited in any other form, such as a line named in prose, is a failed anchor too.
 2. Reject it unless `git cat-file -t <sha>:<path>` prints `blob`. A deleted or pre-rename path is checked against the review base, not rejected because the reviewed head lacks it; an added or post-rename path exists only at the reviewed head.
 3. Reject it when its end exceeds the line count from `git cat-file -p <sha>:<path> | awk 'END { print NR }'`.
 
-Check each claim that a commit added, removed, or tested something against that commit's own patch, `git show --format= <commit> -- <path>`. The commit must be in the captured commit list, and the quoted line must be an added (`+`) line for an added or tested claim, or a removed (`-`) line for a removed claim.
+Check each claim that a commit added, removed, or tested something against that commit's own patch. Take the whole patch with rename detection, `git show --format= --find-renames <commit>`, then read only the file section whose old or new path is the claimed path; filtering the command by path instead can show a pure rename as a whole new or deleted file. A pure rename section has no added or removed lines, so it supports no claim. The commit must be in the captured commit list, and the quoted line must be an added (`+`) line for an added or tested claim, or a removed (`-`) line for a removed claim.
 
 Send each failed anchor or claim, with the reason it failed, back to the reviewer that made it and ask once for a correction with evidence; verify the correction the same way. Never present a failed anchor as verified evidence, drop its finding, or substitute an anchor of your own. When an anchor stays unverified, list it with its failure, mark that axis and the overall review **incomplete**, and keep the other axis's verified report. When a commit claim stays unsupported, keep the finding as part of the cumulative diff and mark it visibly as commit attribution undecided, without crediting another commit.
 
