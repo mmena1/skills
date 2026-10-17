@@ -23,6 +23,7 @@ from repo_checks.scenarios.implementation import (
 from repo_checks.scenarios.portfolio_sync import validate_portfolio_sync
 from repo_checks.scenarios.pr_handoff import validate_multi_ticket_pr_contract, validate_pr_ticket_plan
 from repo_checks.scenarios.reconciliation import validate_reconciliation, validate_reconciliation_contract
+from repo_checks.scenarios.review_citations import validate_review_citations
 from repo_checks.scenarios.tracker import (
     validate_implementation_authority_contract, validate_standalone_authority_modes,
     validate_tracker_capability_contract,
@@ -36,6 +37,7 @@ def main() -> int:
         validate_repository_references()
         validate_implementation_authority_contract()
         validate_implementation_review_routing_contract()
+        validate_review_citations()
         validate_implementation_working_copy_contract()
         validate_standalone_authority_modes()
         validate_tracker_capability_contract()

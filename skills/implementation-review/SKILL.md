@@ -20,9 +20,13 @@ The issue tracker should have been provided to you. If `docs/agents/issue-tracke
 
 Use the fixed point supplied by the invoking workflow, if present. Otherwise, use the fixed point explicitly provided by the user. When composed by `/implement`, the fixed point is `BASELINE`. Ask the user for a fixed point only when neither the caller nor the user provided one.
 
-Run the diff once in the parent and keep the output: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also capture the list of commits via `git log <fixed-point>..HEAD --oneline`.
+Run the diff once in the parent and keep the output: `git diff --find-renames <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also capture the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
 Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+
+Pin both sides of the diff by SHA: the **review base** is `git merge-base <fixed-point> HEAD`, the diff's old side, and the **reviewed head** is `git rev-parse HEAD`, its new side. Label the diff as `<fixed-point>...HEAD` between those SHAs. It is the cumulative change of every reviewed commit, not the change of any one commit.
+
+Then build the anchor context reviewers cite from. Run `git diff --find-renames --name-status <fixed-point>...HEAD` and record, for each changed file, its status, its old-side path at the review base (none for an added file), its new-side path at the reviewed head (none for a deleted file), and each existing side's line count from `git cat-file -p <sha>:<path> | awk 'END { print NR }'`.
 
 ### 2. Identify the originating sources
 
@@ -62,23 +66,44 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
+Both prompts carry these **anchor rules**, pasted in full:
+
+- A source anchor names a repository file, its side, and a real line or range: `` `<path>:<start>[-<end>]` (new) `` for the reviewed head, or `(old)` for the review base. Use `(old)` for removed lines and for a deleted or pre-rename path. Use `(new)` for added and current lines.
+- Take line numbers only from the hunk headers. In `@@ -a,b +c,d @@`, the first line below the header is old line `a` and new line `c`; a context line advances both counts, a `-` line only the old count, and a `+` line only the new count. A hunk header is not a coordinate. Never cite a line's position in the diff, in this prompt, or in any assembled source bundle, or any other offset that is not a line of the file.
+- Cite standards documents and originating sources by path or name and a quotation, not by line number.
+- The diff is the cumulative `<fixed-point>...HEAD` change, so attribute a finding to it rather than to a commit. Claim that a particular commit added, removed, or tested something only when you name that commit, the path, and the quoted changed line; the coordinator checks the claim against that commit's own patch. Commit-list order or proximity is not evidence.
+
 **Standards sub-agent prompt** should include:
 
 - The full diff output and commit list.
+- The anchor context from step 1 and the anchor rules above.
 - The applicable standards-source paths and their contents from step 3, **plus the smell baseline from step 3** pasted in full. The sub-agent has no other access to them. When no applicable standards documents were found, say so explicitly.
-- The brief: "Report, per file or hunk where relevant: (a) every place the diff violates a documented standard, citing the standard file and rule; and (b) any baseline smell, naming it and quoting the hunk. Label documented-standard violations Blocking. Label baseline smells Advisory unless they also demonstrate a documented or correctness violation. A documented repo standard overrides the baseline. Skip anything tooling enforces. Do not run git commands; use the provided diff output. Under 400 words."
+- The brief: "Report, per file or hunk where relevant: (a) every place the diff violates a documented standard, citing the standard file and rule; and (b) any baseline smell, naming it and quoting the hunk. Label documented-standard violations Blocking. Label baseline smells Advisory unless they also demonstrate a documented or correctness violation. A documented repo standard overrides the baseline. Skip anything tooling enforces. Anchor every finding that points at code under the anchor rules. Do not run git commands; use the provided diff output. Under 400 words."
 
 **Spec sub-agent prompt** should include:
 
 - The full diff output and commit list.
+- The anchor context from step 1 and the anchor rules above.
 - The path or fetched contents of every source in the source bundle, with each source's role stated.
-- The brief: "Report Blocking findings for: (a) requirements that are missing or partial; (b) behavior that was not requested; (c) requirements whose implementation appears incorrect; and (d) contradictions between ticket scope and approved parent architecture. Quote the controlling source for each finding. Do not run git commands; use the provided diff output. Under 400 words."
+- The brief: "Report Blocking findings for: (a) requirements that are missing or partial; (b) behavior that was not requested; (c) requirements whose implementation appears incorrect; and (d) contradictions between ticket scope and approved parent architecture. Quote the controlling source for each finding. Anchor every finding that points at code under the anchor rules. Do not run git commands; use the provided diff output. Under 400 words."
 
 The Standards report is always applicable. The Spec report is applicable when an originating source is available. If no originating source is available, skip the Spec sub-agent, mark the Spec axis as skipped with "no spec available," and let the Standards axis complete.
 
 ### 5. Aggregate
 
-Wait until every applicable sub-agent returns a report before aggregating. Present the reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_). When Spec was skipped, retain its heading and state why.
+Wait until every applicable sub-agent returns a report before aggregating.
+
+Verify every source anchor and commit attribution before aggregating, mechanically and against the pinned SHAs. Check each anchor at the reviewed head for `(new)` and at the review base for `(old)`, using that side's SHA as `<sha>`:
+
+1. Reject an anchor with no side, a line that is not a positive integer, or an end before its start.
+2. Reject it unless `git cat-file -t <sha>:<path>` prints `blob`. A deleted or pre-rename path is checked against the review base, not rejected because the reviewed head lacks it; an added or post-rename path exists only at the reviewed head.
+3. Reject it when its end exceeds the line count from `git cat-file -p <sha>:<path> | awk 'END { print NR }'`.
+
+Check each claim that a commit added, removed, or tested something against that commit's own patch, `git show --format= <commit> -- <path>`. The commit must be in the captured commit list, and the quoted line must be an added (`+`) line for an added or tested claim, or a removed (`-`) line for a removed claim.
+
+Send each failed anchor or claim, with the reason it failed, back to the reviewer that made it and ask once for a correction with evidence; verify the correction the same way. Never present a failed anchor as verified evidence, drop its finding, or substitute an anchor of your own. When an anchor stays unverified, list it with its failure, mark that axis and the overall review **incomplete**, and keep the other axis's verified report. When a commit claim stays unsupported, keep the finding as part of the cumulative diff and mark it visibly as commit attribution undecided, without crediting another commit.
+
+Name the reviewed range as `<fixed-point>...HEAD` with the review base and reviewed head SHAs. Present the reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Light cleaning never changes a finding's anchor, commit attribution, or meaning. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_). When Spec was skipped, retain its heading and state why.
 
 If an applicable sub-agent fails or returns no report, identify which report is missing and why, include any report that did arrive under its axis, and mark the overall review **incomplete**. Never present an incomplete review as a completed aggregate.
 
