@@ -72,6 +72,7 @@ def validate_review_citations() -> None:
         "Commit-list order or proximity is not evidence.",
         "Do not run git commands; use the provided diff output.",
         "Verify every source anchor and commit attribution before aggregating",
+        "A file location cited in any other form, such as a line named in prose, is a failed anchor too.",
         "checked against the review base, not rejected because the reviewed head lacks it",
         "Never present a failed anchor as verified evidence, drop its finding, or substitute an anchor of your own.",
         "mark that axis and the overall review **incomplete**",
@@ -142,6 +143,7 @@ def validate_review_citations() -> None:
             "a non-numeric line": ("`src/VisitorEventBuffer.java:abc` (new)", "invalid-anchor"),
             "an anchor without a side": ("`src/VisitorEventBuffer.java:10`", "invalid-anchor"),
             "a hunk header offered as a coordinate": ("`@@ -18,7 +21,6 @@` (new)", "invalid-anchor"),
+            "a location named in prose": ("line 784 of src/VisitorEventBuffer.java", "invalid-anchor"),
         }
         for label, (text, expected) in cases.items():
             verdict = anchor(text)

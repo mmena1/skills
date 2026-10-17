@@ -95,7 +95,7 @@ Wait until every applicable sub-agent returns a report before aggregating.
 
 Verify every source anchor and commit attribution before aggregating, mechanically and against the pinned SHAs. Check each anchor at the reviewed head for `(new)` and at the review base for `(old)`, using that side's SHA as `<sha>`:
 
-1. Reject an anchor with no side, a line that is not a positive integer, or an end before its start.
+1. Reject an anchor with no side, a line that is not a positive integer, or an end before its start. A file location cited in any other form, such as a line named in prose, is a failed anchor too.
 2. Reject it unless `git cat-file -t <sha>:<path>` prints `blob`. A deleted or pre-rename path is checked against the review base, not rejected because the reviewed head lacks it; an added or post-rename path exists only at the reviewed head.
 3. Reject it when its end exceeds the line count from `git cat-file -p <sha>:<path> | awk 'END { print NR }'`.
 

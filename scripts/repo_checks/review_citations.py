@@ -25,15 +25,25 @@ HUNK_HEADER = re.compile(r"^@@ -(?P<old>\d+)(?:,\d+)? \+(?P<new>\d+)(?:,\d+)? @@
 ISOLATED = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 
 
-def git(repo: Path, *arguments: str) -> bytes:
-    """Run one Git command in `repo` and return its raw output."""
+def git(repo: Path, *arguments: str, tolerate_failure: bool = False) -> bytes | None:
+    """Run one Git command in `repo` and return its raw output, or None for a tolerated failure."""
     try:
         result = subprocess.run(["git", *arguments], cwd=repo, capture_output=True, env=ISOLATED)
     except OSError as error:
         fail(f"git is required to check implementation-review citations: {error}")
     if result.returncode:
+        if tolerate_failure:
+            return None
         fail(f"git {arguments[0]} failed: {result.stderr.decode(errors='replace').strip()}")
     return result.stdout
+
+
+def documented(command: str, **values: str) -> list[str]:
+    """The Git arguments of one pinned command before any pipe, with its placeholders filled."""
+    arguments = command.partition(" | ")[0].split(" ")[1:]
+    for name, value in values.items():
+        arguments = [argument.replace(f"<{name}>", value) for argument in arguments]
+    return arguments
 
 
 def parse_anchor(text: str) -> dict | None:
@@ -51,28 +61,32 @@ def hunk_coordinates(diff: str) -> list[dict]:
     old_path = new_path = None
     old = new = 0
     in_hunk = False
+
+    def entry(old_line: int | None, new_line: int | None, text: str) -> None:
+        entries.append({"old_path": old_path, "new_path": new_path, "old": old_line, "new": new_line, "text": text})
+
     for line in diff.split("\n"):
         if line.startswith("diff --git "):
             in_hunk = False
             continue
         if not in_hunk:
             if line.startswith("--- "):
-                old_path = None if line == "--- /dev/null" else line[6:]
+                old_path = None if line == "--- /dev/null" else line[4:].removeprefix("a/")
             elif line.startswith("+++ "):
-                new_path = None if line == "+++ /dev/null" else line[6:]
+                new_path = None if line == "+++ /dev/null" else line[4:].removeprefix("b/")
             elif header := HUNK_HEADER.match(line):
                 old, new, in_hunk = int(header["old"]), int(header["new"]), True
             continue
         if header := HUNK_HEADER.match(line):
             old, new = int(header["old"]), int(header["new"])
         elif line.startswith("-"):
-            entries.append({"old_path": old_path, "new_path": new_path, "old": old, "new": None, "text": line})
+            entry(old, None, line)
             old += 1
         elif line.startswith("+"):
-            entries.append({"old_path": old_path, "new_path": new_path, "old": None, "new": new, "text": line})
+            entry(None, new, line)
             new += 1
         elif line.startswith(" "):
-            entries.append({"old_path": old_path, "new_path": new_path, "old": old, "new": new, "text": line})
+            entry(old, new, line)
             old += 1
             new += 1
     return entries
@@ -96,13 +110,11 @@ def anchor_verdict(repo: Path, anchor: dict | None, *, base: str, head: str) -> 
     start, end = int(anchor["start"]), int(anchor["end"])
     if start < 1 or end < start:
         return "invalid-anchor"
-    sha = head if anchor["side"] == "new" else base
-    kind = subprocess.run(
-        ["git", "cat-file", "-t", f"{sha}:{anchor['path']}"], cwd=repo, capture_output=True, env=ISOLATED,
-    )
-    if kind.returncode or kind.stdout.strip() != b"blob":
+    values = {"sha": head if anchor["side"] == "new" else base, "path": anchor["path"]}
+    kind = git(repo, *documented(BLOB_TYPE_COMMAND, **values), tolerate_failure=True)
+    if kind is None or kind.strip() != b"blob":
         return "missing-path"
-    if end > line_count(git(repo, "cat-file", "-p", f"{sha}:{anchor['path']}")):
+    if end > line_count(git(repo, *documented(LINE_COUNT_COMMAND, **values))):
         return "out-of-range"
     return "verified"
 
@@ -114,7 +126,7 @@ def attribution_verdict(repo: Path, claim: dict, *, commits: list[str]) -> str:
     """
     if claim["commit"] not in commits:
         return "outside-range"
-    patch = git(repo, "show", "--format=", claim["commit"], "--", claim["path"]).decode(errors="replace")
+    patch = git(repo, *documented(COMMIT_PATCH_COMMAND, commit=claim["commit"], path=claim["path"])).decode(errors="replace")
     marker = "-" if claim["change"] == "removed" else "+"
     changed = [entry["text"][1:] for entry in hunk_coordinates(patch) if entry["text"].startswith(marker)]
     return "supported" if any(claim["quote"] in line for line in changed) else "unsupported"
