@@ -1,1 +1,0 @@
-Initial system /usr/bin/python3 3.14 fixture build failed before native invocation: ensurepip unavailable. No system package installed. Rebuilt controlled fixture to declare an existing CPython 3.11.16 runtime, copied into the owned run; this is a fixture adaptation, not a tested target-manager substitution.
