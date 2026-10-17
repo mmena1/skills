@@ -7,7 +7,7 @@
 - **Models and rules**: the top-level modules. They parse documents, hold pinned contract text, and model documented workflows over snapshots. Importing one runs nothing.
 - **Group runners**: the `scenarios/` modules. Each `validate_*` runner reads the real documents and fixtures, then exercises the models through scenario tables, fakes, temporary copies, and mutation self-tests.
 
-Imports point one way: `scenarios/` modules and `check.py` import models, and models import only `common` or other models. A model never imports a runner or the entry point. A responsibility with no scenarios keeps its runner beside its rules (`layout`, `references`, `native_agents`).
+Imports point one way: `scenarios/` modules and `check.py` import models, and models import only `common`, other models, or the sibling `scripts/generate_agents.py`. A model never imports a runner or the entry point. A responsibility with no scenarios keeps its runner beside its rules (`layout`, `references`, `native_agents`).
 
 ## Ownership
 

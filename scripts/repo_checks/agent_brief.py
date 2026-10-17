@@ -1,7 +1,7 @@
 """The Agent Brief model: completeness, trusted authorship, and comment precedence.
 
-This is the one resolver that the `/implement`, `/reconcile`, and `/to-tickets` models
-share, and the completeness rule the tracker contracts must state verbatim.
+Holds the one resolver that the `/implement` and `/reconcile` models share, and the
+completeness rule the tracker contracts must state verbatim.
 """
 
 from __future__ import annotations
