@@ -111,8 +111,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 
 These skills keep their invocation classification and are installed only with the experimental option.
 
-- [`portfolio`](./skills/experimental/portfolio/SKILL.md): Get a read-only development portfolio overview and likely next steps from GitHub.
-- [`portfolio-sync`](./skills/experimental/portfolio-sync/SKILL.md): Add open issues and pull requests missing from the portfolio Project, after a reviewed dry run.
+- [`portfolio`](./skills/experimental/portfolio/SKILL.md): Get a read-only development portfolio overview and likely next steps from the GitHub Issues of repositories linked to a GitHub Project.
 - [`retro`](./skills/experimental/retro/SKILL.md): Review a session for evidence-backed improvements to the agent environment.
 
 ## Invocation verification

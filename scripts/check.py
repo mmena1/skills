@@ -20,7 +20,7 @@ from repo_checks.scenarios.implementation import (
     validate_branch_satisfied_blockers, validate_implementation_review_routing_contract,
     validate_implementation_working_copy_contract,
 )
-from repo_checks.scenarios.portfolio_sync import validate_portfolio_sync
+from repo_checks.scenarios.portfolio import validate_portfolio_contract
 from repo_checks.scenarios.pr_handoff import validate_multi_ticket_pr_contract, validate_pr_ticket_plan
 from repo_checks.scenarios.reconciliation import validate_reconciliation, validate_reconciliation_contract
 from repo_checks.scenarios.review_citations import validate_review_citations
@@ -51,7 +51,7 @@ def main() -> int:
         validate_deep_review()
         validate_deep_review_generation()
         validate_agent_generation_contract()
-        validate_portfolio_sync()
+        validate_portfolio_contract()
         validate_wizard()
     except CheckFailure as error:
         print(f"FAIL: {error}", file=sys.stderr)

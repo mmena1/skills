@@ -31,7 +31,7 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | `scenarios/review_citations` | Anchor and commit attribution scenarios over a disposable Git repository, and the implementation-review citation wording. |
 | `scenarios/deep_review` | The deep-review group and its mutation self-tests. |
 | `scenarios/agent_generation` | Generator runs over temporary skill copies, for the fixture skill and deep review. |
-| `scenarios/portfolio_sync` | The portfolio-sync helper against its fake GitHub Project. |
+| `scenarios/portfolio` | The `/portfolio` read-only, registry-only, and GitHub-tracker-only wording, and the absence of any Project synchronization skill. |
 | `scenarios/wizard` | The wizard helper's unittest suite, run as a subprocess. |
 
 `references` holds the stale-reference literals its scanner matches, so it is the one script that scanner exempts. Keep those literals there.
