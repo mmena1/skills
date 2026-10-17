@@ -21,12 +21,14 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | `reconciliation` | The `/reconcile` readiness classification and reconciliation plan model. |
 | `implementation` | The `/implement` start gate, branch gate, and branch-satisfied blocker models. |
 | `pr_handoff` | The `/write-pr` ticket plan model and the pinned PR/merge handoff sentences. |
+| `review_citations` | The implementation-review source anchor, commit attribution, and aggregation model, with its pinned Git commands. |
 | `native_agents` | In-memory rendering of every role manifest and generated-file ownership in Git. |
 | `deep_review` | Deep-review pinned roles, the lens catalog, and each document rule catalog with its `*_problems` checker. |
 | `scenarios/tracker` | Tracker capability, implementation authority, and standalone authority mode groups. |
 | `scenarios/implementation` | Review routing, working copy, and branch-satisfied blocker groups. |
 | `scenarios/reconciliation` | Reconciliation plan scenarios and the reconciliation migration contract. |
 | `scenarios/pr_handoff` | Ticket plan scenarios and the multi-ticket handoff wording. |
+| `scenarios/review_citations` | Anchor and commit attribution scenarios over a disposable Git repository, and the implementation-review citation wording. |
 | `scenarios/deep_review` | The deep-review group and its mutation self-tests. |
 | `scenarios/agent_generation` | Generator runs over temporary skill copies, for the fixture skill and deep review. |
 | `scenarios/portfolio_sync` | The portfolio-sync helper against its fake GitHub Project. |
