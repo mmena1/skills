@@ -12,7 +12,9 @@ import tempfile
 from pathlib import Path
 
 import generate_agents
-from check import DEEP_REVIEW_ROLES, RENAMED_SKILLS, ROOT, SKILLS, CheckFailure, fail
+from repo_checks.common import ROOT, SKILLS, CheckFailure, fail
+from repo_checks.deep_review import DEEP_REVIEW_ROLES
+from repo_checks.references import RENAMED_SKILLS
 
 
 def find_bash() -> str:
