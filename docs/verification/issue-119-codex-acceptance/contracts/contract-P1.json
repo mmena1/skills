@@ -1,0 +1,52 @@
+{
+  "invocation": "P1",
+  "base": "fa305faf85d6a69a722f53b4a598143177e54b49",
+  "head": "fa305faf85d6a69a722f53b4a598143177e54b49",
+  "tree": "756b5bd67958292adc4a900acfc2a9acda1bcf9d",
+  "worktree": "/tmp/skills-pr130-codex-20261017/fixture/review-wt",
+  "reference": "/tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md",
+  "declarations": {
+    "app.py": "035e64501e3108c549d2e31e291d11aac7d367a9efba732513805d62a8eb66d4",
+    "AGENTS.md": "3a447c14c23519125f54433bdecd2f4286e9704f330ad080f80a0d0a608ed4da",
+    "pyproject.toml": "a83106c36940eb31fc0ddfaa60f0f61c32f5784c00b9eecace96e65fb61ef531",
+    "requirements.lock": "80706e5ad3f6ffcbac7dce33e0851bbdfba4d1a05c9c212b6aaedd978106855d",
+    ".gitignore": "57a8ad0e62346f7b0f2e261d59a7b90f1310043424bcb9d229208f183f1940d9",
+    "vendor/fixturedep-1.0.0.tar.gz": "c22414c7dec917f7e744d28097c98e956d7c5b83edc9137049f86fc50e6de255"
+  },
+  "runtime": {
+    "requirement": ">=3.11",
+    "selected": "/tmp/skills-pr130-codex-20261017/runtime/bin/python3.11",
+    "manager": null,
+    "groups": null
+  },
+  "environment": {
+    "path": "/tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv",
+    "ownership": "owned disposable worktree",
+    "cache": "disabled",
+    "temp": "/tmp/skills-pr130-codex-20261017/fixture/owned-tmp",
+    "shared_inheritance": "wrapper --clearenv; PYTHONNOUSERSITE=1; PIP_CONFIG_FILE=/dev/null"
+  },
+  "process_gate": {
+    "satisfied": true,
+    "mechanism": "Bubblewrap mount/user/network/PID/IPC/UTS isolation, capabilities dropped, no_new_privs; nested user namespaces disabled",
+    "wrapper": "/tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run",
+    "wrapper_sha256": "4d9d4eeebc962ff8b1909dab340caf2c5a072b6a8c90a5485a75aadba499ca80",
+    "canary": "/tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json",
+    "canary_sha256": "3ab4dbd60fcb84d482b92fcaf63b1973f01b3df787f5b63ef0dd8c08bbf01828",
+    "policy": "Only review-wt (except .git) and owned-tmp host paths writable; read-only /usr /etc runtime and fixture; private /tmp /dev /proc; no real home/caller outside fixture; outbound network unavailable. Covers commands and children. Native validator tool access itself is instruction-enforced under inherited full access, so every executable target command MUST use wrapper.",
+    "explicit_execution_authorization": null
+  },
+  "setup_commands": [
+    "/tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run --cwd /tmp/skills-pr130-codex-20261017/fixture/review-wt -- /tmp/skills-pr130-codex-20261017/runtime/bin/python3.11 -m venv .venv",
+    "/tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run --cwd /tmp/skills-pr130-codex-20261017/fixture/review-wt -- .venv/bin/python -m pip install --no-index --find-links vendor --require-hashes -r requirements.lock"
+  ],
+  "verification": "Through wrapper with .venv/bin/python -B: capture sys.executable, version >=3.11, importlib.metadata.version fixturedep must equal 1.0.0; import app and fixturedep, app.__file__ inside pinned worktree and fixturedep.__file__ inside owned venv; pip check. Manifest/lock hashes must stay unchanged. Do not accept a check until actual runtime/versions/origins match.",
+  "bounded_check": "/tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run --cwd /tmp/skills-pr130-codex-20261017/fixture/review-wt -- .venv/bin/python -B -c 'import app; print(app.calculate(3))'",
+  "already_run": "only coordinator-authored gate canary and exact baseline restoration; no target setup/import/check run",
+  "inadmissible_hints": {
+    "caller_environment": "/tmp/skills-pr130-codex-20261017/fixture/caller/.venv",
+    "prior_probe_interpreter": null
+  },
+  "substitutions": "none permitted; fixturedep is a controlled locally vendored distribution, not a mock substituted during validation",
+  "hypothesis": "H1"
+}

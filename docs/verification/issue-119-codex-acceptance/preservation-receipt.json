@@ -1,0 +1,14 @@
+{
+  "kind": "targeted acceptance artifact preservation, outer coordinator operation",
+  "record_directory": "/home/martin/code/skills/.git/deep-review/records/skills-pr130-codex-e31ead5-01a14752",
+  "copied_files": 57,
+  "copy_order": "run-state.json last",
+  "byte_equality_verified_for_every_copied_file": true,
+  "copied_run_state_sha256": "c437ff04e631dc6fc447f947cac620f07fd695064c66fc93d82b38f509876bae",
+  "registered_fixture_worktree_removed_before_copy": true,
+  "temporary_fixture_runtime_native_home_and_credential_link_removed_before_copy": true,
+  "temporary_run_directory": "/tmp/skills-pr130-codex-20261017",
+  "temporary_run_directory_removed_after_verified_copy": true,
+  "recorded_at_utc": "2026-10-17T00:57:10.702331+00:00",
+  "limits": "This outer artifact preservation is not a native full-review record-preservation acceptance row. Native probe provenance was already consolidated before each restoration."
+}

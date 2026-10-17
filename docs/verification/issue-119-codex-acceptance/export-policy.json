@@ -1,0 +1,5 @@
+{
+  "included": "Whitelisted native session/turn identity, visible tool calls and outputs, command events and results, public agent messages, subagent lifecycle events, supplied coordinator prompt/contracts and consolidated state.",
+  "excluded": "Credentials/auth links, auth/cache DBs, environment secrets, reasoning items and reasoning summaries, private base instructions. Opaque encrypted native task payloads are replaced with hash/length markers; not decrypted. Exact child handoff prose is opaque in native logs; supplied parent prompt, contract bytes, launch identity, child contract-read commands and results are retained.",
+  "source": "Fresh isolated Codex CLI native sessions for this run only. No historical Claude events count as Codex observations."
+}

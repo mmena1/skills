@@ -1,0 +1,421 @@
+[
+  {
+    "id": "P1",
+    "task": "/root/p1",
+    "native_id": "01a14753-f820-7280-b3f3-b34047fc8e1a",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "native_role": "deep-review-validator-probe",
+    "inherited_policy": {
+      "type": "danger-full-access"
+    },
+    "approval_policy": "never",
+    "outcome": "Finding",
+    "before_baseline_verified": true,
+    "evidence_recorded_before_restore": true,
+    "restoration_verified": true,
+    "fingerprint_matches": {
+      "caller_checkout_excluding_git_and_venv": true,
+      "caller_git_excluding_worktree_admin": true,
+      "caller_venv": true,
+      "sim_home": true,
+      "shared_tmp": true,
+      "contracts": true,
+      "context": true,
+      "tools": true
+    },
+    "native_command_count": 6,
+    "wrapper_command_event_ids": [
+      "exec-ade0bce5-9680-44ee-8e33-ae0b9571967f",
+      "exec-e9849127-e474-4d6f-b572-296998218cc5",
+      "exec-228e33f6-302b-41f7-97c5-d43fa42927c0",
+      "exec-f4160dcf-d02d-41dc-b64f-449f32ac51c5"
+    ],
+    "nonwrapper_commands": [
+      {
+        "event_id": "exec-107c9b78-c037-4a66-ba9f-b19f30662ed0",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P1.json && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json && cat /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-25673d78-3115-4d42-82b9-3406bcf4959f",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt status --short --ignored && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse HEAD^{tree} && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt log --oneline fa305faf85d6a69a722f53b4a598143177e54b49 -1 && sha256sum /tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "complete_response_byte_equal": true,
+    "native_response_sha256": "a9986f3f291b6a832685d3fffb6798283e4107cba2fafceba0b05a0605275204",
+    "saved_response_sha256": "a9986f3f291b6a832685d3fffb6798283e4107cba2fafceba0b05a0605275204",
+    "native_response_chars": 2532,
+    "saved_response_chars": 2532,
+    "final_phase_observed": true,
+    "hook": {
+      "parent_outside_writes_denied": true,
+      "child_outside_writes_denied": true,
+      "parent_owned_write": "written",
+      "child_owned_write": "written"
+    }
+  },
+  {
+    "id": "P2",
+    "task": "/root/p2",
+    "native_id": "01a14754-f21f-7ca2-85fc-cb6570d8f131",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "native_role": "deep-review-validator-probe",
+    "inherited_policy": {
+      "type": "danger-full-access"
+    },
+    "approval_policy": "never",
+    "outcome": "Disproved",
+    "before_baseline_verified": true,
+    "evidence_recorded_before_restore": true,
+    "restoration_verified": true,
+    "fingerprint_matches": {
+      "caller_checkout_excluding_git_and_venv": true,
+      "caller_git_excluding_worktree_admin": true,
+      "caller_venv": true,
+      "sim_home": true,
+      "shared_tmp": true,
+      "contracts": true,
+      "context": true,
+      "tools": true
+    },
+    "native_command_count": 9,
+    "wrapper_command_event_ids": [
+      "exec-2c22b8cf-b087-4a3c-b83a-efc7bdab6f94",
+      "exec-1a7b033e-c1a3-4dc4-92c5-88c67ed78420",
+      "exec-79763ee4-6ed4-4243-aa54-5d881bb9f662",
+      "exec-b1d2d952-7060-410d-b201-9da6fc759266",
+      "exec-e522e017-dd53-4f8e-9177-0292edbf22eb"
+    ],
+    "nonwrapper_commands": [
+      {
+        "event_id": "exec-ef02017f-65bb-4677-80a8-069dea3abf1d",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P2.json && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json && cat /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json && cat /tmp/skills-pr130-codex-20261017/fixture/context/manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/core-manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/reviewers/validator-manifest"
+        ],
+        "exit_code": 1
+      },
+      {
+        "event_id": "exec-e94cf760-fc78-40e3-ba22-2f6c70e698a5",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "find /tmp/skills-pr130-codex-20261017/fixture/context -maxdepth 3 -type f -print; sha256sum /tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json; git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt status --short --ignored; git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse HEAD^{tree}; git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse HEAD"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-894cc512-b350-4a5b-8a04-bf6835dbe3fd",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/context/manifest; cat /tmp/skills-pr130-codex-20261017/fixture/context/core-manifest; cat /tmp/skills-pr130-codex-20261017/fixture/context/validator-manifest; cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md; cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml; cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock; cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore; cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py; sha256sum /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-3d802931-7f64-49b7-9cb0-5a234e2700bc",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run; cat /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json; cat /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "complete_response_byte_equal": true,
+    "native_response_sha256": "9be3cd83ed57e5bd2e9907dc6dc20a0cce604c364d8265aeaa03e679284dde21",
+    "saved_response_sha256": "9be3cd83ed57e5bd2e9907dc6dc20a0cce604c364d8265aeaa03e679284dde21",
+    "native_response_chars": 3129,
+    "saved_response_chars": 3129,
+    "final_phase_observed": true,
+    "hook": {
+      "parent_outside_writes_denied": true,
+      "child_outside_writes_denied": true,
+      "parent_owned_write": "written",
+      "child_owned_write": "written"
+    }
+  },
+  {
+    "id": "P3",
+    "task": "/root/p3",
+    "native_id": "01a14756-1954-75b0-a7dd-e87e6a215769",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "native_role": "deep-review-validator-probe",
+    "inherited_policy": {
+      "type": "danger-full-access"
+    },
+    "approval_policy": "never",
+    "outcome": "Unresolved",
+    "before_baseline_verified": true,
+    "evidence_recorded_before_restore": true,
+    "restoration_verified": true,
+    "fingerprint_matches": {
+      "caller_checkout_excluding_git_and_venv": true,
+      "caller_git_excluding_worktree_admin": true,
+      "caller_venv": true,
+      "sim_home": true,
+      "shared_tmp": true,
+      "contracts": true,
+      "context": true,
+      "tools": true
+    },
+    "native_command_count": 9,
+    "wrapper_command_event_ids": [],
+    "nonwrapper_commands": [
+      {
+        "event_id": "exec-b85b20ba-333e-4950-baba-78c59df18eb5",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P3.json"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-964ab073-b1d2-4b1a-8bd0-cdf2062515e1",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-02b3aecd-85d2-4139-9d1a-1f9d4f23e9a0",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/context/manifest /tmp/skills-pr130-codex-20261017/fixture/context/core-manifest /tmp/skills-pr130-codex-20261017/fixture/context/validator-manifest"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-0e52feb2-9d97-4bc9-bd16-da03ba2043f7",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-be03fdca-512e-44cd-8fc8-97f2f2c6dbbf",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt status --short --ignored"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-630723d8-5694-4e4a-a4b6-cf4c3ecd40e4",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt log --oneline fa305faf85d6a69a722f53b4a598143177e54b49 --"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-8bcc252d-bf52-4fba-8ab1-c6a75490a5e5",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt show fa305faf85d6a69a722f53b4a598143177e54b49:app.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-f6c92e56-fe1b-4825-a859-8eeb078fa47e",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "tar -tzf /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-8ad67149-4f60-4e2c-8b1f-6ffc7da00ed1",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "tar -xOzf /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz fixturedep-1.0.0/fixturedep/__init__.py"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "complete_response_byte_equal": true,
+    "native_response_sha256": "2361366e7edae1d5ea6afd9f087de860abb791cf821e8d776aa512cf1dc4b492",
+    "saved_response_sha256": "2361366e7edae1d5ea6afd9f087de860abb791cf821e8d776aa512cf1dc4b492",
+    "native_response_chars": 1496,
+    "saved_response_chars": 1496,
+    "final_phase_observed": true
+  },
+  {
+    "id": "P4",
+    "task": "/root/p4",
+    "native_id": "01a14758-ca39-7222-9a33-b19dc8d05078",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "native_role": "deep-review-validator-probe",
+    "inherited_policy": {
+      "type": "danger-full-access"
+    },
+    "approval_policy": "never",
+    "outcome": "Unresolved",
+    "before_baseline_verified": true,
+    "evidence_recorded_before_restore": true,
+    "restoration_verified": true,
+    "fingerprint_matches": {
+      "caller_checkout_excluding_git_and_venv": true,
+      "caller_git_excluding_worktree_admin": true,
+      "caller_venv": true,
+      "sim_home": true,
+      "shared_tmp": true,
+      "contracts": true,
+      "context": true,
+      "tools": true
+    },
+    "native_command_count": 5,
+    "wrapper_command_event_ids": [
+      "exec-d177fb18-ceaa-42ea-9af4-103156617f8f"
+    ],
+    "nonwrapper_commands": [
+      {
+        "event_id": "exec-a5236547-0328-46d3-879f-0f5fa5a4b30f",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P4.json && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json && cat /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json && cat /tmp/skills-pr130-codex-20261017/fixture/context/manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/core-manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/validator-manifest"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-e15edd7e-d0a0-415a-bb92-655660d068f7",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt status --short --ignored && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse HEAD && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse HEAD^{tree} && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt cat-file -e fa305faf85d6a69a722f53b4a598143177e54b49^{commit} && sha256sum /tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-015f48ed-a5bf-4b77-ae40-7a0746d939e1",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "rg --files /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages | rg '/fixturedep(/|-[^/]+\\.dist-info/)' && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages/fixturedep-0.9.0.dist-info/METADATA && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages/fixturedep/__init__.py"
+        ],
+        "exit_code": 1
+      },
+      {
+        "event_id": "exec-b78cbd13-2389-48d0-a1bf-dad3c8387c2a",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages/fixturedep-1.0.0.dist-info/METADATA && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages/fixturedep/__init__.py && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/.venv/lib/python3.11/site-packages/fixturedep-1.0.0.dist-info/RECORD"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "complete_response_byte_equal": true,
+    "native_response_sha256": "e0a3685c22796336e200f9d5f42e05b23bd67d2416c2c427359766837cda8279",
+    "saved_response_sha256": "e0a3685c22796336e200f9d5f42e05b23bd67d2416c2c427359766837cda8279",
+    "native_response_chars": 2743,
+    "saved_response_chars": 2743,
+    "final_phase_observed": true,
+    "hook": {
+      "parent_outside_writes_denied": true,
+      "child_outside_writes_denied": true,
+      "parent_owned_write": "written",
+      "child_owned_write": "written"
+    }
+  },
+  {
+    "id": "P5",
+    "task": "/root/p5",
+    "native_id": "01a1475a-1a91-7733-9b46-733dd417220d",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "native_role": "deep-review-validator-probe",
+    "inherited_policy": {
+      "type": "danger-full-access"
+    },
+    "approval_policy": "never",
+    "outcome": "Unresolved",
+    "before_baseline_verified": true,
+    "evidence_recorded_before_restore": true,
+    "restoration_verified": true,
+    "fingerprint_matches": {
+      "caller_checkout_excluding_git_and_venv": true,
+      "caller_git_excluding_worktree_admin": true,
+      "caller_venv": true,
+      "sim_home": true,
+      "shared_tmp": true,
+      "contracts": true,
+      "context": true,
+      "tools": true
+    },
+    "native_command_count": 6,
+    "wrapper_command_event_ids": [
+      "exec-f2344a09-0d2f-4e58-834a-7c0528ca0c98",
+      "exec-08b0b071-1bb9-483d-8d2f-1f6326900f29",
+      "exec-1f126ab6-73e7-4bff-ac47-06bd1713d2d5"
+    ],
+    "nonwrapper_commands": [
+      {
+        "event_id": "exec-aca02095-29dd-4297-af5c-98478a3a111c",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/probe-environment.md && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P5.json && cat /tmp/skills-pr130-codex-20261017/fixture/contracts/gate-verification.json && cat /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json && cat /tmp/skills-pr130-codex-20261017/fixture/context/manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/core-manifest && cat /tmp/skills-pr130-codex-20261017/fixture/context/validator-manifest"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-a3d0aec3-0309-44fd-b978-8fa071599615",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "cat /tmp/skills-pr130-codex-20261017/fixture/contracts/contract-P5.json"
+        ],
+        "exit_code": 0
+      },
+      {
+        "event_id": "exec-ce8cc4fe-83ac-4b2f-86e1-5584da8e0e44",
+        "command": [
+          "/bin/bash",
+          "-lc",
+          "git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt status --short --ignored && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse fa305faf85d6a69a722f53b4a598143177e54b49^{commit} && git -C /tmp/skills-pr130-codex-20261017/fixture/review-wt rev-parse fa305faf85d6a69a722f53b4a598143177e54b49^{tree} && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock && cat /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py && sha256sum /tmp/skills-pr130-codex-20261017/fixture/tools/sbx-run /tmp/skills-pr130-codex-20261017/fixture/evidence/gate-canary.json /tmp/skills-pr130-codex-20261017/fixture/review-wt/app.py /tmp/skills-pr130-codex-20261017/fixture/review-wt/AGENTS.md /tmp/skills-pr130-codex-20261017/fixture/review-wt/pyproject.toml /tmp/skills-pr130-codex-20261017/fixture/review-wt/requirements.lock /tmp/skills-pr130-codex-20261017/fixture/review-wt/.gitignore /tmp/skills-pr130-codex-20261017/fixture/review-wt/vendor/fixturedep-1.0.0.tar.gz"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "complete_response_byte_equal": true,
+    "native_response_sha256": "9c8ddd054359b884b6ebc1a5e78cf67cbc12033eec27a596f33c19f69cd47291",
+    "saved_response_sha256": "9c8ddd054359b884b6ebc1a5e78cf67cbc12033eec27a596f33c19f69cd47291",
+    "native_response_chars": 1737,
+    "saved_response_chars": 1737,
+    "final_phase_observed": true,
+    "hook": {
+      "parent_outside_writes_denied": true,
+      "child_outside_writes_denied": true,
+      "parent_owned_write": "written",
+      "child_owned_write": "written"
+    }
+  }
+]

@@ -1,0 +1,208 @@
+{
+  "role_load": [
+    {
+      "native_id": "01a1475a-1a91-7733-9b46-733dd417220d",
+      "canonical_validator_body_in_native_developer_message": true,
+      "canonical_body_sha256": "ff5bddc2c5c0bc0afd2a5e56a5fecea893db6ce5aa97438b0989d8b2d7065a83"
+    },
+    {
+      "native_id": "01a14758-ca39-7222-9a33-b19dc8d05078",
+      "canonical_validator_body_in_native_developer_message": true,
+      "canonical_body_sha256": "ff5bddc2c5c0bc0afd2a5e56a5fecea893db6ce5aa97438b0989d8b2d7065a83"
+    },
+    {
+      "native_id": "01a14756-1954-75b0-a7dd-e87e6a215769",
+      "canonical_validator_body_in_native_developer_message": true,
+      "canonical_body_sha256": "ff5bddc2c5c0bc0afd2a5e56a5fecea893db6ce5aa97438b0989d8b2d7065a83"
+    },
+    {
+      "native_id": "01a14754-f21f-7ca2-85fc-cb6570d8f131",
+      "canonical_validator_body_in_native_developer_message": true,
+      "canonical_body_sha256": "ff5bddc2c5c0bc0afd2a5e56a5fecea893db6ce5aa97438b0989d8b2d7065a83"
+    },
+    {
+      "native_id": "01a14753-f820-7280-b3f3-b34047fc8e1a",
+      "canonical_validator_body_in_native_developer_message": true,
+      "canonical_body_sha256": "ff5bddc2c5c0bc0afd2a5e56a5fecea893db6ce5aa97438b0989d8b2d7065a83"
+    }
+  ],
+  "event_ordering": [
+    {
+      "id": "P1",
+      "native_event_order_verified": true,
+      "times_ms": {
+        "before_complete": 1792198030552,
+        "launch": 1792198047836,
+        "child_final": 1792198073833,
+        "preserve_start": 1792198087128,
+        "preserve_complete": 1792198087231,
+        "restore_start": 1792198089346,
+        "restore_complete": 1792198089444
+      },
+      "event_ids": {
+        "before": "exec-92a420fa-3c7c-435c-b65f-e83d7a72edfa",
+        "preserve": "exec-1766d817-c747-4c59-b439-fea6eb0334ee",
+        "restore": "exec-61eb9529-4d5f-43e6-9c18-5d2c487c0fec"
+      }
+    },
+    {
+      "id": "P2",
+      "native_event_order_verified": true,
+      "times_ms": {
+        "before_complete": 1792198096032,
+        "launch": 1792198111801,
+        "child_final": 1792198143735,
+        "preserve_start": 1792198161998,
+        "preserve_complete": 1792198162078,
+        "restore_start": 1792198165564,
+        "restore_complete": 1792198165565
+      },
+      "event_ids": {
+        "before": "exec-8c55c4b7-939b-4e4c-b560-7cb06fd6331b",
+        "preserve": "exec-b05811ac-99d1-48be-a377-3d130b47273f",
+        "restore": "exec-21ea6012-4b8c-4ac5-b200-14355ed1dd8c"
+      }
+    },
+    {
+      "id": "P3",
+      "native_event_order_verified": true,
+      "times_ms": {
+        "before_complete": 1792198171316,
+        "launch": 1792198187374,
+        "child_final": 1792198212483,
+        "preserve_start": 1792198220297,
+        "preserve_complete": 1792198220374,
+        "restore_start": 1792198224437,
+        "restore_complete": 1792198224437
+      },
+      "event_ids": {
+        "before": "exec-534fb5d9-d38c-4356-952e-d2075055916b",
+        "preserve": "exec-6029127e-0620-4dba-97b2-7ebad57d71fc",
+        "restore": "exec-c4276523-6314-4c6d-bb49-3fd08416cf4f"
+      }
+    },
+    {
+      "id": "P4",
+      "native_event_order_verified": true,
+      "times_ms": {
+        "before_complete": 1792198326634,
+        "launch": 1792198363756,
+        "child_final": 1792198393366,
+        "preserve_start": 1792198406035,
+        "preserve_complete": 1792198406150,
+        "restore_start": 1792198416307,
+        "restore_complete": 1792198416307
+      },
+      "event_ids": {
+        "before": "exec-3a5bcf65-b02e-482a-93c3-bca00be5c657",
+        "preserve": "exec-a1e890c3-7175-44b4-8d45-16fa1d950a67",
+        "restore": "exec-e4f8ec47-374a-4048-80d3-da7f7110c1bb"
+      }
+    },
+    {
+      "id": "P5",
+      "native_event_order_verified": true,
+      "times_ms": {
+        "before_complete": 1792198421421,
+        "launch": 1792198449844,
+        "child_final": 1792198480429,
+        "preserve_start": 1792198494569,
+        "preserve_complete": 1792198494660,
+        "restore_start": 1792198503951,
+        "restore_complete": 1792198503951
+      },
+      "event_ids": {
+        "before": "exec-b77b4f46-abeb-4744-af16-068091c62188",
+        "preserve": "exec-a5e4675b-e190-4fbf-8b87-084569ac92a1",
+        "restore": "exec-38825564-54c4-4b90-a713-f009fc21aeac"
+      }
+    }
+  ],
+  "P1_P3_entries_unchanged": {
+    "P1": "4a448099068ca2b614a15f78ece220ef15fac558f2b66c6cd6f13f450bd411db",
+    "P2": "620ab79797906a51740e9c432a2ca5067f37a647af5167fdaddcd4ef37eb4922",
+    "P3": "d858807fe076968b38047ea0bd5a0354117bc582554cadee7e0644e6c7fd01b2"
+  },
+  "global_config_and_role_hashes_before": {
+    "/home/martin/.codex/config.toml": "417ff9434a4c20e1a422ed572801684564220e9e21b7d3fc90f846c210f2d1d7",
+    "/mnt/c/Users/marti/.codex/config.toml": "730407d7fc35e1a28c6c5028f1c4aa78a2965f6084ee3916d596be8624b8e317",
+    "/home/martin/.codex/agents/deep-review-scout-history.toml": "9ac50a9861c9cd7f27035ba873c3555d1582e4d52536b6a5873b1e0c63299097",
+    "/home/martin/.codex/agents/deep-review-scout-docs.toml": "036764ff158862b1ff47819c2fabc2b6ac2630288203f206b99390b90cf13348",
+    "/home/martin/.codex/agents/deep-review-structural.toml": "d57454859078b84f11cd497f06f57e2480a76e85c3a7b2954070b5ea800cf9a0",
+    "/home/martin/.codex/agents/deep-review-validator-probe.toml": "759b7c5afeb9603b5b5b495ca2c9edd0caed602f63d91e1b99b34faa18516b80",
+    "/home/martin/.codex/agents/deep-review-validator-static.toml": "6243f22170bb6fb6e4679ac756a05b69aa7ef5d356d53ee20ef8e6f770b236ca",
+    "/home/martin/.codex/agents/deep-review-scout-bugs.toml": "50bb0593fd8f6cf5076436844a338ec89f92e45d934d724e96719bde9875b930",
+    "/home/martin/.codex/agents/deep-review-scout-conventions.toml": "81729e1c0feb7ab35f99b41cdfe1332bcb5040b523b57fac3e3b82f884066d5c",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-bugs.toml": "50bb0593fd8f6cf5076436844a338ec89f92e45d934d724e96719bde9875b930",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-conventions.toml": "81729e1c0feb7ab35f99b41cdfe1332bcb5040b523b57fac3e3b82f884066d5c",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-docs.toml": "036764ff158862b1ff47819c2fabc2b6ac2630288203f206b99390b90cf13348",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-history.toml": "9ac50a9861c9cd7f27035ba873c3555d1582e4d52536b6a5873b1e0c63299097",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout.toml": "94405242c6b8700a990a1220caf39e305c843e4d73796dc494fc4e8426bdd9c7",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-structural.toml": "d57454859078b84f11cd497f06f57e2480a76e85c3a7b2954070b5ea800cf9a0",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-validator-probe.toml": "9b1b1556c3852fded7a5e85ff706f62ff97f51b208873d2c2e06afcb7f88ad3d",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-validator-static.toml": "2bd13d94e0d281520f0c68b4b2ca558d3d0b9546bee7ef8482e2f547dc6f7351"
+  },
+  "global_config_and_role_hashes_after": {
+    "/home/martin/.codex/config.toml": "417ff9434a4c20e1a422ed572801684564220e9e21b7d3fc90f846c210f2d1d7",
+    "/mnt/c/Users/marti/.codex/config.toml": "730407d7fc35e1a28c6c5028f1c4aa78a2965f6084ee3916d596be8624b8e317",
+    "/home/martin/.codex/agents/deep-review-scout-history.toml": "9ac50a9861c9cd7f27035ba873c3555d1582e4d52536b6a5873b1e0c63299097",
+    "/home/martin/.codex/agents/deep-review-scout-docs.toml": "036764ff158862b1ff47819c2fabc2b6ac2630288203f206b99390b90cf13348",
+    "/home/martin/.codex/agents/deep-review-structural.toml": "d57454859078b84f11cd497f06f57e2480a76e85c3a7b2954070b5ea800cf9a0",
+    "/home/martin/.codex/agents/deep-review-validator-probe.toml": "759b7c5afeb9603b5b5b495ca2c9edd0caed602f63d91e1b99b34faa18516b80",
+    "/home/martin/.codex/agents/deep-review-validator-static.toml": "6243f22170bb6fb6e4679ac756a05b69aa7ef5d356d53ee20ef8e6f770b236ca",
+    "/home/martin/.codex/agents/deep-review-scout-bugs.toml": "50bb0593fd8f6cf5076436844a338ec89f92e45d934d724e96719bde9875b930",
+    "/home/martin/.codex/agents/deep-review-scout-conventions.toml": "81729e1c0feb7ab35f99b41cdfe1332bcb5040b523b57fac3e3b82f884066d5c",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-bugs.toml": "50bb0593fd8f6cf5076436844a338ec89f92e45d934d724e96719bde9875b930",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-conventions.toml": "81729e1c0feb7ab35f99b41cdfe1332bcb5040b523b57fac3e3b82f884066d5c",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-docs.toml": "036764ff158862b1ff47819c2fabc2b6ac2630288203f206b99390b90cf13348",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout-history.toml": "9ac50a9861c9cd7f27035ba873c3555d1582e4d52536b6a5873b1e0c63299097",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-scout.toml": "94405242c6b8700a990a1220caf39e305c843e4d73796dc494fc4e8426bdd9c7",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-structural.toml": "d57454859078b84f11cd497f06f57e2480a76e85c3a7b2954070b5ea800cf9a0",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-validator-probe.toml": "9b1b1556c3852fded7a5e85ff706f62ff97f51b208873d2c2e06afcb7f88ad3d",
+    "/mnt/c/Users/marti/.codex/agents/deep-review-validator-static.toml": "2bd13d94e0d281520f0c68b4b2ca558d3d0b9546bee7ef8482e2f547dc6f7351"
+  },
+  "measured_final_fingerprints": {
+    "caller_checkout_excluding_git_and_venv": {
+      "sha256": "39711d2cf7055aff4ef3d45c8421f7d782f4c3cc99966fb85310b66e5c50734a",
+      "entries": 7
+    },
+    "caller_git_excluding_worktree_admin": {
+      "sha256": "83560e1c985197ef5913cd345b2ca57f0132c95c380fc1b1d7ad8f4d72b0101f",
+      "entries": 52
+    },
+    "caller_venv": {
+      "sha256": "3dec6ce11881049f957d8561fdb1ec308586c37aa95f82d0d1eb604dac57b041",
+      "entries": 2165
+    },
+    "sim_home": {
+      "sha256": "d8ef1bc84f7184103be099c086e7d9cb8e27352b29658bad1577f5037c3657bc",
+      "entries": 1
+    },
+    "shared_tmp": {
+      "sha256": "d8ef1bc84f7184103be099c086e7d9cb8e27352b29658bad1577f5037c3657bc",
+      "entries": 1
+    },
+    "contracts": {
+      "sha256": "0747c0939667665b3b2a634ead526a1bca241fa57c73c5762abece7a29120919",
+      "entries": 11
+    },
+    "context": {
+      "sha256": "71dc1abfc0f8b02c1348a24932564c341a58ae9a443ceda924c3633630ef59ea",
+      "entries": 3
+    },
+    "tools": {
+      "sha256": "c97318e552ef3eb6921a826eafff47b5e6a02b5f261489aa467604f8d455ae46",
+      "entries": 5
+    },
+    "marker_files_anywhere_in_fixture": []
+  },
+  "pr_prepublication": {
+    "headRefOid": "e31ead5ff2f45b67cbe29cea95f8bf202f4a6621",
+    "isDraft": true,
+    "state": "OPEN"
+  },
+  "source_checkout_head": "e31ead5ff2f45b67cbe29cea95f8bf202f4a6621",
+  "source_checkout_status": "",
+  "repository_checks": "PYTHONDONTWRITEBYTECODE=1 python3 scripts/check.py: passed for 31 skills; git diff --check: passed",
+  "limits": "Only measured controlled fixture paths; no general claim that the real home was unchanged. Native role tool access was instruction-enforced under inherited full access; only sbx-run commands mechanically confined. Static transitions crafted; no scouts/static wave or full review ran."
+}

@@ -1,0 +1,16 @@
+{
+  "kind": "targeted acceptance findings publication, not a code-review approval or merge",
+  "pr": "https://github.com/mmena1/skills/pull/130",
+  "head": "e31ead5ff2f45b67cbe29cea95f8bf202f4a6621",
+  "draft": true,
+  "state": "OPEN",
+  "comment_url": "https://github.com/mmena1/skills/pull/130#issuecomment-6227659278",
+  "comment_body_readback_exact": true,
+  "pr_body_readback_exact": true,
+  "comment_sha256": "1c5181b60987deba0eb9fa30d43c62723fa653cacd8ff1306daa21087f5abca8",
+  "pr_body_sha256": "92ed012111d50a3834ded7979dacafee21789164905991ab62d84b6f242f8095",
+  "publication_method": "gh pr comment; gh pr edit failed before mutation on deprecated projectCards query, then REST PATCH body-only succeeded",
+  "global_config_or_permissions_changed": false,
+  "merged": false,
+  "verified_at_utc": "2026-10-17T00:58:24.590792+00:00"
+}

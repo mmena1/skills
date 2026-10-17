@@ -1,0 +1,13 @@
+Targeted acceptance completed: exactly three native `deep-review-validator-probe` invocations, sequentially, without retries.
+
+| Case | Acceptance | Native child | Result |
+|---|---|---|---|
+| P1 | PASS | `/root/p1` | Verified `calculate(3)` printed `9`; Finding. |
+| P2 | PASS | `/root/p2` | Fresh environment verified; `label(3)` printed `<3>`; Disproved. |
+| P3 | PASS | `/root/p3` | Unsatisfied gate respected; no target execution; Unresolved. |
+
+Complete responses and evidence were preserved before each successful restoration. Final head/tree matched, ignored-inclusive status was empty, and owned environments/tmp were disposed.
+
+[Coordinator report](/tmp/skills-pr130-codex-20261017/fixture/evidence/coordinator-report.md) · [Consolidated evidence](/tmp/skills-pr130-codex-20261017/fixture/evidence/run-state.json)
+
+Full coordinator/scout/static acceptance remains **NOT EXERCISED**. Fixtures retained; nothing committed or published.
