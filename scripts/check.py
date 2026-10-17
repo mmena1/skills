@@ -2989,9 +2989,103 @@ def validate_deep_review_follow_up_contract(skill: Path, roles: dict[str, genera
             fail(f"the follow-up check accepted {label}")
 
 
+DEEP_REVIEW_PROBE_ENVIRONMENT_RULES = {
+    "SKILL.md": ("references/probe-environment.md", "environment contract"),
+    "protocol.md": (
+        "## Writable probe environment",
+        "references/probe-environment.md",
+        "environment contract",
+        "environment provenance",
+    ),
+    "reviewers/validator.md": (
+        "references/probe-environment.md",
+        "environment contract",
+        "actual runtime",
+        "process execution gate before setup, production imports, or the bounded check",
+    ),
+    "references/probe-environment.md": (
+        "runtime/dependency declarations, applicable lockfile, dependency groups",
+        "project-native setup/execution convention",
+        "A plain manifest project may use its documented runtime's ordinary isolated installation",
+        "missing or ambiguous prerequisites are a specific limitation",
+        "Compare the actual runtime and dependencies against the declared requirements and locked versions",
+        "installed dependency versions needed by the check",
+        "the reviewed code is loaded from the pinned worktree",
+        "Establish a run-owned dependency environment within the review's permitted disposable boundary",
+        "A venv, lockfile, installation destination, or owned cache path is not a process sandbox",
+        "PEP 517/build backends, npm lifecycle scripts",
+        "including child processes",
+        "explicit user authorization for the pinned target",
+        "A general review request, permission to create the worktree",
+        "do not execute target-controlled setup, imports, or checks",
+        "Authorization is not mechanical isolation",
+        "do not inspect or execute that environment to establish staleness",
+        "installs into, synchronizes, repairs, or otherwise mutates the caller or main checkout's environment",
+        "outside mutable probe state",
+        "Never silently replace missing dependencies with mocks, stubs, fake modules, or import bypasses",
+        "why the bounded question does not depend on it, and what the result cannot establish",
+        "A mock replacing behavior essential to the claim cannot support that claim",
+        "Never call the check passed or infer Finding/Disproved",
+        "Unresolved with evidence, Remaining question, and Needs confirmation",
+        "not validated due to review failure: mark the run incomplete",
+        "block PASS, `No findings`, and publication",
+        "independently decisive static evidence usable with its actual provenance",
+        "An environment removed by restoration must be re-established and verified before reuse",
+        "Failure to preserve required evidence or eliminate contamination stops validation",
+    ),
+    "references/output-template.md": ("environment provenance",),
+    "runtime-acceptance.md": ("references/probe-environment-scenarios.md", "environment provenance"),
+    "references/probe-environment-scenarios.md": (
+        "Stale Python environment",
+        "Verified setup",
+        "Native manager other than uv",
+        "Plain manifest",
+        "Unavailable setup",
+        "Failed setup",
+        "Justified mocking",
+        "Claim-invalidating mocking",
+        "Restoration removes environment",
+        "Retained environment contamination",
+        "Missing or ambiguous prerequisites",
+        "Wrong code origin or locked version",
+        "Owned paths without a process boundary",
+        "Executable install hook under a verified sandbox",
+        "Explicit authorization with residual access",
+        "unchanged caller",
+        "not native runtime evidence",
+    ),
+}
+
+
+def deep_review_probe_environment_problems(documents: dict[str, str]) -> list[str]:
+    """Guard the prompt contract, not execution or dependency provisioning."""
+    return [
+        f"skills/deep-review/{relative}: missing probe environment rule {rule!r}"
+        for relative, rules in DEEP_REVIEW_PROBE_ENVIRONMENT_RULES.items()
+        for rule in rules
+        if rule not in documents.get(relative, "")
+    ]
+
+
+def validate_deep_review_probe_environment_contract(skill: Path) -> None:
+    documents = {
+        relative: (skill / relative).read_text(encoding="utf-8") if (skill / relative).exists() else ""
+        for relative in DEEP_REVIEW_PROBE_ENVIRONMENT_RULES
+    }
+    problems = deep_review_probe_environment_problems(documents)
+    if problems:
+        fail(problems[0])
+    for relative, rules in DEEP_REVIEW_PROBE_ENVIRONMENT_RULES.items():
+        for rule in rules:
+            mutated = {**documents, relative: documents[relative].replace(rule, "")}
+            if not deep_review_probe_environment_problems(mutated):
+                fail(f"the probe environment check accepted a removed {relative} rule")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
+    validate_deep_review_probe_environment_contract(skill)
     validate_deep_review_access_contract(skill)
     validate_deep_review_audience_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}

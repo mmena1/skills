@@ -118,6 +118,12 @@ Static validators may read/search repository files and use read-only Git inspect
 
 Every validator first tries to falsify, checks callers, guards, invariants, contracts, tests, configuration, instructions, and relevant context, and reports no unrelated issue. A hypothesis not attempted because of operational failure is **not validated due to review failure**, not Unresolved.
 
+## Writable probe environment
+
+Before each writable invocation, apply `references/probe-environment.md` completely. The coordinator supplies the validator its environment contract and this reference, after exact-baseline restoration and within the existing owned disposable boundary. Pass that contract's process execution gate before target-controlled setup, imports, or checks, recording the verified effective policy or exact user authorization and residual risk separately from path ownership. The contract establishes target-native dependency setup, actual runtime/dependency and code-origin verification, substitution limits, evidence qualification, and environment disposal or invalidation. It applies equally to follow-up probes. No bounded check supplies executable evidence until verification succeeds.
+
+Preserve each invocation's environment provenance, commands, verification and check results, limitations, outcome, and restoration status in the existing consolidated run state outside mutable probe state before restoration. Setup or verification limitations do not turn failed execution into Finding/Disproved evidence; distinguish a completed inconclusive attempt from operational failure preventing validation using the shared environment contract.
+
 ## Context capture and persisted run state
 
 Context capture is deterministic protocol machinery, not a task for the model to reimplement during a run. Once an artifact has passed path, type, size, target-binding, and race checks, the coordinator copies it exactly once with the fixed direct `cp` filesystem operation (or the harness's byte-for-byte equivalent selected before the run). Every manifest references that existing snapshot entry; a manifest lookup never triggers another copy or rewrite. The operation must preserve bytes exactly and must not use model-authored writes to reconstruct contents or generate an ad-hoc executable capture script. Existing pre/post size and mtime checks, retry behavior, SHA-256 and metadata verification, provenance, privacy, size limits, and snapshot immutability remain mandatory.
@@ -156,7 +162,7 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - capacity-bounded static validation: whether hypotheses exceeding available validator slots were queued in canonical ID order, launched as slots freed, and completed without capacity alone making the run incomplete;
 - multiple selected scouts: whether the complete selected set was dispatched before waiting for any scout to complete;
 - insufficient scout capacity: whether strict preflight stopped before any scout launched, or launch-time refusal stopped the run as incomplete; for launch-time refusal, whether any scouts started, those scouts finished with their evidence preserved, and no retry, reduction, or substitution occurred;
-- validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe;
+- validator probes: whether the static wave completed and the exact baseline was restored and verified before each sequential probe; whether its process execution gate and environment contract were verified before execution, process-boundary evidence, environment provenance and qualified outcomes survived restoration, and environment artifacts could not contaminate later probes;
 - scout failure: whether running scouts finished, the run became incomplete, and publication/PASS were blocked;
 - validator partial failure: whether completed outcomes survived, queued static hypotheses were still attempted, and writable probing was blocked;
 - PR-review-overlap: whether the coordinator retrieved complete discussion after independent validation, recorded semantic dispositions and links, and re-checked overlap before publication when that path was observed;
