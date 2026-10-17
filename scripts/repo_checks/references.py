@@ -23,6 +23,8 @@ RETIRED_FILES = {
     ".github/workflows/release.yml",
     "scripts/sync-plugin-version.mjs",
     "scripts/link-skills.sh",
+    "skills/experimental/portfolio-sync",
+    "scripts/repo_checks/scenarios/portfolio_sync.py",
 }
 STALE_PATTERNS = {
     "ask-matt": re.compile(r"ask-matt", re.IGNORECASE),
@@ -39,7 +41,15 @@ STALE_PATTERNS = {
 RENAMED_SKILLS = {"code-review": "implementation-review"}
 for _former in RENAMED_SKILLS:
     STALE_PATTERNS[f"renamed skill {_former}"] = re.compile(rf"(?<![\w-]){re.escape(_former)}(?![\w-])")
-INTENTIONAL_STALE_REFERENCE_FILES = {"install.sh", "install.ps1", "scripts/repo_checks/references.py"}
+# Removed experimental skills. The installer tests seed installations under these names to prove reconciliation.
+RETIRED_EXPERIMENTAL_SKILLS = ("portfolio-sync",)
+for _retired in RETIRED_EXPERIMENTAL_SKILLS:
+    STALE_PATTERNS[f"retired skill {_retired}"] = re.compile(r"[-_]".join(map(re.escape, _retired.split("-"))))
+INTENTIONAL_STALE_REFERENCE_FILES = {
+    "install.sh", "install.ps1", "scripts/repo_checks/references.py",
+    # A historical verification record pinned to an earlier baseline, so it keeps the names it recorded.
+    "docs/verification/issue-128.md",
+}
 
 
 def iter_repository_text() -> list[Path]:

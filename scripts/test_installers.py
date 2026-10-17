@@ -14,7 +14,7 @@ from pathlib import Path
 import generate_agents
 from repo_checks.common import ROOT, SKILLS, CheckFailure, fail
 from repo_checks.deep_review import DEEP_REVIEW_ROLES
-from repo_checks.references import RENAMED_SKILLS
+from repo_checks.references import RENAMED_SKILLS, RETIRED_EXPERIMENTAL_SKILLS
 
 
 def find_bash() -> str:
@@ -684,9 +684,6 @@ def test_renamed_skills(label: str, temporary: Path, invoke_from, option) -> Non
         if not foreign.is_dir() or (foreign / "local.txt").read_text(encoding="utf-8") != "keep me\n":
             fail(f"{label} installer changed an unrelated skill named {former}")
         assert_skill(foreign_home / ".claude" / "skills" / current, f"name: {current}")
-
-
-RETIRED_EXPERIMENTAL_SKILLS = ("portfolio-sync",)
 
 
 def test_retired_experimental_skills(label: str, temporary: Path, invoke_from, option) -> None:

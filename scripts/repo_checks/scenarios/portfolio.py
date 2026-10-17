@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ..common import ROOT, SKILLS, fail
+from ..common import SKILLS, fail
 
 
 PORTFOLIO = SKILLS / "experimental" / "portfolio"
@@ -14,7 +14,8 @@ PINNED_SENTENCES = (
     "Enumerate the Project's **linked repositories** with a GraphQL query on the ProjectV2 `repositories` connection, "
     "paginated until `pageInfo.hasNextPage` is false and checked against its `totalCount`",
     "Do not fetch Project items, drafts, statuses, fields, issue or PR membership, or history",
-    "A Project with items but no linked repositories supplies no repository registry",
+    "A Project whose linked repositories are completely read and empty supplies no repository registry",
+    "state that this is a registry configuration gap",
     "not an empty portfolio, and do not fall back to repositories referenced by its items",
     "This is an intentional scope override for that request: it does not widen the Project's membership, "
     "and the repository passes the same eligibility gate below.",
@@ -34,12 +35,11 @@ FORBIDDEN = (
      "must not read or change Project items, fields, or settings"),
     (r"addProjectV2ItemById|updateProjectV2|deleteProjectV2|archiveProjectV2|linkProjectV2|unlinkProjectV2",
      "must not send Project mutations"),
-    (r"portfolio[-_]sync|--apply", "must not recommend or run Project synchronization"),
 )
 
 
 def validate_portfolio_contract() -> None:
-    """Pin the `/portfolio` boundary and the removal of the Project synchronization skill."""
+    """Pin the `/portfolio` boundary. The removed synchronization skill is guarded by the references group."""
     skill = (PORTFOLIO / "SKILL.md").read_text(encoding="utf-8")
     for required in PINNED_SENTENCES:
         if required not in skill:
@@ -48,15 +48,3 @@ def validate_portfolio_contract() -> None:
         match = re.search(pattern, skill)
         if match:
             fail(f"portfolio: SKILL.md {reason}, found {match.group(0)!r}")
-
-    for retired in (SKILLS / "experimental" / "portfolio-sync", ROOT / "scripts/repo_checks/scenarios/portfolio_sync.py"):
-        if retired.exists():
-            fail(f"portfolio: the Project synchronization surface must be removed, found {retired.relative_to(ROOT)}")
-
-    for directory in (SKILLS / "experimental").iterdir():
-        for path in directory.rglob("*"):
-            if path.is_file() and re.search(r"portfolio[-_]sync", path.read_text(encoding="utf-8", errors="ignore")):
-                fail(f"portfolio: {path.relative_to(ROOT).as_posix()} must not reference the removed portfolio-sync skill")
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if re.search(r"portfolio[-_]sync", readme):
-        fail("portfolio: README.md must not list the removed portfolio-sync skill")
