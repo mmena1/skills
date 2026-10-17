@@ -14,7 +14,7 @@ from pathlib import Path
 import generate_agents
 from repo_checks.common import ROOT, SKILLS, CheckFailure, fail
 from repo_checks.deep_review import DEEP_REVIEW_ROLES
-from repo_checks.references import RENAMED_SKILLS
+from repo_checks.references import RENAMED_SKILLS, RETIRED_EXPERIMENTAL_SKILLS
 
 
 def find_bash() -> str:
@@ -686,6 +686,45 @@ def test_renamed_skills(label: str, temporary: Path, invoke_from, option) -> Non
         assert_skill(foreign_home / ".claude" / "skills" / current, f"name: {current}")
 
 
+def test_retired_experimental_skills(label: str, temporary: Path, invoke_from, option) -> None:
+    """Reinstalling after an experimental skill is removed deletes its repository-managed installations only."""
+    for retired in RETIRED_EXPERIMENTAL_SKILLS:
+        repository = temporary / f"{label}-retired-{retired}-repository"
+        (repository / "skills" / "experimental").mkdir(parents=True)
+        copy_installers(repository)
+        current = "portfolio"
+        copy_skill_source(SKILLS / "experimental" / current, repository / "skills" / "experimental" / current)
+        retired_source = repository / "skills" / "experimental" / retired
+        roots = (Path(".agents") / "skills", Path(".claude") / "skills")
+
+        for case in ("link", "copy"):
+            home = temporary / f"{label}-retired-{retired}-{case}"
+            for root in roots:
+                stale = home / root / retired
+                if case == "link":
+                    create_broken_directory_link(stale, retired_source)
+                else:
+                    stale.mkdir(parents=True)
+                    (stale / "SKILL.md").write_text(f"---\nname: {retired}\n---\n", encoding="utf-8")
+                    (stale / MANAGED_MARKER).write_text(str(retired_source) + "\n", encoding="utf-8")
+            invoke_from(repository)(home, option("all"), option("experimental"))
+            for root in roots:
+                if os.path.lexists(home / root / retired):
+                    fail(f"{label} reconciliation retained a repository-managed {case} of retired skill {retired} in {root}")
+                if list((home / root).glob(f"{retired}.bak-*")):
+                    fail(f"{label} installer backed up a repository-managed {case} of retired skill {retired} in {root}")
+                assert_skill(home / root / current, f"name: {current}")
+
+        foreign_home = temporary / f"{label}-retired-{retired}-foreign"
+        foreign = foreign_home / ".claude" / "skills" / retired
+        foreign.mkdir(parents=True)
+        (foreign / "local.txt").write_text("keep me\n", encoding="utf-8")
+        invoke_from(repository)(foreign_home, option("claude"), option("experimental"))
+        if not foreign.is_dir() or (foreign / "local.txt").read_text(encoding="utf-8") != "keep me\n":
+            fail(f"{label} installer changed an unrelated skill named {retired}")
+        assert_skill(foreign_home / ".claude" / "skills" / current, f"name: {current}")
+
+
 def test_legacy_deep_review(label: str, temporary: Path, invoke_from, option) -> None:
     """Installations made by the standalone deep-review installer are replaced; anything else is backed up."""
     repository = deep_review_repository(temporary / f"{label}-legacy-repository")
@@ -944,6 +983,7 @@ def test_shell_installer(fixture: Path, temporary: Path) -> None:
     test_deep_review_claude("shell", temporary, invoke_from, shell_options.__getitem__)
     test_deep_review_scout_upgrade("shell", temporary, invoke_from, shell_options.__getitem__)
     test_renamed_skills("shell", temporary, invoke_from, shell_options.__getitem__)
+    test_retired_experimental_skills("shell", temporary, invoke_from, shell_options.__getitem__)
 
 
 def find_powershell() -> str:
@@ -1087,6 +1127,7 @@ def test_powershell_installer(fixture: Path, temporary: Path) -> None:
     test_deep_review_claude("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_deep_review_scout_upgrade("powershell", temporary, invoke_from, powershell_options.__getitem__)
     test_renamed_skills("powershell", temporary, invoke_from, powershell_options.__getitem__)
+    test_retired_experimental_skills("powershell", temporary, invoke_from, powershell_options.__getitem__)
 
 
 def validate_installers() -> None:

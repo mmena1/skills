@@ -15,7 +15,7 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | --- | --- |
 | `common` | Repository-root resolution, `CheckFailure`, and `fail`. Nothing else is shared. |
 | `layout` | The flat skill layout, frontmatter parsing, and the reviewed invocation roster with its Claude, Devin, and Codex controls. |
-| `references` | Retired files, stale names, the em-dash rule, relative links, and README skill links. |
+| `references` | Retired files, stale names (including retired skills), the em-dash rule, relative links, and README skill links. |
 | `agent_brief` | Agent Brief completeness, trusted authorship, and comment precedence. |
 | `tracker_contract` | Tracker capabilities, downstream gates, standalone authority modes, the branch-satisfied operation, and authority resolution. |
 | `reconciliation` | The `/reconcile` readiness classification and reconciliation plan model. |
@@ -31,7 +31,7 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | `scenarios/review_citations` | Anchor and commit attribution scenarios over a disposable Git repository, and the implementation-review citation wording. |
 | `scenarios/deep_review` | The deep-review group and its mutation self-tests. |
 | `scenarios/agent_generation` | Generator runs over temporary skill copies, for the fixture skill and deep review. |
-| `scenarios/portfolio_sync` | The portfolio-sync helper against its fake GitHub Project. |
+| `scenarios/portfolio` | The `/portfolio` read-only, registry-only, and GitHub-tracker-only wording. |
 | `scenarios/wizard` | The wizard helper's unittest suite, run as a subprocess. |
 
 `references` holds the stale-reference literals its scanner matches, so it is the one script that scanner exempts. Keep those literals there.
