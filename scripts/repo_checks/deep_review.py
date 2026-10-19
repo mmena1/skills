@@ -135,17 +135,18 @@ DEEP_REVIEW_ACCESS_RULES = {
         "An inherited sandbox that differs from a role's static or writable behavior contract is not a review failure.",
     ),
     "protocol.md": (
-        "Scouts and static validators analyze the pinned worktree statically and keep disposable scratch files in the run directory outside it.",
+        "Scouts and static validators analyze the pinned worktree statically and keep disposable scratch files in the supplied scratch directory.",
         "Executing the target belongs to the writable probe.",
-        "Static validators keep their scratch files outside the pinned worktree.",
+        "Static validators keep their scratch files in the supplied scratch directory.",
+        "first remove the scratch directory at its exact path once every scout and static validator has finished, whether or not the run directory will be retained",
     ),
     "reviewers/SCOUT.md": (
-        "Keep intermediate analysis output, such as saved diffs, as disposable scratch files in the run directory that holds the worktree, outside the worktree.",
+        "Keep intermediate analysis output, such as saved diffs, as disposable scratch files in the supplied scratch directory.",
         "Executing the target and runtime adjudication belong to the validator.",
     ),
     "reviewers/validator.md": (
         "In the static phase, analyze the committed source with repository reads/searches and Git inspection, "
-        "and keep intermediate analysis output as disposable scratch files in the run directory that holds the worktree, outside the worktree.",
+        "and keep intermediate analysis output as disposable scratch files in the supplied scratch directory.",
         "Executing the target belongs to the writable phase.",
     ),
 }
