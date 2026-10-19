@@ -2,6 +2,8 @@
 
 Static checks cannot prove multi-agent orchestration. Every real review therefore emits a passive receipt in its run state and final report with the harness identity/version, reviewed skill commit, each selected lens with the native agent used for it, the validator agents that ran, and observed result for every row. Use `PASS`, `FAIL`, or `NOT EXERCISED`; unobserved behavior is never a pass.
 
+Scratch files that scouts and static validators keep in the run's scratch directory are ordinary review activity. They change no row's result while the pinned baseline and the caller checkout remain intact.
+
 | Scenario | Devin expected result | Claude Code expected result | Codex expected result |
 | --- | --- | --- | --- |
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same | Same |
@@ -14,7 +16,7 @@ Static checks cannot prove multi-agent orchestration. Every real review therefor
 | Validator partial failure | Completed outcomes remain; queued hypotheses continue in canonical order until each is attempted once; run is incomplete and the writable phase is blocked | Same | Same |
 | PR-review-overlap | Complete inline threads with resolution status, published review summaries, and concrete conversation concerns are fetched only after independent validation; semantic matches suppress open overlaps, retain resolved defects with links, keep distinct mechanisms, and are re-checked before publication | Same | Same |
 | PR head change | Reviewed and current SHAs are reported; result is stale and publication is blocked | Same | Same |
-| Cleanup | Only the current run's worktree, context snapshot, and run directory are removed | Same | Same |
+| Cleanup | Only the current run's scratch directory, worktree, context snapshot, and run directory are removed; the scratch directory is removed even when the run directory is retained | Same | Same |
 
 Normal reviews exercise only paths they encounter. Keep rare failures and transitions `NOT EXERCISED` until natural execution or a targeted smoke run observes them; never perturb a real review solely to fill the matrix. After changes to `SKILL.md` orchestration, `harnesses/roles.toml`, or reviewer bodies, targeted Devin, Codex, and Claude Code smoke runs remain required for important gaps not covered by passive receipts.
 
@@ -26,7 +28,7 @@ Apply [the focused scenarios](references/probe-environment-scenarios.md) at the 
 
 ## Enforcement mechanism in new receipts
 
-Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's read-only or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
+Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's static or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
 
 ## Native agents per lens
 

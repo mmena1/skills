@@ -56,7 +56,7 @@ def validate_deep_review_role_contract(
 
 
 def validate_deep_review_access_contract(skill: Path) -> None:
-    """Reject removed or weakened prohibitions, role sandboxes, and missing inheritance guidance."""
+    """Reject removed or weakened static-analysis rules, role sandboxes, and missing inheritance guidance."""
     documents = {relative: (skill / relative).read_text(encoding="utf-8") for relative in DEEP_REVIEW_ACCESS_RULES}
     problems = deep_review_access_problems(documents)
     if problems:

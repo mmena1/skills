@@ -33,7 +33,7 @@ The installer uses symbolic links on Unix, macOS, and WSL where possible. Git Ba
 
 ### Native reviewer agents
 
-Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with pinned models and supported tool lists. Codex native agents inherit the parent's effective sandbox and approval policy; read-only behavior relies on reviewer instructions within that inherited policy. For each selected harness, the installer installs the agents that selected skills ship into that harness's personal agent directory:
+Some skills also ship **native reviewer agents**: harness-specific agent definitions that let a skill launch named roles with pinned models and supported tool lists. Codex native agents inherit the parent's effective sandbox and approval policy; static-analysis behavior relies on reviewer instructions within that inherited policy. For each selected harness, the installer installs the agents that selected skills ship into that harness's personal agent directory:
 
 - Codex: `~/.codex/agents/<agent>.toml`
 - Devin CLI: `~/.config/devin/agents/<agent>/AGENT.md`, or `%APPDATA%\devin\agents\<agent>\AGENT.md` on Windows
@@ -75,7 +75,7 @@ User-invoked skills are not selected autonomously. A user may invoke them direct
 
 ### User-invoked
 
-- [`deep-review`](./skills/deep-review/SKILL.md): Run a strict PR-gate review with parallel read-only scouts and independent hypothesis validation, or `follow-up` to revalidate selected concerns from a preserved earlier review.
+- [`deep-review`](./skills/deep-review/SKILL.md): Run a strict PR-gate review with parallel static scouts and independent hypothesis validation, or `follow-up` to revalidate selected concerns from a preserved earlier review.
 - [`design-review`](./skills/design-review/SKILL.md): Check a spec's proposed modules for shallow seams before ticket breakdown.
 - [`evaluate-model`](./skills/evaluate-model/SKILL.md): Recommend a model, reasoning effort, and session boundary for an upcoming task, then stop.
 - [`grill-me`](./skills/grill-me/SKILL.md): Sharpen a plan or design through a relentless interview.

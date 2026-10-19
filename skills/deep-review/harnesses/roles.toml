@@ -7,7 +7,7 @@
 # lens from reviewers/lenses/. Validators embed the validator contract.
 
 [roles.scout-bugs]
-description = "Read-only deep-review scout using the bugs lens."
+description = "Static deep-review scout using the bugs lens."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/bugs.md"]
 
 [roles.scout-bugs.codex]
@@ -24,7 +24,7 @@ tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
 [roles.scout-conventions]
-description = "Read-only deep-review scout using the conventions lens."
+description = "Static deep-review scout using the conventions lens."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/conventions.md"]
 
 [roles.scout-conventions.codex]
@@ -41,7 +41,7 @@ tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
 [roles.scout-history]
-description = "Read-only deep-review scout using the history lens."
+description = "Static deep-review scout using the history lens."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/history.md"]
 
 [roles.scout-history.codex]
@@ -58,7 +58,7 @@ tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
 [roles.scout-docs]
-description = "Read-only deep-review scout using the docs lens."
+description = "Static deep-review scout using the docs lens."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/docs.md"]
 
 [roles.scout-docs.codex]
@@ -75,7 +75,7 @@ tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
 [roles.structural]
-description = "Read-only deep-review structural maintainability scout."
+description = "Static deep-review structural maintainability scout."
 body = ["reviewers/SCOUT.md", "reviewers/lenses/structural.md"]
 
 [roles.structural.codex]
@@ -92,7 +92,7 @@ tools = ["Read", "Grep", "Glob", "Bash"]
 effort = "high"
 
 [roles.validator-static]
-description = "Read-only independent adjudicator for one deep-review hypothesis."
+description = "Static independent adjudicator for one deep-review hypothesis."
 body = ["reviewers/validator.md"]
 
 [roles.validator-static.codex]
