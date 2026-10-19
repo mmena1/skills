@@ -15,7 +15,7 @@ import generate_agents
 
 # Current pinned models and limits for the deep-review adapters.
 # Claude Code does not confine an agent's Bash to
-# the patterns in its tool list, so its read-only roles keep plain Bash.
+# the patterns in its tool list, so its static roles keep plain Bash.
 DEEP_REVIEW_READ_ONLY_TOOLS = ["read", "grep", "glob", "exec"]
 DEEP_REVIEW_CLAUDE_READ_ONLY_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 DEEP_REVIEW_ROLES = {
@@ -132,26 +132,26 @@ DEEP_REVIEW_ACCESS_RULES = {
         "Codex native agents inherit the parent's effective sandbox and approval policy. "
         "This cannot be overridden per role and applies to the writable probe too.",
         "On Codex, reports and runtime acceptance receipts describe the boundary as instruction-enforced plus the inherited session policy. "
-        "An inherited sandbox that differs from a role's read-only or writable behavior contract is not a review failure.",
+        "An inherited sandbox that differs from a role's static or writable behavior contract is not a review failure.",
     ),
     "protocol.md": (
-        "Scouts and static validators create no files, probes, fixtures, or temporary tests; "
-        "run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.",
-        "Static validators never execute artifact-producing commands.",
+        "Scouts and static validators analyze the pinned worktree statically and keep disposable scratch files in the run directory outside it.",
+        "Executing the target belongs to the writable probe.",
+        "Static validators keep their scratch files outside the pinned worktree.",
     ),
     "reviewers/SCOUT.md": (
-        "Create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, "
-        "package-manager commands, scripts, or artifact-producing commands.",
+        "Keep intermediate analysis output, such as saved diffs, as disposable scratch files in the run directory that holds the worktree, outside the worktree.",
+        "Executing the target and runtime adjudication belong to the validator.",
     ),
     "reviewers/validator.md": (
-        "In the static phase, use repository reads/searches and read-only Git inspection only. "
-        "Run no builds, tests, linters, typecheckers, scripts, probes, package-manager commands, or artifact-producing commands.",
-        "Create no files, fixtures, or temporary tests in the static phase.",
+        "In the static phase, analyze the committed source with repository reads/searches and Git inspection, "
+        "and keep intermediate analysis output as disposable scratch files in the run directory that holds the worktree, outside the worktree.",
+        "Executing the target belongs to the writable phase.",
     ),
 }
 DEEP_REVIEW_CODEX_ACCESS_CELLS = {
-    "Read-only scouts and static validators": (
-        "Instruction-enforced. Their no-write and no-probe contract relies on the reviewer instructions "
+    "Scouts and static validators": (
+        "Instruction-enforced. Their static-analysis contract relies on the reviewer instructions "
         "and the coordinator's inherited sandbox and approval policy."
     ),
     "Writable probe": (

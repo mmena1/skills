@@ -2,6 +2,8 @@
 
 Static checks cannot prove multi-agent orchestration. Every real review therefore emits a passive receipt in its run state and final report with the harness identity/version, reviewed skill commit, each selected lens with the native agent used for it, the validator agents that ran, and observed result for every row. Use `PASS`, `FAIL`, or `NOT EXERCISED`; unobserved behavior is never a pass.
 
+Scratch files that scouts and static validators keep outside the pinned worktree are ordinary review activity. They change no row's result while the pinned baseline and the caller checkout remain intact.
+
 | Scenario | Devin expected result | Claude Code expected result | Codex expected result |
 | --- | --- | --- | --- |
 | Zero hypotheses | No validator launches; report says all selected dimensions completed with nothing to validate | Same | Same |
@@ -26,7 +28,7 @@ Apply [the focused scenarios](references/probe-environment-scenarios.md) at the 
 
 ## Enforcement mechanism in new receipts
 
-Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's read-only or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
+Codex scouts and static validators are instruction-enforced within the parent's inherited effective sandbox and approval policy. The writable probe inherits that same policy, cannot override it per role, and receives no probe-specific permission. New receipts and reports describe this boundary and record observed policy when available. A difference between inherited policy and a role's static or writable behavior contract alone is not a review failure. Historical rows, receipts, and evidence tables below remain unchanged.
 
 ## Native agents per lens
 

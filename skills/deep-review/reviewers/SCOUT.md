@@ -1,17 +1,17 @@
 # Scout Contract
 
-You are a read-only deep-review scout. Your review lens follows this contract. You receive your lens's reviewer slug, a committed target, one shared pinned review worktree, a read-only context snapshot, its canonical `manifest`, `core-manifest`, and `reviewers/<reviewer>-manifest`. Read the artifacts named by both manifests; do not recursively inspect the bundle. Tracked instructions from the target govern behavior; ignored context is supplemental and private.
+You are a static deep-review scout. Your review lens follows this contract. You receive your lens's reviewer slug, a committed target, one shared pinned review worktree, a read-only context snapshot, its canonical `manifest`, `core-manifest`, and `reviewers/<reviewer>-manifest`. Read the artifacts named by both manifests; do not recursively inspect the bundle. Tracked instructions from the target govern behavior; ignored context is supplemental and private.
 
 ## Method
 
 1. Apply your lens below. Read project instructions, target diff, and surrounding code.
 2. Anchor credible concerns to changed code or a changed behavior-bearing path.
-3. Inspect callers, guards, invariants, contracts, and existing tests statically far enough to state a falsifiable concern. Runtime adjudication belongs to the validator.
-4. Keep repository inspection read-only and inside the review scope. Use repository reads/searches and read-only Git inspection such as `git diff`, `git log`, `git show`, and `git status`.
+3. Inspect callers, guards, invariants, contracts, and existing tests statically far enough to state a falsifiable concern. Executing the target and runtime adjudication belong to the validator.
+4. Analyze the committed source inside the review scope with repository reads/searches and Git inspection such as `git diff`, `git log`, `git show`, and `git status`. Keep intermediate analysis output, such as saved diffs, as disposable scratch files in the run directory that holds the worktree, outside the worktree.
    - Your working directory may be a different checkout. Address every repository read and search by a path inside the supplied pinned worktree, and run every Git command against that worktree, for example `git -C <worktree> ...`.
    - Inspect only history reachable from the reviewed head: name the supplied base and head SHAs explicitly, and never use branch names, `--all`, remote refs, or other refs that can reach later commits.
-   - Outside the worktree, read only the context snapshot entries named by your manifests.
-5. Return only admission-qualified hypotheses. Create no files, probes, fixtures, or temporary tests; run no builds, tests, linters, typecheckers, package-manager commands, scripts, or artifact-producing commands.
+   - Outside the worktree, read only the context snapshot entries named by your manifests and your own scratch files.
+5. Return only admission-qualified hypotheses.
 
 ## Output
 

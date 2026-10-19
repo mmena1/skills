@@ -2,7 +2,7 @@
 
 ## Review run
 
-- **Review run**: One coordinated execution of multiple read-only scouts, capacity-bounded static hypothesis adjudications, and sequential writable probe adjudications. A follow-up revalidation run executes only the validation phases.
+- **Review run**: One coordinated execution of multiple static scouts, capacity-bounded static hypothesis adjudications, and sequential writable probe adjudications. A follow-up revalidation run executes only the validation phases.
 - **Review workspace**: The coordinator-owned disposable area belonging to one review run.
 - **Review target**: The committed PR, branch, or commit range being reviewed. When no target is supplied, the caller's current branch is the target; a detached caller has no implicit target.
 - **Caller checkout**: The repository and checked-out branch from which a run starts. It is launch context, not necessarily the review target.
@@ -27,7 +27,8 @@
 - **Finding**: A hypothesis independently established by the validator with final severity and evidence of actual reachability and impact, or for a structural finding evidence meeting the structural evidence standard.
 - **Disproved**: A hypothesis rejected by validation; it is not user-visible.
 - **Unresolved**: Validation was attempted but could not establish or reject a hypothesis; it is not a Finding and maps to `discuss`.
-- **Static adjudication**: A capacity-bounded read-only validation phase that queues canonical hypotheses in ID order and may return a final outcome or the internal `Needs probe` transition.
+- **Static adjudication**: A capacity-bounded source-level validation phase that queues canonical hypotheses in ID order and may return a final outcome or the internal `Needs probe` transition.
+- **Scratch file**: A disposable intermediate analysis file that a scout or static validator keeps in the run directory outside the pinned worktree. It is ordinary review activity and is never evidence or part of a preserved record.
 - **Writable probe**: A bounded, sequential validation check performed only after static adjudication returns `Needs probe`.
 - **Needs probe**: An internal transition stating that static evidence cannot settle a hypothesis and identifying the unresolved question and cheapest decisive writable check; it is never user-visible.
 - **Not validated due to review failure**: A hypothesis the validator could not attempt because the run failed; it makes the review incomplete and is distinct from Unresolved.
