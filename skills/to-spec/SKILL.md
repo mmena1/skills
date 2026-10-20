@@ -18,7 +18,11 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label until `/design-review` has approved the proposed modules. Do not apply `ready-for-agent` to a spec: that label is reserved for executable tickets published by `/to-tickets`.
+3. Write the spec using the template below, then publish it to the project issue tracker under the spec naming convention. The artifact is always a spec, whatever the tracker:
+   - Remote trackers (GitHub, GitLab, and other issue-based trackers): the spec issue title starts with `Spec: ` followed by the spec name, as in `Spec: <name>`.
+   - Local markdown tracker: the spec is always `.scratch/<feature-slug>/spec.md`, never any other name.
+
+   Apply the `needs-triage` triage label until `/design-review` has approved the proposed modules. Do not apply `ready-for-agent` to a spec: that label is reserved for executable tickets published by `/to-tickets`.
 
 <spec-template>
 

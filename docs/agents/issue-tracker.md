@@ -27,7 +27,7 @@ GitHub shares one number space across issues and PRs, so a bare `#42` may be eit
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+Create a GitHub issue. A spec issue has a title that starts with `Spec: ` followed by the spec name, as in `Spec: <name>`. An implementation issue never uses that prefix.
 
 ## When a skill says "fetch the relevant ticket"
 
