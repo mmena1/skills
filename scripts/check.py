@@ -13,7 +13,7 @@ import sys
 from repo_checks.common import CheckFailure
 from repo_checks.layout import validate_layout_and_skills
 from repo_checks.native_agents import validate_generated_agents_untracked, validate_native_agents
-from repo_checks.references import validate_repository_references
+from repo_checks.references import validate_repository_references, validate_stale_pattern_guard
 from repo_checks.scenarios.agent_generation import validate_agent_generation_contract, validate_deep_review_generation
 from repo_checks.scenarios.deep_review import validate_deep_review
 from repo_checks.scenarios.implementation import (
@@ -24,6 +24,7 @@ from repo_checks.scenarios.portfolio import validate_portfolio_contract
 from repo_checks.scenarios.pr_handoff import validate_multi_ticket_pr_contract, validate_pr_ticket_plan
 from repo_checks.scenarios.reconciliation import validate_reconciliation, validate_reconciliation_contract
 from repo_checks.scenarios.review_citations import validate_review_citations
+from repo_checks.scenarios.spec_naming import validate_spec_naming_contract
 from repo_checks.scenarios.tracker import (
     validate_implementation_authority_contract, validate_standalone_authority_modes,
     validate_tracker_capability_contract,
@@ -34,7 +35,9 @@ from repo_checks.scenarios.wizard import validate_wizard
 def main() -> int:
     try:
         skill_names = validate_layout_and_skills()
+        validate_stale_pattern_guard()
         validate_repository_references()
+        validate_spec_naming_contract()
         validate_implementation_authority_contract()
         validate_implementation_review_routing_contract()
         validate_review_citations()

@@ -59,6 +59,8 @@ When `docs/agents/issue-tracker.md` already exists, identify its tracker choice,
 - **Undeclared (stale)**: the file states neither mode.
 - **Ambiguous (stale)**: the file states both modes.
 
+Also scan the file for **legacy spec terminology**: the former names of the spec, `PRD`, `PRD.md`, and `to-prd`. The artifact `/to-spec` produces is a spec, named by the spec naming convention: a remote tracker's spec issue title starts with `Spec: ` followed by the spec name, and the local markdown tracker's spec is always `.scratch/<feature-slug>/spec.md`. A file that still uses a legacy term for the current artifact has a spec naming gap. It is a stale wording gap, not a missing capability, and it is separate from the standalone authority mode.
+
 An older contract that refreshes only the trigger's normal scope is missing affected reconciliation scopes even if it already has a `/reconcile` paragraph. Direct dependent discovery and the expanded reconciliation contract must migrate together. Check native discovery and fallback precedence, each dependent's own approval or complete trusted Agent Brief, scope deduplication, held triage states in both branches, read versus mutation boundaries, direct-only traversal, deterministic frontiers, and idempotence. A dependency never supplies parent authority.
 
 ### 2. Present findings and ask
@@ -79,7 +81,7 @@ Default posture: these skills were designed for GitHub. If a `git remote` points
 
 Record the choice in `docs/agents/issue-tracker.md`. The GitHub template carries a "PRs as a request surface" flag, defaulted **off**. Leave it off and don't raise it: a user who wants external PRs in the triage queue can flip the flag in the file later.
 
-If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show additions for every missing capability and any standalone authority replacement, and do not ask the user to choose the tracker again.
+If an existing tracker file already makes the choice clear, treat this as a migration instead of configuration. Preserve the tracker choice and every customization, show additions for every missing capability, any standalone authority replacement, and any legacy spec terminology rewrite, and do not ask the user to choose the tracker again.
 
 **Section B: Triage label vocabulary.** Skip this section entirely if the `triage` skill isn't installed (exploration told you), since an uninstalled skill needs no labels.
 
@@ -110,7 +112,7 @@ Show the user a draft of:
 
 Let them edit before writing.
 
-For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. One diff adds every missing capability from the exploration check. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. When its standalone authority is incomplete, the diff adds the missing Agent Brief wording from the matching seed template. When it is undeclared, the diff adds the matching seed template's standalone authority statement; for an Other tracker, ask the user whether parentless implementation tickets are supported first. When it is ambiguous, ask the user which mode applies, and the diff removes the other mode's wording. Do not re-propose configuration that already exists. When nothing is missing and the file already states a current standalone authority mode, parent-only or standalone-capable, report that it is already up to date and make no edits.
+For a migration, show only the proposed changes to `docs/agents/issue-tracker.md` as a diff before any edit. One diff adds every missing capability from the exploration check. When the file defines the retired standalone record contract, the diff replaces only its standalone authority wording (the authority rule, the record and its verification text) and its `/reconcile` contract and standalone reconciliation wording with the Agent Brief equivalents from the matching seed template, adapted to the file's vocabulary. When its standalone authority is incomplete, the diff adds the missing Agent Brief wording from the matching seed template. When it is undeclared, the diff adds the matching seed template's standalone authority statement; for an Other tracker, ask the user whether parentless implementation tickets are supported first. When it is ambiguous, ask the user which mode applies, and the diff removes the other mode's wording. Do not re-propose configuration that already exists. When the file contains legacy spec terminology, the same diff proposes rewriting it to the spec naming convention for the file's tracker, adapted to its vocabulary. The rewrite changes only the legacy terms and the wording that names or locates the spec, so every other customization stays untouched. It renames nothing in the target repository: existing spec files and issues keep their names, and explicit `Parent:` paths and references keep them resolvable. Do not rewrite legacy terms that the file uses to document an existing spec's name on purpose; ask the user when a mention is ambiguous. When nothing is missing, the file contains no legacy spec terminology, and it already states a current standalone authority mode, parent-only or standalone-capable, report that it is already up to date and make no edits.
 
 ### 4. Write
 
@@ -123,7 +125,7 @@ For a migration, show only the proposed changes to `docs/agents/issue-tracker.md
 
 Do not create or prefer `CLAUDE.md` merely because of historical harness behavior. Do not replace an existing supported instruction file with a new one.
 
-In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities plus any stale standalone authority wording: the retired standalone record's authority and `/reconcile` wording, an incomplete Agent Brief rule, an undeclared mode, or the losing side of an ambiguous one. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
+In tracker migration mode, edit only `docs/agents/issue-tracker.md`, and only the missing implementation-workflow capabilities, any legacy spec terminology rewrite, plus any stale standalone authority wording: the retired standalone record's authority and `/reconcile` wording, an incomplete Agent Brief rule, an undeclared mode, or the losing side of an ambiguous one. Leave the instruction file, domain configuration, triage labels, and every existing tracker customization unchanged unless the user separately asks to reconfigure them. A confirmed glossary migration (Section C) is such a request, limited to the renames and name updates it lists.
 
 If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
@@ -157,13 +159,15 @@ Then write the docs files using the seed templates in this skill folder as a sta
 For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
 Define every entry in the required implementation-workflow capabilities above. Also state its standalone authority mode: parent-only, or standalone-capable with the complete Agent Brief rule from the GitHub seed adapted to that tracker. Tracker-specific commands and state names belong in that file so `/implement` and `/reconcile` do not need tracker-specific branches.
 
-For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities and replace or add only stale standalone authority wording, adapting both to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
+For a migration, edit the existing tracker file in place. Add only missing implementation-workflow capabilities, replace or add only stale standalone authority wording, and rewrite only legacy spec terminology to the spec naming convention, adapting each to its existing tracker choice and vocabulary. Preserve every existing customization and unrelated line; never replace the file with a seed template.
 
 When direct dependent discovery or affected reconciliation scopes are missing, add their tracker-specific operations and update the existing `/reconcile` and resolution/frontier wording needed to use them in the same migration diff. Preserve commands, custom state names, fallback conventions, notes, and the configured authority mode. A parent-only tracker still rejects parentless dependents; do not add an Agent Brief rule or standalone support. Show this complete diff in step 3 before writing, then recheck every capability and the authority mode after the edit.
 
 ### 5. Validate
 
 After writing `docs/agents/issue-tracker.md`, re-read the file from disk and validate it against every entry in the required implementation-workflow capabilities. Judge each capability by what the file defines in its own vocabulary, not by matching the seed template's wording.
+
+Also rescan it for legacy spec terminology; any remaining use of a legacy term for the current artifact is a remaining gap.
 
 Also classify its standalone authority mode again. A parent-only or standalone-capable mode is valid; a retired, incomplete, undeclared, or ambiguous mode is a remaining gap.
 

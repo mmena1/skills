@@ -35,6 +35,15 @@ STALE_PATTERNS = {
     "old publishing URL": re.compile(r"aihero\.dev", re.IGNORECASE),
     # Only a line that says "legacy" (a fallback or migration statement) may name the old glossary files.
     "legacy glossary name": re.compile(r"^(?!.*\blegacy\b).*\bCONTEXT(?:-MAP)?\.md", re.MULTILINE),
+    # The artifact `/to-spec` produces is a spec. A file that must name the old terms to migrate them is listed below.
+    "legacy PRD terminology": re.compile(r"\bPRDs?\b|to[-_]prd", re.IGNORECASE),
+}
+# The former names of the spec, as the `setup-skills` migration mode must name them to detect and rewrite them.
+LEGACY_SPEC_TERMS = ("PRD", "PRD.md", "to-prd")
+# The one line per file where the legacy terms are named on purpose. Only a line holding the marker may match
+# the legacy-term pattern there; every other stale pattern, and every other line, stays fully checked.
+LEGACY_SPEC_MIGRATION_LINES = {
+    "skills/setup-skills/SKILL.md": "the former names of the spec, `PRD`, `PRD.md`, and `to-prd`",
 }
 # Former stable skill names mapped to their current names. A former name is a stale
 # reference; the installer tests seed installations under it to prove reconciliation.
@@ -62,6 +71,41 @@ def iter_repository_text() -> list[Path]:
     return paths
 
 
+def first_stale_reference(text: str, migration_marker: str | None = None) -> tuple[str, int] | None:
+    """The label and 1-based line of the first stale pattern in `text`, or None.
+
+    A legacy-term match on a line holding `migration_marker` is an intentional migration reference and is skipped.
+    """
+    lines = text.splitlines()
+    for label, pattern in STALE_PATTERNS.items():
+        for match in pattern.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            if label == "legacy PRD terminology" and migration_marker and migration_marker in lines[line - 1]:
+                continue
+            return label, line
+    return None
+
+
+def validate_stale_pattern_guard() -> None:
+    """Prove the scanner rejects each legacy spec term and accepts the spec convention."""
+    for stale in ("Create PRD.md under .scratch", "run /to-prd now", "the PRD is approved", "see to_prd", "write the prd", "two PRDs"):
+        found = first_stale_reference(stale)
+        if found is None or found[0] != "legacy PRD terminology":
+            fail(f"stale-pattern guard: {stale!r} must be rejected as legacy PRD terminology, got {found!r}")
+    marker = "the former names of the spec, `PRD`"
+    allowed = "Scan for legacy terms: the former names of the spec, `PRD`, `PRD.md`.\nUse the spec naming convention."
+    if first_stale_reference(allowed, marker) is not None:
+        fail("stale-pattern guard: the marked migration line must be accepted")
+    for leaked in (allowed + "\nPublish PRD.md now.", allowed + "\nrun /to-prd", allowed + "\nsee setup-matt-pocock-skills"):
+        found = first_stale_reference(leaked, marker)
+        if found is None or found[1] != 3:
+            fail(f"stale-pattern guard: an unmarked line must still be rejected beside a marked one, got {found!r}")
+    for fine in ("Spec: Billing export", ".scratch/feature/spec.md", "run /to-spec now", "the specification is approved", "a prdigy"):
+        found = first_stale_reference(fine)
+        if found is not None:
+            fail(f"stale-pattern guard: {fine!r} must be accepted, got {found!r}")
+
+
 def validate_repository_references() -> None:
     for relative in RETIRED_FILES:
         if (ROOT / relative).exists():
@@ -76,11 +120,10 @@ def validate_repository_references() -> None:
         if chr(0x2014) in text:
             fail(f"{relative}: em dash violates repository style")
         if relative not in INTENTIONAL_STALE_REFERENCE_FILES:
-            for label, pattern in STALE_PATTERNS.items():
-                match = pattern.search(text)
-                if match:
-                    line = text.count("\n", 0, match.start()) + 1
-                    fail(f"{relative}:{line}: stale {label} reference")
+            stale = first_stale_reference(text, LEGACY_SPEC_MIGRATION_LINES.get(relative))
+            if stale:
+                label, line = stale
+                fail(f"{relative}:{line}: stale {label} reference")
         if relative not in {"README.md", "scripts/repo_checks/references.py"} and re.search(r"mattpocock/skills", text, re.IGNORECASE):
             fail(f"{relative}: stale upstream repository identity")
         validates_links = path.suffix.lower() == ".md" and (

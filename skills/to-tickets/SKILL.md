@@ -16,7 +16,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 ### 1. Gather context
 
-Work from whatever is already in the conversation context. If the user passes a reference (a spec path, an issue number or URL) as an argument, fetch it and read its full body and comments.
+Work from whatever is already in the conversation context. If the user passes a reference (a spec path, an issue number or URL) as an argument, fetch it and read its full body and comments. A spec published by `to-spec` is an issue titled `Spec: <name>` on a remote tracker, or `.scratch/<feature-slug>/spec.md` on the local markdown tracker. A spec published earlier under another name stays resolvable by its exact reference.
 
 If the source is a spec with an `Implementation Decisions` section that proposes modules, require an **Approved** verdict from `/design-review` before drafting or publishing tickets. If that verdict is absent or is **Rework**, stop and send the spec back through `/design-review`. This gate keeps `ready-for-agent` reserved for executable tickets.
 
