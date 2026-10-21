@@ -373,7 +373,14 @@ HYPOTHESIS_TEXT_KEYS = (
     "title", "source_location", "potential_severity", "source_evidence", "expected_impact",
     "falsification_condition", "suggested_validation", "context_references",
 )
+# Merging joins the evidence-bearing fields; the title, location, and severity stay the first hypothesis's.
+MERGED_TEXT_KEYS = HYPOTHESIS_TEXT_KEYS[3:]
 CONCERN_TEXT_KEYS = ("original_outcome", "original_evidence", "reviewed_head_sha")
+
+
+def present(value: object) -> bool:
+    """Whether a record field holds content, so omitted, empty, and blank values all count as missing."""
+    return bool(str(value or "").strip())
 
 
 def concern_gaps(concern: dict | None) -> list[str]:
@@ -384,16 +391,15 @@ def concern_gaps(concern: dict | None) -> list[str]:
     if not isinstance(hypothesis, dict):
         return ["original hypothesis missing"]
     gaps = []
-    if not str(hypothesis.get("canonical_id") or "").strip():
+    if not present(hypothesis.get("canonical_id")):
         gaps.append("canonical ID missing or empty")
     scouts = hypothesis.get("scouts")
-    if not scouts or any(not str(scout.get("id") or "").strip() or not str(scout.get("origin") or "").strip()
-                         for scout in scouts):
+    if not scouts or not all(present(scout.get("id")) and present(scout.get("origin")) for scout in scouts):
         gaps.append("original scout IDs and origins missing or empty")
     gaps.extend(f"hypothesis {key.replace('_', ' ')} missing or empty"
-                for key in HYPOTHESIS_TEXT_KEYS if not str(hypothesis.get(key) or "").strip())
+                for key in HYPOTHESIS_TEXT_KEYS if not present(hypothesis.get(key)))
     gaps.extend(f"{key.replace('_', ' ')} missing or empty"
-                for key in CONCERN_TEXT_KEYS if not str(concern.get(key) or "").strip())
+                for key in CONCERN_TEXT_KEYS if not present(concern.get(key)))
     return gaps
 
 
@@ -418,8 +424,11 @@ def follow_up_coverage(
 def merge_hypotheses(first: dict, second: dict) -> dict:
     """Merge two equivalent hypotheses into one complete record that keeps every distinct text and scout."""
     merged = {**first, "scouts": [*first["scouts"], *(s for s in second["scouts"] if s not in first["scouts"])]}
-    for key in ("source_evidence", "expected_impact", "falsification_condition", "suggested_validation", "context_references"):
-        merged[key] = " / ".join(dict.fromkeys(value for value in (first.get(key), second.get(key)) if value))
+    for key in MERGED_TEXT_KEYS:
+        distinct = dict.fromkeys(value for value in (first.get(key), second.get(key)) if value)
+        if len(distinct) > 1:
+            distinct.pop("none", None)
+        merged[key] = " / ".join(distinct)
     return merged
 
 

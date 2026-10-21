@@ -9,12 +9,13 @@ import generate_agents
 
 from ..common import ROOT, SKILLS, fail
 from ..deep_review import (
+    CONCERN_TEXT_KEYS, HYPOTHESIS_TEXT_KEYS, PERSISTED_HYPOTHESIS_FIELDS,
     DEEP_REVIEW_ACCESS_RULES, DEEP_REVIEW_CODEX_ACCESS_CELLS, DEEP_REVIEW_FOLLOW_UP_RULES,
     DEEP_REVIEW_PROBE_ENVIRONMENT_RULES, DEEP_REVIEW_PUBLICATION_RULES, DEEP_REVIEW_ROLES, HARNESS_SPECIFIC_TEXT,
     deep_review_access_problems, deep_review_audience_problems, deep_review_catalog, deep_review_follow_up_problems,
     deep_review_probe_environment_problems, deep_review_role_problems, deep_review_scenario_problems,
     deep_review_shared_sources, reviewer_text,
-    HYPOTHESIS_TEXT_KEYS, PERSISTED_HYPOTHESIS_FIELDS, concern_gaps, follow_up_coverage, merge_hypotheses,
+    concern_gaps, follow_up_coverage, merge_hypotheses,
 )
 from ..references import iter_repository_text
 
@@ -174,18 +175,21 @@ def validate_deep_review_concern_completeness() -> None:
         fail(f"a complete original concern record was reported incomplete: {concern_gaps(complete)}")
     if concern_gaps(None) != ["no preserved original concern"]:
         fail("a concern with no preserved record must report that reason")
-    fields = {
-        "canonical ID": lambda c: c["hypothesis"].pop("canonical_id"),
+    # Each required field is omitted and emptied in turn, including each scout entry's ID and origin.
+    mutations = {
+        "hypothesis omitted": lambda c: c.pop("hypothesis"),
+        "canonical ID omitted": lambda c: c["hypothesis"].pop("canonical_id"),
+        "canonical ID empty": lambda c: c["hypothesis"].update(canonical_id=" "),
         "scout IDs and origins omitted": lambda c: c["hypothesis"].pop("scouts"),
+        "scout IDs and origins empty": lambda c: c["hypothesis"].update(scouts=[]),
+        "scout ID empty": lambda c: c["hypothesis"]["scouts"][0].update(id=" "),
         "scout origin empty": lambda c: c["hypothesis"]["scouts"][0].update(origin=" "),
-        "outcome": lambda c: c.pop("original_outcome"),
-        "outcome evidence empty": lambda c: c.update(original_evidence=""),
-        "reviewed head SHA": lambda c: c.pop("reviewed_head_sha"),
-        "hypothesis": lambda c: c.pop("hypothesis"),
         **{f"{key} omitted": (lambda c, key=key: c["hypothesis"].pop(key)) for key in HYPOTHESIS_TEXT_KEYS},
         **{f"{key} empty": (lambda c, key=key: c["hypothesis"].update({key: "  "})) for key in HYPOTHESIS_TEXT_KEYS},
+        **{f"{key} omitted": (lambda c, key=key: c.pop(key)) for key in CONCERN_TEXT_KEYS},
+        **{f"{key} empty": (lambda c, key=key: c.update({key: ""})) for key in CONCERN_TEXT_KEYS},
     }
-    for label, mutate in fields.items():
+    for label, mutate in mutations.items():
         record = complete_concern(1)
         mutate(record)
         if not concern_gaps(record):
@@ -202,6 +206,9 @@ def validate_deep_review_concern_completeness() -> None:
     for key in ("source_evidence", "expected_impact"):
         if first[key] not in merged[key] or second[key] not in merged[key]:
             fail(f"merging must retain materially distinct {key.replace('_', ' ')}")
+    second["context_references"] = "runtime-acceptance.md"
+    if merge_hypotheses(first, second)["context_references"] != "runtime-acceptance.md":
+        fail("merging must not keep the no-references value beside a real context reference")
     if concern_gaps({**complete_concern(1), "hypothesis": merged}):
         fail("a merged hypothesis must stay a complete canonical hypothesis record")
     if not concern_gaps({**complete_concern(1), "hypothesis": {"canonical_id": "H1", "title": merged["title"]}}):
