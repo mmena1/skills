@@ -97,8 +97,8 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Follow-up validator capacity | Static validator concurrency comes from a fixed bound of at most 4 slots, with no scout capacity read; a refusal is backpressure | Same, from a validator-only read of the concurrent subagent cap, using at most 4 slots and never more than the available count | Same, from a validator-only inspection of the active subagent capacity |
 | Record discovery in a later session | A new session finds the source record under the record root by repository identity and target kind and key | Same | Same |
 | Discovery when the newest record is a narrower follow-up | The latest matching full-review record stays the source and the full concern inventory is offered; the newer follow-up record supplies only prior status and provenance | Same | Same |
-| Record preservation from a linked worktree | Records started from a linked worktree, or a subdirectory, are preserved under the same canonical `<git-common-dir>/deep-review/records/<run-id>/` and verified byte for byte | Same | Same |
-| Record preservation under a write restriction | A denied or restricted write leaves outcomes, report, and publication unchanged, does not block worktree cleanup, keeps the run directory, and reports the exact retained paths | Same | Same |
+| Record preservation from a linked worktree | Records started from a linked worktree, or a subdirectory, are preserved under the same canonical `<git-common-dir>/deep-review/records/<run-id>/` and verified byte for byte; the preservation closeout reports the verified result, while the archived snapshot's row stays `NOT EXERCISED` | Same | Same |
+| Record preservation under a write restriction | A denied or restricted write leaves outcomes, report, and publication unchanged, does not block worktree cleanup, keeps the run directory, and reports the exact retained paths in the preservation closeout without altering any archived snapshot | Same | Same |
 
 Observed follow-up acceptance per harness. No harness is accepted for a row without an observed run; update a cell only from a real follow-up receipt or a targeted smoke run.
 
@@ -119,6 +119,10 @@ Observed follow-up acceptance per harness. No harness is accepted for a row with
 | Record preservation under a write restriction | NOT EXERCISED | NOT EXERCISED | NOT EXERCISED |
 
 The 2026-10-15 Claude Code write into a Git common directory recorded under "Smoke runs" was a direct copy in scratch repositories, not a coordinator run, so it does not change the Record preservation from a linked worktree row.
+
+## Record preservation scenarios
+
+Apply [the focused scenarios](references/record-preservation-scenarios.md) when changing preservation timing, the preservation closeout, or the receipt rows above. They are scenario checks and static contract guards, distinct from native runtime acceptance: the rows in the observed table stay `NOT EXERCISED` until a real run or targeted smoke run observes them, and the pre-preservation snapshot of a real run never records them as observed.
 
 ## Concurrency clarification, 2026-10-09 (issue #80)
 

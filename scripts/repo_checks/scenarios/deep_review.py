@@ -11,9 +11,11 @@ from ..common import ROOT, SKILLS, fail
 from ..deep_review import (
     CONCERN_TEXT_KEYS, HYPOTHESIS_TEXT_KEYS, MERGED_TEXT_KEYS, PERSISTED_HYPOTHESIS_FIELDS,
     DEEP_REVIEW_ACCESS_RULES, DEEP_REVIEW_CODEX_ACCESS_CELLS, DEEP_REVIEW_FOLLOW_UP_RULES,
-    DEEP_REVIEW_PROBE_ENVIRONMENT_RULES, DEEP_REVIEW_PUBLICATION_RULES, DEEP_REVIEW_ROLES, HARNESS_SPECIFIC_TEXT,
+    DEEP_REVIEW_PROBE_ENVIRONMENT_RULES, DEEP_REVIEW_PUBLICATION_RULES, DEEP_REVIEW_RECORD_PRESERVATION_RULES,
+    DEEP_REVIEW_ROLES, HARNESS_SPECIFIC_TEXT,
     deep_review_access_problems, deep_review_audience_problems, deep_review_catalog, deep_review_follow_up_problems,
-    deep_review_probe_environment_problems, deep_review_role_problems, deep_review_scenario_problems,
+    deep_review_probe_environment_problems, deep_review_record_preservation_problems,
+    deep_review_role_problems, deep_review_scenario_problems,
     deep_review_shared_sources, reviewer_text,
     concern_gaps, follow_up_coverage, merge_hypotheses,
 )
@@ -252,10 +254,27 @@ def validate_deep_review_probe_environment_contract(skill: Path) -> None:
                 fail(f"the probe environment check accepted a removed {relative} rule")
 
 
+def validate_deep_review_record_preservation_contract(skill: Path) -> None:
+    """Reject removed preservation timing, closeout, or scenario rules."""
+    documents = {
+        relative: (skill / relative).read_text(encoding="utf-8") if (skill / relative).exists() else ""
+        for relative in DEEP_REVIEW_RECORD_PRESERVATION_RULES
+    }
+    problems = deep_review_record_preservation_problems(documents)
+    if problems:
+        fail(problems[0])
+    for relative, rules in DEEP_REVIEW_RECORD_PRESERVATION_RULES.items():
+        for rule in rules:
+            mutated = {**documents, relative: documents[relative].replace(rule, "")}
+            if not deep_review_record_preservation_problems(mutated):
+                fail(f"the record preservation check accepted a removed {relative} rule")
+
+
 def validate_deep_review() -> None:
     """Deep review keeps one harness-neutral copy of its sources and its pinned role limits."""
     skill = SKILLS / "deep-review"
     validate_deep_review_probe_environment_contract(skill)
+    validate_deep_review_record_preservation_contract(skill)
     validate_deep_review_access_contract(skill)
     validate_deep_review_audience_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}

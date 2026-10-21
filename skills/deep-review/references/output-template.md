@@ -113,6 +113,19 @@ Unresolved outcomes are always Action: discuss and are not Findings.
 **Comment audience:** `human` (default) or `agent`; include `audience: agent` when requesting publication. Omitting audience uses human wording without an extra confirmation step.
 ```
 
+## Preservation closeout
+
+Applies to every run, full or follow-up. The archived report and run state are the pre-preservation snapshot: their record line and preservation receipt rows state the intended record directory and `NOT EXERCISED`, never a predicted success. Present this closeout to the user after record preservation has finished, never inside the archived report or run state.
+
+```markdown
+### Preservation closeout
+
+Archived snapshot: [intended record directory; preservation not yet observed at snapshot time]
+Observed at closeout: [preserved: record directory, each file copied, and byte equality verified for each / not preserved: the precise limitation (denied write, partial copy, byte mismatch, or interruption)]
+Retained: [none / run directory, partial record directory, and other leftover paths]
+Preservation rows at closeout: [PASS / FAIL / NOT EXERCISED per row with the observed evidence; unobserved paths stay NOT EXERCISED]
+```
+
 ## Follow-up revalidation variant
 
 Use this variant, never the full template above, for `/deep-review follow-up`. It never shows PASS or a `No findings` headline. Omit the Comment audience note when no confirmed PR is associated.
@@ -130,7 +143,7 @@ Scouts: none ran (follow-up mode)
 Validation: [run / not needed / incomplete]
 Context snapshot: [target-bound files/manifests, omitted optional files, warnings, or "empty"]
 Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validator agents: [validator agents that ran, or none]
-Records: [preserved record path / not preserved: reason and exact retained paths]
+Records: [intended record directory; preservation not yet observed, reported in the preservation closeout]
 
 **Coverage:** Selected [canonical IDs]; Excluded [canonical IDs with reasons]; Deferred [canonical IDs with reasons]; Incomplete coverage [requested IDs or comments with reasons]
 **Status counts:** Addressed [count], Not addressed [count], Incomplete [count], Deferred [count]
@@ -157,8 +170,8 @@ Include every row of the full-review receipt first. Mark Zero hypotheses, Surviv
 | Follow-up validator capacity | PASS / FAIL / NOT EXERCISED | [the harness's validator-only capacity read or fixed bound, slots used, and any refusal handled as backpressure] |
 | Record discovery in a later session | PASS / FAIL / NOT EXERCISED | [source record found by repository and target key] |
 | Discovery when the newest record is a narrower follow-up | PASS / FAIL / NOT EXERCISED | [latest full-review source chosen; follow-up record used only for prior context] |
-| Record preservation from a linked worktree | PASS / FAIL / NOT EXERCISED | [caller worktree and the canonical record root reached] |
-| Record preservation under a write restriction | PASS / FAIL / NOT EXERCISED | [restriction observed, unchanged outcomes, and exact retained paths] |
+| Record preservation from a linked worktree | PASS / FAIL / NOT EXERCISED | [caller worktree and the canonical record root reached; in the archived snapshot `NOT EXERCISED` with the intended record directory, observed only in the preservation closeout] |
+| Record preservation under a write restriction | PASS / FAIL / NOT EXERCISED | [restriction observed, unchanged outcomes, and exact retained paths; in the archived snapshot `NOT EXERCISED`, observed only in the preservation closeout] |
 
 GitHub thread state comes only from recorded comment identifiers, retrieved after validation. A retrieval failure leaves it `unknown`, and a resolved thread never makes a concern Addressed.
 
