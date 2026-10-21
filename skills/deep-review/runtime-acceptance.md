@@ -89,7 +89,7 @@ Use bounded controlled targets: a small committed base and head with no context 
 | Fixed concern | The follow-up adjudication returns Addressed from fresh evidence at the new head and cites the responsible change | Same | Same |
 | Persisting defect | The follow-up adjudication returns Not addressed from fresh evidence with current severity; the original outcome is not used as evidence | Same | Same |
 | Partial fix | Not addressed states what changed and what remains | Same | Same |
-| Missing prior evidence | A requested ID or comment without a preserved original concern or complete original evidence is reported as incomplete coverage with its reason; nothing is reconstructed and the run does not widen into a full review | Same | Same |
+| Missing prior evidence | A requested ID or comment without a preserved original concern or complete original evidence is reported as incomplete coverage with a specific reason, decided per concern before validator dispatch; nothing is reconstructed, the source record's complete concerns still proceed, and the run does not widen into a full review | Same | Same |
 | Explicitly deferred concern | A concern the user deferred at the confirmation launches no validator and is reported as Deferred with its reason, separately from Addressed | Same | Same |
 | Resolved thread with a persisting defect | Thread state is retrieved after validation from recorded comment identifiers and shown as resolved in its own column, while the concern stays Not addressed | Same | Same |
 | Head change during revalidation | Reviewed and current SHAs are reported, every status is stale, and a rerun is required | Same | Same |

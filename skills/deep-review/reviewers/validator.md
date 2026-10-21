@@ -52,7 +52,7 @@ A writable invocation returns exactly one final `Finding`, `Disproved`, or `Unre
 
 ## Follow-up adjudication
 
-In follow-up revalidation, the coordinator invokes you with exactly one original concern record instead of a canonical Hypothesis: its canonical ID, the original hypothesis, the original outcome and evidence, and the original reviewed head SHA. You also receive the new pinned worktree, the base and new head SHAs, the read-only context snapshot, and the manifests named above. The method, phase restrictions, and worktree confinement above apply unchanged, with the new head as the reviewed head.
+In follow-up revalidation, the coordinator invokes you with exactly one original concern record instead of a canonical Hypothesis, preserved verbatim from the source record: its canonical ID, the complete original hypothesis, the original outcome and evidence, and the original reviewed head SHA. You also receive the new pinned worktree, the base and new head SHAs, the read-only context snapshot, and the manifests named above. The method, phase restrictions, and worktree confinement above apply unchanged, with the new head as the reviewed head.
 
 - You may inspect the diff from the original head to the new head, for example `git -C <worktree> diff <original head> <new head>`, only when the original head object is present locally, which `git -C <worktree> cat-file -e <original head>^{commit}` confirms. This is the one permitted use of the original head SHA outside history reachable from the new head. Never fetch it.
 - You receive no GitHub discussion, thread state, author claims, or prior follow-up statuses, and you must not retrieve them. A claim that the concern was fixed is not evidence.
