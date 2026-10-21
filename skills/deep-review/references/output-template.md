@@ -12,6 +12,7 @@ Scouts: [each selected lens and its native agent, for example `bugs` → `deep-r
 Validation: [run / not needed / incomplete]
 Context snapshot: [target-bound files/manifests, omitted optional files, warnings, or "empty"]
 Runtime: [harness identity/version] | Skill: [reviewed commit/version] | Validator agents: [validator agents that ran, or none]
+Records: [intended record directory; preservation not yet observed, reported in the preservation closeout]
 
 **Pipeline:** Hypotheses [discovered] → [after dedupe]; Validation [findings] Finding, [disproved] Disproved, [unresolved] Unresolved
 **Status:** complete | stale | **Review incomplete**: [scout/validator failure and affected hypotheses]
@@ -123,7 +124,7 @@ Applies to every run, full or follow-up. The archived report and run state are t
 Pre-preservation snapshot: [intended record directory; preservation not yet observed at snapshot time]
 Observed at closeout: [preserved: record directory, each file copied, and byte equality verified for each / not preserved: the precise limitation (denied write, partial copy, byte mismatch, or interruption)]
 Retained: [none / run directory, partial record directory, and other leftover paths]
-Preservation rows at closeout: [PASS / FAIL / NOT EXERCISED per row with the observed evidence; unobserved paths stay NOT EXERCISED]
+Preservation rows at closeout: [follow-up runs only, because only the follow-up receipt defines preservation rows: PASS / FAIL / NOT EXERCISED per row with the observed evidence, unobserved paths stay NOT EXERCISED; omit for a full run]
 ```
 
 ## Follow-up revalidation variant
