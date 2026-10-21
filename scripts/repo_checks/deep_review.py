@@ -359,6 +359,81 @@ def deep_review_scenario_problems(documents: dict[str, str]) -> list[str]:
     ]
 
 
+# The canonical hypothesis record's fields, in the order protocol.md enumerates them.
+PERSISTED_HYPOTHESIS_FIELDS = (
+    "canonical ID", "original scout IDs and origins", "title", "source location", "potential severity",
+    "source evidence", "expected impact", "falsification condition", "suggested validation", "context references",
+)
+PERSISTED_HYPOTHESIS_RULE = (
+    f"retains its {', '.join(PERSISTED_HYPOTHESIS_FIELDS[:-1])}, and {PERSISTED_HYPOTHESIS_FIELDS[-1]}"
+)
+# Run-state keys for the fields above. protocol.md allows an equivalent serialization, so
+# these name the content a record must hold, not a required file format.
+HYPOTHESIS_TEXT_KEYS = (
+    "title", "source_location", "potential_severity", "source_evidence", "expected_impact",
+    "falsification_condition", "suggested_validation", "context_references",
+)
+# Merging joins the evidence-bearing fields; the title, location, and severity stay the first hypothesis's.
+MERGED_TEXT_KEYS = HYPOTHESIS_TEXT_KEYS[3:]
+CONCERN_TEXT_KEYS = ("original_outcome", "original_evidence", "reviewed_head_sha")
+
+
+def present(value: object) -> bool:
+    """Whether a record field holds content, so omitted, empty, and blank values all count as missing."""
+    return bool(str(value or "").strip())
+
+
+def concern_gaps(concern: dict | None, concern_id: str) -> list[str]:
+    """What keeps one requested concern from being complete, as specific reasons; empty when it is complete."""
+    if concern is None:
+        return ["no preserved original concern"]
+    hypothesis = concern.get("hypothesis")
+    if not isinstance(hypothesis, dict):
+        return ["original hypothesis missing"]
+    gaps = []
+    if not present(hypothesis.get("canonical_id")):
+        gaps.append("canonical ID missing or empty")
+    elif hypothesis["canonical_id"] != concern_id:
+        gaps.append(f"preserved hypothesis ID {hypothesis['canonical_id']} does not match requested concern {concern_id}")
+    scouts = hypothesis.get("scouts")
+    if not scouts or not all(present(scout.get("id")) and present(scout.get("origin")) for scout in scouts):
+        gaps.append("original scout IDs and origins missing or empty")
+    gaps.extend(f"hypothesis {key.replace('_', ' ')} missing or empty"
+                for key in HYPOTHESIS_TEXT_KEYS if not present(hypothesis.get(key)))
+    gaps.extend(f"{key.replace('_', ' ')} missing or empty"
+                for key in CONCERN_TEXT_KEYS if not present(concern.get(key)))
+    return gaps
+
+
+def follow_up_coverage(
+    source_concerns: dict[str, dict], requested: list[str],
+) -> tuple[list[str], dict[str, list[str]]]:
+    """Split requested concern IDs into those eligible for validation and incomplete coverage with reasons.
+
+    Completeness is decided per concern, in canonical ID order, so one incomplete concern never
+    rejects the source record or blocks its complete concerns.
+    """
+    eligible, incomplete = [], {}
+    for concern_id in sorted(dict.fromkeys(requested), key=lambda value: int(value.lstrip("H") or 0)):
+        gaps = concern_gaps(source_concerns.get(concern_id), concern_id)
+        if gaps:
+            incomplete[concern_id] = gaps
+        else:
+            eligible.append(concern_id)
+    return eligible, incomplete
+
+
+def merge_hypotheses(first: dict, second: dict) -> dict:
+    """Merge two equivalent hypotheses into one complete record that keeps every distinct text and scout."""
+    merged = {**first, "scouts": [*first["scouts"], *(s for s in second["scouts"] if s not in first["scouts"])]}
+    for key in MERGED_TEXT_KEYS:
+        distinct = dict.fromkeys(value for value in (first.get(key), second.get(key)) if value)
+        if len(distinct) > 1:
+            distinct.pop("none", None)
+        merged[key] = " / ".join(distinct)
+    return merged
+
+
 DEEP_REVIEW_FOLLOW_UP_RULES = {
     "SKILL.md": (
         "Only a leading literal `follow-up` token selects it; every other invocation is the unchanged full review",
@@ -383,8 +458,18 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record",
         "supply prior status and provenance only",
         # No reconstruction.
-        "It is never reconstructed from a comment body, report prose, or memory, and it never widens the run into a full review.",
+        "It is never reconstructed from a comment body, report prose, memory, or a fresh interpretation of the code, and it never widens the run into a full review.",
         "or with ambiguous evidence",
+        # Complete canonical hypotheses and per-concern completeness.
+        PERSISTED_HYPOTHESIS_RULE,
+        "is never replaced by a title, summary, or validator outcome",
+        "with every original scout ID and origin",
+        "Completeness is decided for each requested concern, before any validator is dispatched.",
+        "whose canonical ID equals the requested concern's ID",
+        "Incomplete evidence invalidates only its own concern.",
+        "its complete concerns remain eligible for selection and validation alongside the reported incomplete ones",
+        "exactly as the source record preserves it",
+        "preserves each selected concern's complete original concern record verbatim, as the source record held it",
         "mapped to concerns only through recorded comment identifiers: the source record's publication mapping and the mappings of follow-up records whose lineage names the source, each keyed by source run ID plus canonical ID",
         "These mappings are provenance for selection and thread state, never validator evidence.",
         # Scout skip.
