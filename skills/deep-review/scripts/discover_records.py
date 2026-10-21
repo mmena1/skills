@@ -257,9 +257,18 @@ def discover(record_root: Path | str, repository: str, target_kind: str, target_
 
 
 def locate(record_root: Path, selection: str) -> Path:
-    """The record directory a selection names: a run ID in the record root, otherwise a record path."""
-    if is_run_id(selection) and (record_root / selection).is_dir():
-        return record_root / selection
+    """The record directory a selection names.
+
+    A bare name is a run ID and resolves only inside the record root, wherever the working directory is.
+    A record elsewhere needs a path form: an absolute path, or one with a separator such as `./old-run`.
+    """
+    if is_run_id(selection):
+        if (record_root / selection).is_dir():
+            return record_root / selection
+        raise RecordProblem(
+            f"no record found for run ID {selection!r} in the record root; "
+            f"select a record outside it with a path such as ./{selection} or an absolute path"
+        )
     if selection and Path(selection).exists():
         path = Path(selection)
         return path.parent if path.is_file() else path

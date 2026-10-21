@@ -441,6 +441,21 @@ def validate_explicit_selection(module, base: Path) -> None:
     expect("a run ID in the record root resolves there whatever the working directory holds",
            (selected.returncode, payload["status"], payload["source"]["run_id"]), (0, "source", "shared"))
 
+    def select_from(directory: Path, selection: str) -> tuple[int, dict]:
+        completed = subprocess.run(
+            [sys.executable, "-I", str(SCRIPT), "select", "--record-root", str(cwd_root / "records"), "--selection", selection],
+            capture_output=True, text=True, cwd=directory,
+        )
+        return completed.returncode, json.loads(completed.stdout)
+
+    write_identity(cwd_root / "elsewhere", identity("old-run", "2026-10-19T10:00:00Z"))
+    code, payload = select_from(cwd_root / "elsewhere", "old-run")
+    expect("a bare run ID absent from the record root never resolves against the working directory",
+           (code, payload["status"], payload["source"], "./old-run" in payload["reason"]), (1, "error", None, True))
+    code, payload = select_from(cwd_root / "elsewhere", "./old-run")
+    expect("an explicit path form selects a record outside the record root",
+           (code, payload["status"], payload["source"]["run_id"]), (0, "source", "old-run"))
+
 
 def validate_read_only(module, base: Path) -> None:
     """Discovery and selection never create, modify, or repair anything."""
