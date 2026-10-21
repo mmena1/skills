@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -77,13 +76,23 @@ def discover(module, root: Path, kind: str = TARGET_KIND, key: str = TARGET_KEY,
     return module.discover(root, repository, kind, key)
 
 
+SCENARIO = ""
+
+
+def begin(name: str, location: object = "") -> None:
+    """Name the scenario group and the record root under test so a failing assertion reports its input."""
+    global SCENARIO
+    SCENARIO = f"{name} in {location}" if location else name
+
+
 def expect(label: str, actual: object, expected: object) -> None:
     if actual != expected:
-        fail(f"record discovery: {label}: expected {expected!r}, got {actual!r}")
+        fail(f"record discovery [{SCENARIO}]: {label}: expected {expected!r}, got {actual!r}")
 
 
 def validate_timestamps(module) -> None:
     """Instants compare by actual time across offsets and fraction lengths; unsupported values are diagnosed."""
+    begin("timestamps")
     parse = module.parse_timestamp
     expect("a UTC and an equivalent offset form are the same instant",
            parse("2026-10-20T12:00:00Z"), parse("2026-10-20T14:00:00+02:00"))
@@ -140,6 +149,7 @@ def validate_timestamps(module) -> None:
 
 def validate_source_selection(module, base: Path) -> None:
     """The latest full review by instant is the source, whatever its textual form, and ties are ambiguous."""
+    begin("source_selection", base)
     root = base / "instants"
     write_identity(root, identity("r-utc", "2026-10-20T10:00:00Z"))
     write_identity(root, identity("r-plus", "2026-10-20T11:00:00+02:00"))
@@ -177,6 +187,7 @@ def validate_source_selection(module, base: Path) -> None:
 
 def validate_filtering_and_lineage(module, base: Path) -> None:
     """Repository and target identity filter candidates; a newer follow-up never becomes the source."""
+    begin("filtering_and_lineage", base)
     root = base / "filtering"
     write_identity(root, identity("full-1", "2026-10-20T10:00:00Z"))
     write_identity(root, identity("full-other-repo", "2026-10-21T10:00:00Z", repository="someone/else"))
@@ -212,6 +223,7 @@ def validate_filtering_and_lineage(module, base: Path) -> None:
 
 def validate_skipped_records(module, base: Path) -> None:
     """Unusable candidates are reported with specific reasons in deterministic order; the rest still resolve."""
+    begin("skipped_records", base)
     root = base / "skipped"
     write_identity(root, identity("good", "2026-10-20T10:00:00Z"))
     (root / "a-empty").mkdir()
@@ -294,6 +306,7 @@ def validate_skipped_records(module, base: Path) -> None:
 
 def validate_legacy_incomplete_concerns(module, base: Path) -> None:
     """Discovery checks identity, never per-concern evidence, so an incomplete legacy source stays the source."""
+    begin("legacy_incomplete_concerns", base)
     root = base / "legacy"
     write_identity(root, identity("older-complete", "2026-10-18T10:00:00Z"), hypotheses=[{"canonical_id": "H1", "title": "t"}])
     write_identity(root, identity("newest-incomplete", "2026-10-19T10:00:00Z", completeness="stale"),
@@ -309,6 +322,7 @@ def validate_legacy_incomplete_concerns(module, base: Path) -> None:
 
 def validate_explicit_selection(module, base: Path) -> None:
     """Explicit selection accepts identity-less legacy records and resolves a follow-up to its source."""
+    begin("explicit_selection", base)
     root = base / "explicit"
     legacy = write_record(root, "legacy-run", {"hypotheses": [{"canonical_id": "H1"}]})
     write_identity(root, identity("full-run", "2026-10-20T10:00:00Z", target={"kind": "range", "key": f"{SHA}..{'c' * 40}"}))
@@ -363,24 +377,40 @@ def validate_explicit_selection(module, base: Path) -> None:
 
     write_record(root, "invalid-run", {"record": identity("invalid-run", completed_at="soon")})
     result = module.select_record(root, "invalid-run")
-    if result["status"] != "error" or "completed_at" not in result["reason"]:
-        fail(f"record discovery: an identity-invalid explicit record must be diagnosed, got {result!r}")
+    expect("an identity-invalid record stays selectable", (result["status"], result["source"]["run_id"]), ("source", "invalid-run"))
+    expect("its identity problems are shown for confirmation", (result["identity_missing"], len(result["identity_problems"])), (True, 1))
+    if "completed_at" not in result["identity_problems"][0]:
+        fail(f"record discovery [{SCENARIO}]: the timestamp diagnostic must be shown for confirmation, got {result!r}")
+    write_record(root, "renamed-dir", {"record": identity("original-name")})
+    result = module.select_record(root, "renamed-dir")
+    expect("a record whose run_id disagrees with its directory stays selectable",
+           (result["status"], result["source"]["run_id"], "run_id" in result["identity_problems"][0]), ("source", "renamed-dir", True))
+    write_identity(root, follow_up("fu-invalid-source", "invalid-run", "2026-10-22T10:00:00Z"))
+    result = module.select_record(root, "fu-invalid-source")
+    expect("a follow-up resolves to a source whose identity is invalid, with its problems",
+           (result["status"], result["source"]["run_id"], result["identity_missing"], len(result["identity_problems"])),
+           ("source", "invalid-run", True, 1))
+    write_record(root, "fu-no-lineage", {"record": identity("fu-no-lineage", mode="follow-up")})
+    result = module.select_record(root, "fu-no-lineage")
+    if result["status"] != "error" or "lineage source" not in result["reason"]:
+        fail(f"record discovery [{SCENARIO}]: a follow-up without a usable lineage source must be an error, got {result!r}")
 
-    ambiguous = base / "ambiguous"
-    write_identity(ambiguous / "records", identity("shared", "2026-10-20T10:00:00Z"))
-    other = write_record(ambiguous / "elsewhere", "shared", {"hypotheses": []}).parent
-    previous = os.getcwd()
-    os.chdir(other)
-    try:
-        result = module.select_record(ambiguous / "records", "shared")
-    finally:
-        os.chdir(previous)
-    if result["status"] != "error" or "more than one" not in result["reason"]:
-        fail(f"record discovery: a selection resolving to two records must be ambiguous, got {result!r}")
+    cwd_root = base / "cwd"
+    write_identity(cwd_root / "records", identity("shared", "2026-10-20T10:00:00Z"))
+    unrelated = write_record(cwd_root / "elsewhere", "other", {"hypotheses": []}).parent
+    (unrelated / "shared").mkdir()
+    selected = subprocess.run(
+        [sys.executable, "-I", str(SCRIPT), "select", "--record-root", str(cwd_root / "records"), "--selection", "shared"],
+        capture_output=True, text=True, cwd=unrelated,
+    )
+    payload = json.loads(selected.stdout)
+    expect("a run ID in the record root resolves there whatever the working directory holds",
+           (selected.returncode, payload["status"], payload["source"]["run_id"]), (0, "source", "shared"))
 
 
 def validate_read_only(module, base: Path) -> None:
     """Discovery and selection never create, modify, or repair anything."""
+    begin("read_only", base)
     root = base / "read-only"
     write_identity(root, identity("r-1", "2026-10-20T10:00:00Z"))
     write_identity(root, follow_up("fu-1", "r-1", "2026-10-21T10:00:00Z"))
@@ -402,6 +432,7 @@ def validate_read_only(module, base: Path) -> None:
 
 def validate_command_line(base: Path) -> None:
     """The script is usable directly: JSON on stdout, exit status 0 only when a source is found."""
+    begin("command_line", base)
     root = base / "cli"
     write_identity(root, identity("r-1", "2026-10-20T10:00:00Z"))
     write_identity(root, identity("r-2", "2026-10-20T12:00:00Z"))

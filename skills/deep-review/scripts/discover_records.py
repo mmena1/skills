@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
 """Read-only discovery of preserved deep-review records.
 
-Applies the follow-up discovery rules of `protocol.md` ("Follow-up revalidation") to a record
-root: match records by repository and target identity, choose the latest full-review source by
-completion instant, resolve an explicit selection through its lineage, and report every record
-that cannot be used. It never writes, repairs, or creates anything, and it judges record
-identity only: whether a concern preserves complete original evidence is decided later, per
-concern, so an otherwise valid legacy source stays discoverable.
+Implements the follow-up discovery rules of `protocol.md` ("Follow-up revalidation" and the
+`completed_at` timestamp profile): the protocol is the authority, this script only applies it. It
+never writes, repairs, or creates anything, and it judges record identity only, never whether a
+concern preserves complete original evidence.
 
     discover_records.py discover --record-root DIR --repository REPO --target-kind pr|branch|range --target-key KEY
     discover_records.py select --record-root DIR --selection RUN_ID_OR_PATH
 
 Each command prints one JSON object. The exit status is 0 only when a source record was found, 1
 when explicit selection or another decision is needed, and 2 for a usage error.
-
-`completed_at` timestamps use one profile: `YYYY-MM-DDThh:mm:ss`, an optional fraction of 1 to 9
-digits, then `Z` or a `+hh:mm` / `-hh:mm` offset. They compare as instants with nanosecond
-precision, so equivalent instants tie whatever their textual form. A timestamp without an offset,
-with the unknown `-00:00` offset, in another form, or out of range is diagnosed and its record is
-skipped.
 """
 
 from __future__ import annotations
@@ -30,6 +22,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from typing import NamedTuple
 
 RECORD_FILE = "run-state.json"
 FORMAT_VERSION = 1
@@ -94,8 +87,20 @@ def read_state(path: Path) -> dict:
     return state
 
 
-def text(value: object) -> bool:
+def nonblank(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def is_run_id(value: object) -> bool:
+    """A bare run directory name: non-blank, with no path separator and not a relative-path component."""
+    return nonblank(value) and "/" not in value and "\\" not in value and value not in (".", "..")
+
+
+class Entry(NamedTuple):
+    """A validated record with its completion instant and the directory that holds it."""
+    record: dict
+    instant: int
+    directory: Path
 
 
 def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
@@ -104,14 +109,14 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
     if record.get("format_version") != FORMAT_VERSION or type(record.get("format_version")) is not int:
         problems.append(f"format_version {record.get('format_version')!r} is unsupported (expected {FORMAT_VERSION})")
     run_id = record.get("run_id")
-    if not text(run_id):
+    if not nonblank(run_id):
         problems.append("run_id is missing or empty")
     elif expected_run_id is not None and run_id != expected_run_id:
         problems.append(f"run_id {run_id!r} does not match the record directory {expected_run_id!r}")
     mode = record.get("mode")
     if mode not in MODES:
         problems.append(f"mode {mode!r} is not one of {', '.join(MODES)}")
-    if not text(record.get("repository")):
+    if not nonblank(record.get("repository")):
         problems.append("repository is missing or empty")
     target = record.get("target")
     if not isinstance(target, dict):
@@ -119,7 +124,7 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
     else:
         if target.get("kind") not in TARGET_KINDS:
             problems.append(f"target kind {target.get('kind')!r} is not one of {', '.join(TARGET_KINDS)}")
-        if not text(target.get("key")):
+        if not nonblank(target.get("key")):
             problems.append("target key is missing or empty")
     for key in ("base_sha", "reviewed_head_sha"):
         if not isinstance(record.get(key), str) or SHA.fullmatch(record[key]) is None:
@@ -137,9 +142,9 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
             problems.append("lineage is missing or not an object in a follow-up record")
         else:
             source = lineage.get("source_run_id")
-            if not text(source) or "/" in source or "\\" in source or source in (".", ".."):
+            if not is_run_id(source):
                 problems.append("lineage source_run_id is missing, empty, or not a run ID")
-            if not isinstance(earlier, list) or not all(text(item) for item in earlier):
+            if not isinstance(earlier, list) or not all(nonblank(item) for item in earlier):
                 problems.append("lineage follow_up_run_ids is not a list of run IDs")
     elif mode == "full" and "lineage" in record:
         problems.append("lineage is present only in a follow-up record")
@@ -147,38 +152,39 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
 
 
 def summarize(run_id: str, path: Path, record: dict | None) -> dict:
-    """The fields a caller needs to show one record; a record without identity has only its run ID and path."""
+    """The fields a caller needs to show one record; a record without usable identity has only its run ID and path."""
+    fields = record or {}
     summary = {
-        "run_id": run_id, "path": str(path),
-        "mode": record["mode"] if record else None,
-        "completed_at": record["completed_at"] if record else None,
-        "completeness": record["completeness"] if record else None,
-        "reviewed_head_sha": record["reviewed_head_sha"] if record else None,
+        "run_id": run_id, "path": str(path), "mode": fields.get("mode"),
+        "completed_at": fields.get("completed_at"), "completeness": fields.get("completeness"),
+        "reviewed_head_sha": fields.get("reviewed_head_sha"),
     }
-    if record and record["mode"] == "follow-up":
+    if fields.get("mode") == "follow-up":
         summary["lineage"] = {
-            "source_run_id": record["lineage"]["source_run_id"],
-            "follow_up_run_ids": list(record["lineage"]["follow_up_run_ids"]),
+            "source_run_id": fields["lineage"]["source_run_id"],
+            "follow_up_run_ids": list(fields["lineage"]["follow_up_run_ids"]),
         }
     return summary
 
 
-def load_record(directory: Path, expected_run_id: str | None) -> dict | None:
-    """The validated identity of the record in a directory, or None for a legacy record without one."""
+def load_record(directory: Path, expected_run_id: str | None) -> tuple[dict | None, list[str]]:
+    """A record's identity and its validation problems.
+
+    The identity is None for a legacy record without one. An identity with problems is returned with them
+    so a caller decides whether that disqualifies the record. Unreadable, malformed, and non-object state
+    raise RecordProblem because no identity can be read at all.
+    """
     state = read_state(directory / RECORD_FILE)
     if "record" not in state:
-        return None
+        return None, []
     record = state["record"]
     if not isinstance(record, dict):
         raise RecordProblem("record identity is not an object")
-    problems = identity_problems(record, expected_run_id)
-    if problems:
-        raise RecordProblem("record identity is invalid: " + "; ".join(problems))
-    return record
+    return record, identity_problems(record, expected_run_id)
 
 
-def scan(record_root: Path) -> tuple[list[tuple[dict, int, Path]], list[dict], str | None]:
-    """Valid records as (identity, instant, directory), skipped records with reasons, and a root problem."""
+def scan(record_root: Path) -> tuple[list[Entry], list[dict], str | None]:
+    """Valid records, skipped records with reasons, and a root problem."""
     if not record_root.is_dir():
         return [], [], "record root does not exist"
     try:
@@ -189,21 +195,24 @@ def scan(record_root: Path) -> tuple[list[tuple[dict, int, Path]], list[dict], s
     for name in names:
         directory = record_root / name
         try:
-            record = load_record(directory, name)
+            record, problems = load_record(directory, name)
             if record is None:
                 raise RecordProblem("no record identity (a legacy record needs explicit selection)")
+            if problems:
+                raise RecordProblem("record identity is invalid: " + "; ".join(problems))
         except RecordProblem as problem:
             skipped.append({"run_id": name, "path": str(directory / RECORD_FILE), "reason": str(problem)})
             continue
-        valid.append((record, parse_timestamp(record["completed_at"]), directory))
+        valid.append(Entry(record, parse_timestamp(record["completed_at"]), directory))
     return valid, skipped, None
 
 
-def follow_ups_naming(valid: list[tuple[dict, int, Path]], source_run_id: str) -> list[dict]:
+def follow_ups_naming(valid: list[Entry], source_run_id: str) -> list[dict]:
     """Follow-up records whose lineage names the source, in completion order. They are context only."""
-    named = [item for item in valid if item[0]["mode"] == "follow-up" and item[0]["lineage"]["source_run_id"] == source_run_id]
-    return [summarize(record["run_id"], directory / RECORD_FILE, record)
-            for record, _, directory in sorted(named, key=lambda item: (item[1], item[0]["run_id"]))]
+    named = [entry for entry in valid
+             if entry.record["mode"] == "follow-up" and entry.record["lineage"]["source_run_id"] == source_run_id]
+    return [summarize(entry.record["run_id"], entry.directory / RECORD_FILE, entry.record)
+            for entry in sorted(named, key=lambda entry: (entry.instant, entry.record["run_id"]))]
 
 
 def discover(record_root: Path | str, repository: str, target_kind: str, target_key: str) -> dict:
@@ -221,72 +230,77 @@ def discover(record_root: Path | str, repository: str, target_kind: str, target_
     if problem:
         result["reason"] = problem
         return result
-    full = [item for item in valid if item[0]["mode"] == "full" and item[0]["repository"] == repository
-            and item[0]["target"] == {"kind": target_kind, "key": target_key}]
+    full = [entry for entry in valid if entry.record["mode"] == "full" and entry.record["repository"] == repository
+            and entry.record["target"] == {"kind": target_kind, "key": target_key}]
     if not full:
         result["reason"] = "no matching full-review record; explicit selection is required"
         return result
-    latest = max(instant for _, instant, _ in full)
-    tied = sorted((item for item in full if item[1] == latest), key=lambda item: item[0]["run_id"])
-    result["older_full_review_count"] = sum(1 for _, instant, _ in full if instant < latest)
+    latest = max(entry.instant for entry in full)
+    tied = sorted((entry for entry in full if entry.instant == latest), key=lambda entry: entry.record["run_id"])
+    result["older_full_review_count"] = sum(1 for entry in full if entry.instant < latest)
     if len(tied) > 1:
         result["status"] = "ambiguous"
         result["reason"] = "matching full-review records share the latest completion instant; explicit selection is required"
-        result["ambiguous"] = [summarize(record["run_id"], directory / RECORD_FILE, record) for record, _, directory in tied]
+        result["ambiguous"] = [summarize(entry.record["run_id"], entry.directory / RECORD_FILE, entry.record) for entry in tied]
         return result
-    record, _, directory = tied[0]
+    source = tied[0]
     result["status"] = "source"
-    result["source"] = summarize(record["run_id"], directory / RECORD_FILE, record)
-    result["follow_ups"] = follow_ups_naming(valid, record["run_id"])
+    result["source"] = summarize(source.record["run_id"], source.directory / RECORD_FILE, source.record)
+    result["follow_ups"] = follow_ups_naming(valid, source.record["run_id"])
     return result
 
 
 def locate(record_root: Path, selection: str) -> Path:
-    """The record directory a run ID or record path names; raise RecordProblem when it names none or several."""
-    bare = bool(selection) and selection not in (".", "..") and "/" not in selection and "\\" not in selection
-    candidates = []
-    if bare and (record_root / selection).is_dir():
-        candidates.append(record_root / selection)
+    """The record directory a selection names: a run ID in the record root, otherwise a record path."""
+    if is_run_id(selection) and (record_root / selection).is_dir():
+        return record_root / selection
     if selection and Path(selection).exists():
         path = Path(selection)
-        candidates.append(path.parent if path.is_file() else path)
-    if len({os.path.realpath(candidate) for candidate in candidates}) > 1:
-        raise RecordProblem(f"selection {selection!r} resolves to more than one record: "
-                            + ", ".join(sorted(str(candidate) for candidate in candidates)))
-    if not candidates:
-        raise RecordProblem(f"no record found for selection {selection!r}")
-    return candidates[0]
+        return path.parent if path.is_file() else path
+    raise RecordProblem(f"no record found for selection {selection!r}")
 
 
 def select_record(record_root: Path | str, selection: str) -> dict:
-    """Resolve an explicit run ID or record path to its source full-review record."""
+    """Resolve an explicit run ID or record path to its source full-review record.
+
+    Explicit selection keeps its tolerance: a readable record is selectable even when its identity is
+    missing or invalid, and `identity_missing` and `identity_problems` are reported for the user's
+    confirmation. Only a follow-up whose lineage names no usable source, or whose source cannot be read
+    or is a follow-up record, is an error.
+    """
     root = Path(record_root)
     result = {
         "record_root": str(root), "selection": selection, "status": "error", "reason": None,
-        "selected": None, "source": None, "identity_missing": False, "follow_ups": [],
+        "selected": None, "source": None, "identity_missing": False, "identity_problems": [], "follow_ups": [],
     }
     try:
         directory = locate(root, selection)
         in_root = os.path.realpath(directory.parent) == os.path.realpath(root)
-        record = load_record(directory, directory.name if in_root else None)
-        selected = summarize(directory.name if record is None else record["run_id"], directory / RECORD_FILE, record)
-        source, source_record = selected, record
-        if record is not None and record["mode"] == "follow-up":
-            source_id = record["lineage"]["source_run_id"]
+        record, problems = load_record(directory, directory.name if in_root else None)
+        usable = record if record is not None and not problems else None
+        selected = summarize(directory.name if usable is None else record["run_id"], directory / RECORD_FILE, usable)
+        source, source_record, source_problems = selected, usable, problems
+        lineage = (record or {}).get("lineage")
+        if (record or {}).get("mode") == "follow-up":
+            source_id = lineage.get("source_run_id") if isinstance(lineage, dict) else None
+            if not is_run_id(source_id):
+                raise RecordProblem("the follow-up record names no usable lineage source run ID")
             try:
                 source_directory = root / source_id
-                source_record = load_record(source_directory, source_id)
+                source_record, source_problems = load_record(source_directory, source_id)
             except RecordProblem as problem:
                 raise RecordProblem(f"the source record {source_id!r} named by lineage cannot be recovered: {problem}") from None
-            if source_record is not None and source_record["mode"] != "full":
+            if source_record is not None and not source_problems and source_record["mode"] != "full":
                 raise RecordProblem(f"the lineage source {source_id!r} is not a full-review record")
-            source = summarize(source_id, source_directory / RECORD_FILE, source_record)
+            usable_source = source_record if not source_problems else None
+            source = summarize(source_id, source_directory / RECORD_FILE, usable_source)
+            source_record = usable_source
     except RecordProblem as problem:
         result["reason"] = str(problem)
         return result
     valid, _, _ = scan(root)
     result.update(status="source", selected=selected, source=source, identity_missing=source_record is None,
-                  follow_ups=follow_ups_naming(valid, source["run_id"]))
+                  identity_problems=source_problems, follow_ups=follow_ups_naming(valid, source["run_id"]))
     return result
 
 
