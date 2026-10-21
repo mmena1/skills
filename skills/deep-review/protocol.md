@@ -149,6 +149,8 @@ The run directory has a unique name, for example a UTC timestamp followed by a s
 }
 ```
 
+`completed_at` uses one timestamp profile: `YYYY-MM-DDThh:mm:ss`, an optional fraction of one to nine digits, then `Z` or a `+hh:mm` or `-hh:mm` offset. Discovery compares timestamps as instants, so `2026-10-20T12:00:00Z` and `2026-10-20T14:00:00+02:00` are the same instant. A timestamp without an offset, with the unknown `-00:00` offset, in any other form, or out of range makes its record unusable with a specific diagnostic.
+
 `lineage` is present only in a follow-up record. It names the source full-review run ID and every earlier follow-up run ID the follow-up built on. Each approved publication payload entry records the canonical concern ID it publishes, and the publication record keeps the created comment identifiers whenever the submission response or a read-back provides them, as `references/pr-review-comments.md` describes.
 
 ## Runtime acceptance receipt
@@ -241,7 +243,14 @@ Follow-up revalidation independently revalidates selected concerns from a preser
 
 Target resolution, caller-checkout overlap, the clean-status requirement, PR discussion isolation, and the confirmation gate are the full review's ("Gate and resolve"). The new head is the resolved target's head.
 
-For a PR or branch target, read every `run-state.json` directly under the record root's run directories and match records whose record identity has the same repository and target kind and key. The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record, so a focused follow-up that rechecked only a subset can never narrow the concern inventory. Latest means the greatest `completed_at`; when two matching full-review records tie, discovery is ambiguous and requires explicit selection. Report the source record's completeness status and how many older full-review records match. List unreadable, schema-invalid, and identity-less records as skipped, with reasons.
+For a PR or branch target, read every `run-state.json` directly under the record root's run directories and match records whose record identity has the same repository and target kind and key. The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record, so a focused follow-up that rechecked only a subset can never narrow the concern inventory. Latest means the greatest `completed_at` instant, compared as an instant in the timestamp profile above and never as text; when two matching full-review records tie on the same instant, whatever their textual forms, discovery is ambiguous and requires explicit selection. Report the source record's completeness status and how many older full-review records match. List unreadable, schema-invalid, and identity-less records as skipped, with reasons.
+
+Run `scripts/discover_records.py` from this skill's directory instead of reimplementing these rules. It is read-only and prints one JSON object:
+
+- `python scripts/discover_records.py discover --record-root <record root> --repository <repository> --target-kind <pr|branch|range> --target-key <key>` applies the matching, source selection, tie, and skipped-record rules above. Its `status` is `source`, `ambiguous` (the tied candidates are in `ambiguous`), or `none` with a `reason`, and it reports the source's completeness, `older_full_review_count`, the follow-up records whose lineage names the source in `follow_ups`, and every record it could not use in `skipped`, ordered by run ID with a specific reason each, including the diagnostic for an invalid, unsupported, or timezone-ambiguous `completed_at`.
+- `python scripts/discover_records.py select --record-root <record root> --selection <run ID | record path>` applies the explicit selection and lineage rules below. A follow-up record resolves to its source full-review record, and a record without identity is accepted with `identity_missing` set so the confirmation can show it. A source that cannot be read or is not a full-review record is an `error` with its `reason`.
+
+The exit status is 0 only when a source record was found. Discovery judges record identity and never rejects a source for incomplete concern evidence; per-concern completeness is decided later, as below. It does not decide among tied or unmatched candidates, confirm anything with the user, or write or repair any record.
 
 A commit-range target, no matching full-review record, or a user preference uses explicit selection by run ID (a run directory in the record root) or record path. Explicit selection may name a record without identity fields, such as one preserved before record identity existed; the confirmation shows the missing identity, and the user confirms it. Explicitly selecting a follow-up record resolves through its lineage to its source full-review record; when that source record cannot be read, stop and report it, because the concern inventory cannot be recovered.
 

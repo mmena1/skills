@@ -439,6 +439,7 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "Only a leading literal `follow-up` token selects it; every other invocation is the unchanged full review",
         "skip reviewer selection, the scout capacity check, and the scout wave, and state in the report that no scouts ran",
         "giving each invocation exactly one original concern record and never GitHub discussion",
+        "Discover the source record with `scripts/discover_records.py` as `protocol.md` describes",
         "A preservation failure never changes a review's outcomes, report, or publication and never blocks worktree cleanup",
     ),
     "protocol.md": (
@@ -457,6 +458,12 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         # Full-review source selection.
         "The **source record** is the latest matching record whose mode is `full`, never a newer follow-up record",
         "supply prior status and provenance only",
+        # Deterministic, read-only discovery by instant.
+        "Latest means the greatest `completed_at` instant, compared as an instant in the timestamp profile above and never as text",
+        "whatever their textual forms, discovery is ambiguous and requires explicit selection",
+        "Run `scripts/discover_records.py` from this skill's directory instead of reimplementing these rules. It is read-only",
+        "Discovery judges record identity and never rejects a source for incomplete concern evidence",
+        "A timestamp without an offset, with the unknown `-00:00` offset, in any other form, or out of range makes its record unusable with a specific diagnostic.",
         # No reconstruction.
         "It is never reconstructed from a comment body, report prose, memory, or a fresh interpretation of the code, and it never widens the run into a full review.",
         "or with ambiguous evidence",
