@@ -688,7 +688,7 @@ DEEP_REVIEW_RECORD_PRESERVATION_RULES = {
     "references/output-template.md": (
         "## Preservation closeout",
         "never a predicted success",
-        "Archived snapshot:",
+        "Pre-preservation snapshot:",
         "Observed at closeout:",
         "Retained:",
         "unobserved paths stay NOT EXERCISED",
@@ -705,6 +705,7 @@ DEEP_REVIEW_RECORD_PRESERVATION_RULES = {
         "Existing record directory",
         "Denied write",
         "Partial copy",
+        "the run-state copy itself fails",
         "Verification failure",
         "Interruption",
         "Failed worktree cleanup followed by preservation",

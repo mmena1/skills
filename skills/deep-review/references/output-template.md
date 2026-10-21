@@ -115,12 +115,12 @@ Unresolved outcomes are always Action: discuss and are not Findings.
 
 ## Preservation closeout
 
-Applies to every run, full or follow-up. The archived report and run state are the pre-preservation snapshot: their record line and preservation receipt rows state the intended record directory and `NOT EXERCISED`, never a predicted success. Present this closeout to the user after record preservation has finished, never inside the archived report or run state.
+Applies to every run, full or follow-up. The archived report and run state are the pre-preservation snapshot: any `Records:` line and the preservation receipt rows state the intended record directory and `NOT EXERCISED`, never a predicted success. Present this closeout to the user after record preservation has finished, never inside the archived report or run state.
 
 ```markdown
 ### Preservation closeout
 
-Archived snapshot: [intended record directory; preservation not yet observed at snapshot time]
+Pre-preservation snapshot: [intended record directory; preservation not yet observed at snapshot time]
 Observed at closeout: [preserved: record directory, each file copied, and byte equality verified for each / not preserved: the precise limitation (denied write, partial copy, byte mismatch, or interruption)]
 Retained: [none / run directory, partial record directory, and other leftover paths]
 Preservation rows at closeout: [PASS / FAIL / NOT EXERCISED per row with the observed evidence; unobserved paths stay NOT EXERCISED]
