@@ -85,9 +85,14 @@ def begin(name: str, location: object = "") -> None:
     SCENARIO = f"{name} in {location}" if location else name
 
 
+def problem(message: str) -> None:
+    """Report a failed assertion with the scenario group and record root under test."""
+    problem(f"{message}")
+
+
 def expect(label: str, actual: object, expected: object) -> None:
     if actual != expected:
-        fail(f"record discovery [{SCENARIO}]: {label}: expected {expected!r}, got {actual!r}")
+        problem(f"{label}: expected {expected!r}, got {actual!r}")
 
 
 def validate_timestamps(module) -> None:
@@ -134,17 +139,17 @@ def validate_timestamps(module) -> None:
             parse(text)
         except module.TimestampError as error:
             if reason not in str(error):
-                fail(f"record discovery: timestamp {text!r} diagnostic {str(error)!r} lacks {reason!r}")
+                problem(f"timestamp {text!r} diagnostic {str(error)!r} lacks {reason!r}")
         else:
-            fail(f"record discovery: timestamp {text!r} was accepted")
+            problem(f"timestamp {text!r} was accepted")
     for value in (None, 12345, 1.5, ["2026-10-20T12:00:00Z"]):
         try:
             parse(value)
         except module.TimestampError as error:
             if "string" not in str(error):
-                fail(f"record discovery: non-string timestamp {value!r} diagnostic {str(error)!r} lacks 'string'")
+                problem(f"non-string timestamp {value!r} diagnostic {str(error)!r} lacks 'string'")
         else:
-            fail(f"record discovery: non-string timestamp {value!r} was accepted")
+            problem(f"non-string timestamp {value!r} was accepted")
 
 
 def validate_source_selection(module, base: Path) -> None:
@@ -218,7 +223,7 @@ def validate_filtering_and_lineage(module, base: Path) -> None:
     result = discover(module, ranges, "range", f"{SHA}..{'c' * 40}")
     expect("a commit-range target requires explicit selection", (result["status"], result["source"]), ("none", None))
     if "explicit selection" not in result.get("reason", ""):
-        fail("record discovery: a commit-range target must say explicit selection is required")
+        problem("a commit-range target must say explicit selection is required")
 
 
 def validate_skipped_records(module, base: Path) -> None:
@@ -282,7 +287,7 @@ def validate_skipped_records(module, base: Path) -> None:
     expect("skipped records are listed in run ID order", run_ids(result["skipped"]), sorted(expectations))
     for entry in result["skipped"]:
         if expectations[entry["run_id"]] not in entry["reason"]:
-            fail(f"record discovery: skipped {entry['run_id']} reason {entry['reason']!r} lacks {expectations[entry['run_id']]!r}")
+            problem(f"skipped {entry['run_id']} reason {entry['reason']!r} lacks {expectations[entry['run_id']]!r}")
     expect("an unusable record is never counted as a match", result["older_full_review_count"], 0)
     expect("the result is deterministic", json.dumps(discover(module, root)), json.dumps(result))
 
@@ -301,7 +306,7 @@ def validate_skipped_records(module, base: Path) -> None:
     expect("an unsupported newer timestamp never wins or falls through silently",
            (result["source"]["run_id"], run_ids(result["skipped"])), ("old", ["bad"]))
     if "unsupported" not in result["skipped"][0]["reason"]:
-        fail("record discovery: an unsupported timestamp must be diagnosed in the skipped reason")
+        problem("an unsupported timestamp must be diagnosed in the skipped reason")
 
 
 def validate_legacy_incomplete_concerns(module, base: Path) -> None:
@@ -371,16 +376,16 @@ def validate_explicit_selection(module, base: Path) -> None:
     for selection, reason in failures.items():
         result = module.select_record(root, selection)
         if result["status"] != "error" or reason not in result["reason"]:
-            fail(f"record discovery: selection {selection!r} expected an error naming {reason!r}, got {result!r}")
+            problem(f"selection {selection!r} expected an error naming {reason!r}, got {result!r}")
         if result["source"] is not None:
-            fail(f"record discovery: failed selection {selection!r} must not report a source")
+            problem(f"failed selection {selection!r} must not report a source")
 
     write_record(root, "invalid-run", {"record": identity("invalid-run", completed_at="soon")})
     result = module.select_record(root, "invalid-run")
     expect("an identity-invalid record stays selectable", (result["status"], result["source"]["run_id"]), ("source", "invalid-run"))
     expect("its identity problems are shown for confirmation", (result["identity_missing"], len(result["identity_problems"])), (True, 1))
     if "completed_at" not in result["identity_problems"][0]:
-        fail(f"record discovery [{SCENARIO}]: the timestamp diagnostic must be shown for confirmation, got {result!r}")
+        problem(f"the timestamp diagnostic must be shown for confirmation, got {result!r}")
     write_record(root, "renamed-dir", {"record": identity("original-name")})
     result = module.select_record(root, "renamed-dir")
     expect("a record whose run_id disagrees with its directory stays selectable",
@@ -393,7 +398,7 @@ def validate_explicit_selection(module, base: Path) -> None:
     write_record(root, "fu-no-lineage", {"record": identity("fu-no-lineage", mode="follow-up")})
     result = module.select_record(root, "fu-no-lineage")
     if result["status"] != "error" or "lineage source" not in result["reason"]:
-        fail(f"record discovery [{SCENARIO}]: a follow-up without a usable lineage source must be an error, got {result!r}")
+        problem(f"a follow-up without a usable lineage source must be an error, got {result!r}")
 
     cwd_root = base / "cwd"
     write_identity(cwd_root / "records", identity("shared", "2026-10-20T10:00:00Z"))
@@ -427,7 +432,7 @@ def validate_read_only(module, base: Path) -> None:
     discover(module, missing)
     module.select_record(missing, "anything")
     if missing.exists():
-        fail("record discovery: a missing record root must not be created")
+        problem("a missing record root must not be created")
 
 
 def validate_command_line(base: Path) -> None:
@@ -446,7 +451,7 @@ def validate_command_line(base: Path) -> None:
         try:
             return result.returncode, json.loads(result.stdout)
         except json.JSONDecodeError:
-            fail(f"record discovery: command line {arguments} did not print JSON: {result.stdout!r} {result.stderr!r}")
+            problem(f"command line {arguments} did not print JSON: {result.stdout!r} {result.stderr!r}")
 
     selector = ["--record-root", str(root)]
     target = ["--repository", REPOSITORY, "--target-kind", TARGET_KIND, "--target-key", TARGET_KEY]

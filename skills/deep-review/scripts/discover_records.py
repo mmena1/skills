@@ -102,6 +102,9 @@ class Entry(NamedTuple):
     instant: int
     directory: Path
 
+    def summary(self) -> dict:
+        return summarize(self.record["run_id"], self.directory / RECORD_FILE, self.record)
+
 
 def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
     """Every way a record identity fails validation, in a fixed order."""
@@ -137,10 +140,10 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
         problems.append(f"completeness {record.get('completeness')!r} is not one of {', '.join(COMPLETENESS)}")
     lineage = record.get("lineage")
     if mode == "follow-up":
-        earlier = lineage.get("follow_up_run_ids") if isinstance(lineage, dict) else None
         if not isinstance(lineage, dict):
             problems.append("lineage is missing or not an object in a follow-up record")
         else:
+            earlier = lineage.get("follow_up_run_ids")
             source = lineage.get("source_run_id")
             if not is_run_id(source):
                 problems.append("lineage source_run_id is missing, empty, or not a run ID")
@@ -211,8 +214,7 @@ def follow_ups_naming(valid: list[Entry], source_run_id: str) -> list[dict]:
     """Follow-up records whose lineage names the source, in completion order. They are context only."""
     named = [entry for entry in valid
              if entry.record["mode"] == "follow-up" and entry.record["lineage"]["source_run_id"] == source_run_id]
-    return [summarize(entry.record["run_id"], entry.directory / RECORD_FILE, entry.record)
-            for entry in sorted(named, key=lambda entry: (entry.instant, entry.record["run_id"]))]
+    return [entry.summary() for entry in sorted(named, key=lambda entry: (entry.instant, entry.record["run_id"]))]
 
 
 def discover(record_root: Path | str, repository: str, target_kind: str, target_key: str) -> dict:
@@ -241,11 +243,11 @@ def discover(record_root: Path | str, repository: str, target_kind: str, target_
     if len(tied) > 1:
         result["status"] = "ambiguous"
         result["reason"] = "matching full-review records share the latest completion instant; explicit selection is required"
-        result["ambiguous"] = [summarize(entry.record["run_id"], entry.directory / RECORD_FILE, entry.record) for entry in tied]
+        result["ambiguous"] = [entry.summary() for entry in tied]
         return result
     source = tied[0]
     result["status"] = "source"
-    result["source"] = summarize(source.record["run_id"], source.directory / RECORD_FILE, source.record)
+    result["source"] = source.summary()
     result["follow_ups"] = follow_ups_naming(valid, source.record["run_id"])
     return result
 
