@@ -451,7 +451,7 @@ def validate_explicit_selection(module, base: Path) -> None:
     write_identity(cwd_root / "elsewhere", identity("old-run", "2026-10-19T10:00:00Z"))
     code, payload = select_from(cwd_root / "elsewhere", "old-run")
     expect("a bare run ID absent from the record root never resolves against the working directory",
-           (code, payload["status"], payload["source"], "./old-run" in payload["reason"]), (1, "error", None, True))
+           (code, payload["status"], payload["source"], "./old-run" in (payload["reason"] or "")), (1, "error", None, True))
     code, payload = select_from(cwd_root / "elsewhere", "./old-run")
     expect("an explicit path form selects a record outside the record root",
            (code, payload["status"], payload["source"]["run_id"]), (0, "source", "old-run"))
