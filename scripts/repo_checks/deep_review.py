@@ -659,3 +659,75 @@ def deep_review_probe_environment_problems(documents: dict[str, str]) -> list[st
         for rule in rules
         if rule not in documents.get(relative, "")
     ]
+
+
+DEEP_REVIEW_RECORD_PRESERVATION_RULES = {
+    "SKILL.md": (
+        "The archived run state and report are the pre-preservation snapshot: claim preservation success only in the closeout, "
+        "after the copy and byte-equality verification establish it, and never by updating the snapshot.",
+    ),
+    "protocol.md": (
+        "**Observation boundary.**",
+        "are the **pre-preservation snapshot**, frozen when the run-state copy starts",
+        "a preservation status of `not yet observed`",
+        "cannot observe its own copy, so it stays `NOT EXERCISED`",
+        "the snapshot never carries a predicted success",
+        "nothing observed is written to the live run state, the archived run state, or the archived report",
+        "**Preservation closeout.**",
+        "It claims preservation only when the copy and verification established it, and then names the preserved record path.",
+        "Closeout rows are `PASS` or `FAIL` only for paths the coordinator observed; every unobserved path stays `NOT EXERCISED`, and no row infers a `PASS`.",
+        "**Failures by timing.**",
+        "is recorded in the retained run state, because no snapshot exists yet and no run state was archived",
+        "is reported in the closeout only and leaves the live run state and the archived copy unchanged",
+        "neither blocks worktree cleanup",
+        "never written back into it",
+        "The two record preservation rows are observed only in the preservation closeout; the archived snapshot records them as `NOT EXERCISED`.",
+        "Preservation copies `run-state.json` last, so a partial record has no complete run state, a partial or unreadable `run-state.json` is never a trusted record, and it verifies byte equality of every copied file before the run directory is removed.",
+        "It never overwrites an existing record directory.",
+        "Report the preserved record path in the preservation closeout only after verification",
+    ),
+    "references/output-template.md": (
+        "## Preservation closeout",
+        "never a predicted success",
+        "Pre-preservation snapshot:",
+        "Observed at closeout:",
+        "Retained:",
+        "follow-up runs only, because only the follow-up receipt defines preservation rows",
+        "unobserved paths stay NOT EXERCISED",
+        "reported in the preservation closeout",
+    ),
+    "runtime-acceptance.md": (
+        "references/record-preservation-scenarios.md",
+        "the archived snapshot's row stays `NOT EXERCISED`",
+        "without altering any archived snapshot",
+    ),
+    "GLOSSARY.md": ("**Pre-preservation snapshot**", "**Preservation closeout**"),
+    "references/record-preservation-scenarios.md": (
+        "Successful preservation",
+        "Existing record directory",
+        "Denied write",
+        "it refuses the run-state copy as it starts",
+        "Partial copy",
+        "the run-state copy itself fails",
+        "Verification failure",
+        "Interruption",
+        "Failed worktree cleanup followed by preservation",
+        "Snapshot immutability",
+        "Copy ordering",
+        "Byte integrity",
+        "Truthful closeout",
+        "Retention",
+        "not native runtime evidence",
+        "independent native runtime verification gate",
+    ),
+}
+
+
+def deep_review_record_preservation_problems(documents: dict[str, str]) -> list[str]:
+    """Guard the preservation timing and closeout contract, not runtime compliance."""
+    return [
+        f"skills/deep-review/{relative}: missing record preservation rule {rule!r}"
+        for relative, rules in DEEP_REVIEW_RECORD_PRESERVATION_RULES.items()
+        for rule in rules
+        if rule not in documents.get(relative, "")
+    ]

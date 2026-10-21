@@ -173,6 +173,8 @@ Record only observed behavior. Never perturb a real review to exercise a row, in
 - PR head change: whether stale reviewed/current SHAs were reported and publication was blocked;
 - cleanup: whether removal was confined to the current run and exact leftovers were reported.
 
+The receipt is part of the pre-preservation snapshot. A preservation observation made at closeout is reported in the preservation closeout and never written back into it.
+
 Rare failure and transition paths remain `NOT EXERCISED` until they occur naturally or a targeted smoke run observes them. The receipt is conformance evidence for this run, not proof of unexercised behavior.
 
 ## Pipeline invariants
@@ -220,9 +222,15 @@ Every run that created a run state preserves its records under the **record root
 
 An ordinary checkout, any of its linked worktrees, and any subdirectory of either all resolve to the same record root. Never use the coordinator-owned review worktree's own Git directory or a path relative to the session's working directory.
 
-A preserved record holds `run-state.json`, `final-report.md` when produced, and `publication-receipt.json` when produced. Preservation uses the fixed direct copy operation, the same `cp` operation (or selected byte-for-byte equivalent) that context capture uses, with narrowly scoped authorization for that exact record directory. It never overwrites an existing record directory. It runs only after worktree cleanup has finished and the run state and final report record the actual cleanup outcome, including a failed or interrupted cleanup, so the preserved record describes how the run really ended. Before copying, the run state records the intended record directory. Preservation copies `run-state.json` last, so a partial record has no run state, and verifies byte equality of every copied file before the run directory is removed.
+A preserved record holds `run-state.json`, `final-report.md` when produced, and `publication-receipt.json` when produced. Preservation uses the fixed direct copy operation, the same `cp` operation (or selected byte-for-byte equivalent) that context capture uses, with narrowly scoped authorization for that exact record directory. It never overwrites an existing record directory. It runs only after worktree cleanup has finished and the run state and final report record the actual cleanup outcome, including a failed or interrupted cleanup, so the preserved record describes how the run really ended. Before copying, the run state records the intended record directory. Preservation copies `run-state.json` last, so a partial record has no complete run state, a partial or unreadable `run-state.json` is never a trusted record, and it verifies byte equality of every copied file before the run directory is removed.
 
-Preservation never changes a review. A denied authorization, a write restriction on the Git common directory, or any other preservation failure leaves the run's analysis, outcomes, report, cleanup outcome, and publication unchanged. Worktree cleanup has already run by then, so preservation never blocks it. The coordinator then records the preservation failure in the retained run state, reports that records were not preserved and why, keeps the run directory with its records, and names the exact retained paths, including any partial record directory. It never removes unpreserved records and is never silent about a preservation failure.
+Preservation never changes a review. A denied authorization, a write restriction on the Git common directory, or any other preservation failure leaves the run's analysis, outcomes, report, cleanup outcome, and publication unchanged. Worktree cleanup has already run by then, so preservation never blocks it. The coordinator then records the preservation failure in the retained run state where "Failures by timing" below allows it, reports that records were not preserved and why, keeps the run directory with its records, and names the exact retained paths, including any partial record directory. It never removes unpreserved records and is never silent about a preservation failure.
+
+**Observation boundary.** Copying `run-state.json` ends the run state's life as a mutable record. The archived `run-state.json` and `final-report.md` are the **pre-preservation snapshot**, frozen when the run-state copy starts, and byte equality with the live run state is part of what verification proves. Before that point they may hold only what is knowable then: the actual cleanup outcomes, the intended record directory, and a preservation status of `not yet observed`. A preservation row in the snapshot's runtime acceptance receipt cannot observe its own copy, so it stays `NOT EXERCISED` with the intended record directory as its evidence, and the snapshot never carries a predicted success. After that point nothing observed is written to the live run state, the archived run state, or the archived report.
+
+**Preservation closeout.** After the copies finish and the byte equality of every copied file has been verified or has failed, the coordinator reports the **preservation closeout** to the user, separately from the snapshot and labeled as observed at closeout. It claims preservation only when the copy and verification established it, and then names the preserved record path. Otherwise it reports the precise limitation (denied write, partial copy, byte mismatch, or interruption) with the retained run directory and any partial record directory. Closeout rows are `PASS` or `FAIL` only for paths the coordinator observed; every unobserved path stays `NOT EXERCISED`, and no row infers a `PASS`.
+
+**Failures by timing.** A failure observed before the run-state copy starts, such as a refused authorization or record directory, or a denied, failed, or interrupted copy of the report or publication receipt, is recorded in the retained run state, because no snapshot exists yet and no run state was archived. A failure observed after the run-state copy starts, such as a denied, failed, or interrupted run-state copy, a byte mismatch, or any later diagnostic, is reported in the closeout only and leaves the live run state and the archived copy unchanged. Neither case changes a review outcome, the report, or publication, and neither blocks worktree cleanup.
 
 ## Cleanup
 
@@ -233,7 +241,7 @@ After every exit path, first remove the scratch directory at its exact path once
 3. Preserve the run's records as described in "Preserved review records". Worktree cleanup never waits on preservation, and a preservation failure never reverses or blocks it.
 4. Remove the matching context snapshot and run directory only when both the worktree cleanup in step 1 and the record preservation in step 3 are verified. The worktree lives beneath the run directory, so a failed or interrupted worktree removal keeps the run directory, the leftover worktree path, and its Git registration exactly as they are for recovery, and the coordinator reports each exact path; it never deletes them outside the Git worktree mechanism. When preservation is not verified, keep the run directory and report its exact path. A failed worktree cleanup is still preserved to the record root independently, so the record carries the failure outcome.
 
-Report the preserved record path, and exact leftovers when cleanup is interrupted.
+Report the preserved record path in the preservation closeout only after verification, and exact leftovers when cleanup is interrupted.
 
 ## Follow-up revalidation
 
@@ -321,3 +329,5 @@ The follow-up receipt keeps every full-review row and marks the full-review-only
 - discovery when the newest record is a narrower follow-up: whether the latest full-review record stayed the source and the follow-up supplied only prior context;
 - record preservation from a linked worktree: whether records reached the canonical record root of the clone's Git common directory;
 - record preservation under a write restriction: whether outcomes stayed unchanged and the run directory was retained with exact paths reported.
+
+The two record preservation rows are observed only in the preservation closeout; the archived snapshot records them as `NOT EXERCISED`.

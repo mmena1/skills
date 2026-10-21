@@ -12,6 +12,8 @@
 - **Record identity**: The header of a run state that lets a later session match it to a target: format version, run ID, mode (`full` or `follow-up`), repository identity, target kind and key, base and reviewed head SHAs, completion time, completeness status, and, for a follow-up, its lineage.
 - **Record root**: `<git-common-dir>/deep-review/records/`, where `<git-common-dir>` is the canonical absolute path of the caller repository's Git common directory. Every worktree of a clone shares it, and it is never tracked.
 - **Preserved record**: A run's `run-state.json`, and its `final-report.md` and `publication-receipt.json` when produced, copied byte for byte under the record root before the run directory is removed.
+- **Pre-preservation snapshot**: The run state and final report as copied into a preserved record. It is frozen when the run-state copy starts, holds only what is knowable before preservation, and is never updated to claim or revise a preservation outcome.
+- **Preservation closeout**: The coordinator's report to the user, after the copies and their byte-equality verification have finished, of what preservation actually achieved: the verified record path, or the precise limitation and retained paths. It is separate from the pre-preservation snapshot.
 - **Operational instructions**: Instructions from the materialized target that govern behavior. Ignored context is supplemental evidence unless supported repository configuration explicitly designates it otherwise.
 
 ## Context
