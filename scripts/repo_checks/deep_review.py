@@ -383,7 +383,7 @@ def present(value: object) -> bool:
     return bool(str(value or "").strip())
 
 
-def concern_gaps(concern: dict | None) -> list[str]:
+def concern_gaps(concern: dict | None, concern_id: str) -> list[str]:
     """What keeps one requested concern from being complete, as specific reasons; empty when it is complete."""
     if concern is None:
         return ["no preserved original concern"]
@@ -393,6 +393,8 @@ def concern_gaps(concern: dict | None) -> list[str]:
     gaps = []
     if not present(hypothesis.get("canonical_id")):
         gaps.append("canonical ID missing or empty")
+    elif hypothesis["canonical_id"] != concern_id:
+        gaps.append(f"preserved hypothesis ID {hypothesis['canonical_id']} does not match requested concern {concern_id}")
     scouts = hypothesis.get("scouts")
     if not scouts or not all(present(scout.get("id")) and present(scout.get("origin")) for scout in scouts):
         gaps.append("original scout IDs and origins missing or empty")
@@ -413,7 +415,7 @@ def follow_up_coverage(
     """
     eligible, incomplete = [], {}
     for concern_id in sorted(dict.fromkeys(requested), key=lambda value: int(value.lstrip("H") or 0)):
-        gaps = concern_gaps(source_concerns.get(concern_id))
+        gaps = concern_gaps(source_concerns.get(concern_id), concern_id)
         if gaps:
             incomplete[concern_id] = gaps
         else:
@@ -463,6 +465,7 @@ DEEP_REVIEW_FOLLOW_UP_RULES = {
         "is never replaced by a title, summary, or validator outcome",
         "with every original scout ID and origin",
         "Completeness is decided for each requested concern, before any validator is dispatched.",
+        "whose canonical ID equals the requested concern's ID",
         "Incomplete evidence invalidates only its own concern.",
         "its complete concerns remain eligible for selection and validation alongside the reported incomplete ones",
         "exactly as the source record preserves it",
