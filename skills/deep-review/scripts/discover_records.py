@@ -155,17 +155,21 @@ def identity_problems(record: dict, expected_run_id: str | None) -> list[str]:
 
 
 def summarize(run_id: str, path: Path, record: dict | None) -> dict:
-    """The fields a caller needs to show one record; a record without usable identity has only its run ID and path."""
+    """The fields a caller needs to show one record.
+
+    Fields are read as the record holds them, so an explicitly selected record with an invalid identity
+    still shows what it states. A record without identity has only its run ID and path.
+    """
     fields = record or {}
     summary = {
         "run_id": run_id, "path": str(path), "mode": fields.get("mode"),
         "completed_at": fields.get("completed_at"), "completeness": fields.get("completeness"),
         "reviewed_head_sha": fields.get("reviewed_head_sha"),
     }
-    if fields.get("mode") == "follow-up":
+    lineage = fields.get("lineage")
+    if fields.get("mode") == "follow-up" and isinstance(lineage, dict):
         summary["lineage"] = {
-            "source_run_id": fields["lineage"]["source_run_id"],
-            "follow_up_run_ids": list(fields["lineage"]["follow_up_run_ids"]),
+            "source_run_id": lineage.get("source_run_id"), "follow_up_run_ids": lineage.get("follow_up_run_ids"),
         }
     return summary
 
@@ -266,24 +270,27 @@ def select_record(record_root: Path | str, selection: str) -> dict:
     """Resolve an explicit run ID or record path to its source full-review record.
 
     Explicit selection keeps its tolerance: a readable record is selectable even when its identity is
-    missing or invalid, and `identity_missing` and `identity_problems` are reported for the user's
-    confirmation. Only a follow-up whose lineage names no usable source, or whose source cannot be read
-    or is a follow-up record, is an error.
+    missing or invalid. `identity_missing` is true when the source record has no identity at all, and
+    `identity_problems` and `source_identity_problems` list the problems of the selected and the source
+    record separately (the same list when they are one record), for the user's confirmation. A follow-up
+    whose lineage names no usable source, or whose source cannot be read or is a follow-up record, is an
+    error, whatever other identity problems either record has.
     """
     root = Path(record_root)
     result = {
         "record_root": str(root), "selection": selection, "status": "error", "reason": None,
-        "selected": None, "source": None, "identity_missing": False, "identity_problems": [], "follow_ups": [],
+        "selected": None, "source": None, "identity_missing": False,
+        "identity_problems": [], "source_identity_problems": [], "follow_ups": [],
     }
     try:
         directory = locate(root, selection)
         in_root = os.path.realpath(directory.parent) == os.path.realpath(root)
         record, problems = load_record(directory, directory.name if in_root else None)
-        usable = record if record is not None and not problems else None
-        selected = summarize(directory.name if usable is None else record["run_id"], directory / RECORD_FILE, usable)
-        source, source_record, source_problems = selected, usable, problems
-        lineage = (record or {}).get("lineage")
+        selected = summarize(directory.name if problems or record is None else record["run_id"],
+                             directory / RECORD_FILE, record)
+        source, source_record, source_problems = selected, record, problems
         if (record or {}).get("mode") == "follow-up":
+            lineage = record.get("lineage")
             source_id = lineage.get("source_run_id") if isinstance(lineage, dict) else None
             if not is_run_id(source_id):
                 raise RecordProblem("the follow-up record names no usable lineage source run ID")
@@ -292,17 +299,16 @@ def select_record(record_root: Path | str, selection: str) -> dict:
                 source_record, source_problems = load_record(source_directory, source_id)
             except RecordProblem as problem:
                 raise RecordProblem(f"the source record {source_id!r} named by lineage cannot be recovered: {problem}") from None
-            if source_record is not None and not source_problems and source_record["mode"] != "full":
+            if (source_record or {}).get("mode") == "follow-up":
                 raise RecordProblem(f"the lineage source {source_id!r} is not a full-review record")
-            usable_source = source_record if not source_problems else None
-            source = summarize(source_id, source_directory / RECORD_FILE, usable_source)
-            source_record = usable_source
+            source = summarize(source_id, source_directory / RECORD_FILE, source_record)
     except RecordProblem as problem:
         result["reason"] = str(problem)
         return result
     valid, _, _ = scan(root)
     result.update(status="source", selected=selected, source=source, identity_missing=source_record is None,
-                  identity_problems=source_problems, follow_ups=follow_ups_naming(valid, source["run_id"]))
+                  identity_problems=problems, source_identity_problems=source_problems,
+                  follow_ups=follow_ups_naming(valid, source["run_id"]))
     return result
 
 

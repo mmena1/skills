@@ -13,7 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from ..common import ROOT, fail
+from ..common import ROOT, CheckFailure, fail
 
 
 SCRIPT = ROOT / "skills/deep-review/scripts/discover_records.py"
@@ -87,12 +87,25 @@ def begin(name: str, location: object = "") -> None:
 
 def problem(message: str) -> None:
     """Report a failed assertion with the scenario group and record root under test."""
-    problem(f"{message}")
+    fail(f"record discovery [{SCENARIO}]: {message}")
 
 
 def expect(label: str, actual: object, expected: object) -> None:
     if actual != expected:
         problem(f"{label}: expected {expected!r}, got {actual!r}")
+
+
+def validate_failure_reporting() -> None:
+    """A failed assertion raises the check failure with the scenario and the expectation, never a recursion."""
+    begin("failure_reporting", "a deliberately failing assertion")
+    try:
+        expect("a deliberate mismatch", 1, 2)
+    except CheckFailure as error:
+        expect("the failure names the scenario and the expectation",
+               str(error), "record discovery [failure_reporting in a deliberately failing assertion]: "
+                           "a deliberate mismatch: expected 2, got 1")
+    else:
+        fail("record discovery: a failed expectation did not raise the check failure")
 
 
 def validate_timestamps(module) -> None:
@@ -383,7 +396,9 @@ def validate_explicit_selection(module, base: Path) -> None:
     write_record(root, "invalid-run", {"record": identity("invalid-run", completed_at="soon")})
     result = module.select_record(root, "invalid-run")
     expect("an identity-invalid record stays selectable", (result["status"], result["source"]["run_id"]), ("source", "invalid-run"))
-    expect("its identity problems are shown for confirmation", (result["identity_missing"], len(result["identity_problems"])), (True, 1))
+    expect("its identity problems are shown for confirmation, not reported as a missing identity",
+           (result["identity_missing"], len(result["identity_problems"]), result["source_identity_problems"] == result["identity_problems"]),
+           (False, 1, True))
     if "completed_at" not in result["identity_problems"][0]:
         problem(f"the timestamp diagnostic must be shown for confirmation, got {result!r}")
     write_record(root, "renamed-dir", {"record": identity("original-name")})
@@ -392,9 +407,23 @@ def validate_explicit_selection(module, base: Path) -> None:
            (result["status"], result["source"]["run_id"], "run_id" in result["identity_problems"][0]), ("source", "renamed-dir", True))
     write_identity(root, follow_up("fu-invalid-source", "invalid-run", "2026-10-22T10:00:00Z"))
     result = module.select_record(root, "fu-invalid-source")
-    expect("a follow-up resolves to a source whose identity is invalid, with its problems",
-           (result["status"], result["source"]["run_id"], result["identity_missing"], len(result["identity_problems"])),
-           ("source", "invalid-run", True, 1))
+    expect("a follow-up resolves to a source whose identity is invalid, with the source's problems apart from its own",
+           (result["status"], result["source"]["run_id"], result["identity_problems"], len(result["source_identity_problems"])),
+           ("source", "invalid-run", [], 1))
+    write_record(root, "fu-invalid-follow-up", {"record": follow_up("fu-invalid-follow-up", "full-run", "later")})
+    write_identity(root, follow_up("fu-over-invalid-follow-up", "fu-invalid-follow-up", "2026-10-23T10:00:00Z"))
+    result = module.select_record(root, "fu-over-invalid-follow-up")
+    if result["status"] != "error" or "not a full-review" not in result["reason"] or result["source"] is not None:
+        problem(f"a lineage source that is a follow-up with other identity errors must be rejected, got {result!r}")
+    result = module.select_record(root, "fu-invalid-follow-up")
+    expect("a selected follow-up with an invalid identity keeps its own problems apart from a valid source's",
+           (result["status"], result["source"]["run_id"], result["identity_missing"], result["source_identity_problems"]),
+           ("source", "full-run", False, []))
+    expect("the selected follow-up's metadata and problems are shown",
+           (result["selected"]["run_id"], result["selected"]["mode"], result["selected"]["completed_at"], len(result["identity_problems"])),
+           ("fu-invalid-follow-up", "follow-up", "later", 1))
+    if "completed_at" not in result["identity_problems"][0]:
+        problem(f"the selected follow-up's timestamp diagnostic must be shown, got {result!r}")
     write_record(root, "fu-no-lineage", {"record": identity("fu-no-lineage", mode="follow-up")})
     result = module.select_record(root, "fu-no-lineage")
     if result["status"] != "error" or "lineage source" not in result["reason"]:
@@ -473,6 +502,7 @@ def validate_command_line(base: Path) -> None:
 
 def validate_record_discovery() -> None:
     module = load_discovery()
+    validate_failure_reporting()
     validate_timestamps(module)
     with tempfile.TemporaryDirectory() as directory:
         base = Path(directory)
