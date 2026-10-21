@@ -23,6 +23,7 @@ from repo_checks.scenarios.implementation import (
 from repo_checks.scenarios.portfolio import validate_portfolio_contract
 from repo_checks.scenarios.pr_handoff import validate_multi_ticket_pr_contract, validate_pr_ticket_plan
 from repo_checks.scenarios.reconciliation import validate_reconciliation, validate_reconciliation_contract
+from repo_checks.scenarios.record_discovery import validate_record_discovery
 from repo_checks.scenarios.review_citations import validate_review_citations
 from repo_checks.scenarios.spec_naming import validate_spec_naming_contract
 from repo_checks.scenarios.tracker import (
@@ -52,6 +53,7 @@ def main() -> int:
         validate_native_agents()
         validate_generated_agents_untracked()
         validate_deep_review()
+        validate_record_discovery()
         validate_deep_review_generation()
         validate_agent_generation_contract()
         validate_portfolio_contract()

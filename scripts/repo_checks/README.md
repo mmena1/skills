@@ -30,6 +30,7 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | `scenarios/pr_handoff` | Ticket plan scenarios and the multi-ticket handoff wording. |
 | `scenarios/review_citations` | Anchor and commit attribution scenarios over a disposable Git repository, and the implementation-review citation wording. |
 | `scenarios/deep_review` | The deep-review group and its mutation self-tests. |
+| `scenarios/record_discovery` | The deep-review preserved-record discovery script (`skills/deep-review/scripts/discover_records.py`): timestamp instants, source selection, skipped records, explicit selection and lineage, and read-only behavior, over disposable record roots. |
 | `scenarios/agent_generation` | Generator runs over temporary skill copies, for the fixture skill and deep review. |
 | `scenarios/spec_naming` | The spec naming convention (`Spec: <name>` titles and `spec.md` paths) in `/to-spec`, the tracker seeds, `/design-review`, and `/to-tickets`, and the `setup-skills` legacy-terminology migration wording. |
 | `scenarios/portfolio` | The `/portfolio` read-only, registry-only, and GitHub-tracker-only wording. |
