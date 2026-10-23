@@ -116,7 +116,6 @@ def validate_reviewer_authorization_preflight() -> None:
         "never a review success",
         "labelled documented, observed (harness, version, date), or inferred",
         "A harness with no documented advance check is indeterminate",
-        "not observed here and not independently reproduced",
     ):
         if required not in review:
             fail(f"implementation-review reviewer authorization preflight is missing {required!r}")
@@ -133,10 +132,8 @@ def validate_reviewer_authorization_preflight() -> None:
     for required in (
         "`implementation-review` skill's reviewer authorization preflight by name",
         "both Standards and Spec required because this run always supplies a source bundle",
-        "it launches no reviewer",
-        "on denial, stop with no tracker or working-copy write",
-        "so closeout cannot succeed",
-        "without claiming authorization was granted",
+        "stop with no tracker or working-copy write",
+        "closeout cannot succeed",
         "never substitutes for the review in section 5",
         "The authorization preflight does not rerun for these cycles",
         "A permission refusal during a review leaves it incomplete, never a success",

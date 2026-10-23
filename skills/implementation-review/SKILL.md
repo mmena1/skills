@@ -36,8 +36,6 @@ Before any reviewer is dispatched, assess whether the active harness will author
 | Devin | Inferred, neither observed nor documented: no advance check or advance grant for sub-agent launches was found, so the roles are indeterminate unless the session exposes an explicit grant or refusal. |
 | Claude Code | Documented in this repository (`deep-review` harness mechanisms): a sub-agent launch can be refused at invocation, and agent tool use follows the user's own permission settings. Inferred, neither observed nor documented: no side-effect-free pre-check of a sub-agent launch exists, so the roles are indeterminate unless the session exposes an explicit grant or refusal. |
 
-A maintainer-supplied retrospective reports repeated permission requests for both reviewers after the implementation was committed. It is reported, not observed here and not independently reproduced, so it supports no harness row.
-
 ## Process
 
 ### 1. Pin the fixed point
