@@ -1,4 +1,4 @@
-"""Implementation workflow groups: review routing, the working copy, and branch-satisfied blockers.
+"""Implementation workflow groups: review routing, reviewer authorization, the working copy, and branch-satisfied blockers.
 
 Pins the `/implement`, `/write-pr`, and `implementation-review` wording and exercises
 the implementation, reconciliation, and PR handoff models through their scenarios.
@@ -10,7 +10,10 @@ import json
 
 from ..agent_brief import AGENT_BRIEF_HEADING
 from ..common import ROOT, fail
-from ..implementation import branch_satisfied_blocker, implementation_branch_gate, implementation_start_gate
+from ..implementation import (
+    branch_satisfied_blocker, implementation_branch_gate, implementation_start_gate, review_cycle_requests,
+    reviewer_preflight,
+)
 from ..layout import parse_frontmatter
 from ..pr_handoff import pr_ticket_plan
 from ..reconciliation import HELD_TRIAGE_STATES, reconciliation_plan
@@ -80,6 +83,146 @@ def validate_implementation_review_routing_contract() -> None:
         fail("deep-review Codex metadata must remain explicit-only")
     if "implementation-review" in deep_review:
         fail("deep-review must not compose implementation-review as part of explicit deep-review routing")
+
+
+def validate_reviewer_authorization_preflight() -> None:
+    """Pin the reviewer authorization preflight wording and run its simulated instruction scenarios.
+
+    The scenarios model what the instructions require. They are not observations of native
+    harness authorization behavior, and nothing here reports one as observed.
+    """
+    review = (ROOT / "skills/implementation-review/SKILL.md").read_text(encoding="utf-8")
+    implement = (ROOT / "skills/implement/SKILL.md").read_text(encoding="utf-8")
+    for required in (
+        "## Reviewer authorization preflight",
+        "The preflight never launches a reviewer",
+        "no dummy, probe, or fabricated reviewer tests a permission",
+        "Standards is always required. Spec is required whenever an originating source is available.",
+        "may skip Spec as \"no spec available\"",
+        "with both Standards and Spec required, because it always supplies a source bundle",
+        "- **Established**",
+        "Proceed with no added confirmation prompt",
+        "- **Known blocked**",
+        "Request once the narrowest authorization the harness supports, scoped to this ticket's review",
+        "A grant authorizes only the roles it covers",
+        "covering the review's fixed-point re-review iterations",
+        "On denial, stop and report the affected roles and the consequence",
+        "- **Indeterminate**",
+        "continue without stating or implying that authorization has been granted",
+        "Never infer one role's authorization from another's",
+        "Never request a global, broader-than-ticket, or permanent permission",
+        "weaken a reviewer's permissions or read-only contract",
+        "substitute a coordinator-only check",
+        "where the harness itself prompts per invocation, those prompts are the harness's",
+        "never a review success",
+        "labelled documented, observed (harness, version, date), or inferred",
+        "A harness with no documented advance check is indeterminate",
+    ):
+        if required not in review:
+            fail(f"implementation-review reviewer authorization preflight is missing {required!r}")
+    for harness in ("Codex", "Devin", "Claude Code"):
+        if f"| {harness} |" not in review:
+            fail(f"implementation-review harness mechanisms table has no {harness} row")
+
+    gates = implement.partition("## 2. Pass the start gates")[2].partition("## 3.")[0]
+    preflight = gates.find("reviewer authorization preflight")
+    if not 0 <= gates.find("Verify either that the governing parent/spec") < gates.find("verify it is open") < preflight:
+        fail("/implement must apply the reviewer authorization preflight after the authority and ticket-state gates")
+    if not 0 <= preflight < gates.find("If HEAD is detached") < gates.find("Claim the ticket"):
+        fail("/implement must apply the reviewer authorization preflight before branch creation and the claim")
+    for required in (
+        "`implementation-review` skill's reviewer authorization preflight by name",
+        "with both Standards and Spec required.",
+        "stop with no tracker or working-copy write",
+        "reviewer authorization preflight outcome",
+    ):
+        if required not in implement:
+            fail(f"/implement reviewer authorization preflight is missing {required!r}")
+    if "reviewer-authorization" in implement or "implementation-review/" in gates:
+        fail("/implement must apply the preflight by skill name, not by file path")
+
+    both_established = {"Standards": "established", "Spec": "established"}
+    scenarios = {
+        "simulated: both roles established proceed with no request": (
+            dict(context="implement", source_available=True, states=both_established),
+            dict(required=["Standards", "Spec"], requests=0, outcome="proceed", writes_allowed=True,
+                 authorized=["Standards", "Spec"], disclosed=[]),
+        ),
+        "simulated: one role denied stops before any write": (
+            dict(context="implement", source_available=True, grant=frozenset(),
+                 states={"Standards": "established", "Spec": "blocked"}),
+            dict(requests=1, request_scope=["Standards", "Spec"], outcome="stop", affected=["Spec"],
+                 writes_allowed=False, authorized=[]),
+        ),
+        "simulated: a grant covering every blocked role proceeds": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards", "Spec"}),
+                 states={"Standards": "blocked", "Spec": "blocked"}),
+            dict(requests=1, outcome="proceed", writes_allowed=True, authorized=["Standards", "Spec"]),
+        ),
+        "simulated: missing preflight support is indeterminate and discloses": (
+            dict(context="implement", source_available=True, states={}),
+            dict(requests=0, outcome="proceed", writes_allowed=True, disclosed=["Standards", "Spec"], authorized=[]),
+        ),
+        "simulated: a grant for one role leaves an indeterminate role unauthorized and disclosed": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards"}),
+                 states={"Standards": "blocked", "Spec": "indeterminate"}),
+            dict(requests=1, outcome="proceed", writes_allowed=True, authorized=["Standards"], disclosed=["Spec"],
+                 affected=[]),
+        ),
+        "simulated: a partial grant leaves a blocked role blocked and stops": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards"}),
+                 states={"Standards": "blocked", "Spec": "blocked"}),
+            dict(requests=1, outcome="stop", writes_allowed=False, affected=["Spec"], authorized=[]),
+        ),
+        "simulated: a role established does not cover an indeterminate one": (
+            dict(context="implement", source_available=True, states={"Standards": "established"}),
+            dict(outcome="proceed", disclosed=["Spec"], authorized=["Standards"]),
+        ),
+        "simulated: a standalone run without a source skips Spec": (
+            dict(context="standalone", source_available=False, states={"Standards": "established"}),
+            dict(required=["Standards"], skipped=["Spec"], requests=0, outcome="proceed", disclosed=[]),
+        ),
+        "simulated: a standalone run with a source requires Spec": (
+            dict(context="standalone", source_available=True, states=both_established),
+            dict(required=["Standards", "Spec"], skipped=[]),
+        ),
+        "simulated: /implement requires Spec even when the standalone source flag is unset": (
+            dict(context="implement", source_available=False, states=both_established),
+            dict(required=["Standards", "Spec"], skipped=[]),
+        ),
+    }
+    for label, (arguments, expected) in scenarios.items():
+        result = reviewer_preflight(**arguments)
+        for key, value in expected.items():
+            if result[key] != value:
+                fail(f"reviewer authorization preflight: {label} gave {key}={result[key]!r} (expected {value!r})")
+
+    granted = reviewer_preflight(
+        context="implement", source_available=True, grant=frozenset({"Standards"}),
+        states={"Standards": "blocked", "Spec": "established"},
+    )
+    mixed = reviewer_preflight(
+        context="implement", source_available=True, states={"Standards": "established", "Spec": "indeterminate"},
+    )
+    cycle_scenarios = {
+        "simulated: repeated cycles add no skill request after a grant": (
+            dict(preflight=granted, cycles=3, per_invocation=False),
+            dict(skill_requests=0, harness_prompts=0, advance_coverage_claimed=True),
+        ),
+        "simulated: repeated cycles claim no whole-review coverage while a required role is indeterminate": (
+            dict(preflight=mixed, cycles=3, per_invocation=False),
+            dict(skill_requests=0, harness_prompts=0, advance_coverage_claimed=False),
+        ),
+        "simulated: repeated cycles under per-invocation prompts claim no advance coverage": (
+            dict(preflight=reviewer_preflight(context="implement", source_available=True, states={}), cycles=3,
+                 per_invocation=True),
+            dict(skill_requests=0, harness_prompts=6, advance_coverage_claimed=False),
+        ),
+    }
+    for label, (arguments, expected) in cycle_scenarios.items():
+        result = review_cycle_requests(**arguments)
+        if result != expected:
+            fail(f"reviewer authorization preflight: {label} gave {result} (expected {expected})")
 
 
 def validate_implementation_working_copy_contract() -> None:

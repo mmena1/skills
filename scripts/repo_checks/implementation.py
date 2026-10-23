@@ -129,3 +129,55 @@ def implementation_branch_gate(*, current: str, detached: bool, default: str, cr
     if detached or current == default:
         return "branch" if created else "stop"
     return "continue" if current else "stop"
+
+
+def reviewer_preflight(
+    *, context: str, source_available: bool, states: dict[str, str], grant: frozenset[str] | None = None,
+) -> dict:
+    """Model implementation-review's reviewer authorization preflight over a simulated harness.
+
+    `context` is "implement" (both roles required, a source bundle is always supplied) or
+    "standalone" (Spec required only when a source is available, else skipped as "no spec
+    available"). `states` maps a role to "established", "blocked", or "indeterminate"; a role
+    the harness reports nothing about is indeterminate. `grant` is the set of roles the answer
+    to the single narrow request covers, or None when no request is made; a grant never
+    authorizes a role it does not cover. Returns the required roles, the outcome ("proceed"
+    or "stop"), the requests made, the roles still blocked, the roles disclosed as
+    indeterminate, the roles authorized, and whether any tracker or working-copy write is
+    allowed. The preflight launches nothing, so no reviewer outcome is modelled.
+    """
+    required = ["Standards"]
+    skipped = []
+    if context == "implement" or source_available:
+        required.append("Spec")
+    else:
+        skipped.append("Spec")
+    assessed = {role: states.get(role, "indeterminate") for role in required}
+    blocked = [role for role, state in assessed.items() if state == "blocked"]
+    requests = 1 if blocked else 0
+    covered = set(grant or ()) & set(required) if blocked else set()
+    authorized = [role for role in required if assessed[role] == "established" or role in covered]
+    remaining = [role for role in blocked if role not in covered]
+    indeterminate = [role for role in required if assessed[role] == "indeterminate" and role not in covered]
+    stop = bool(remaining)
+    return {
+        "required": required, "skipped": skipped, "requests": requests, "request_scope": required if blocked else [],
+        "outcome": "stop" if stop else "proceed", "affected": remaining,
+        "disclosed": [] if stop else indeterminate, "authorized": [] if stop else authorized,
+        "writes_allowed": not stop,
+    }
+
+
+def review_cycle_requests(*, preflight: dict, cycles: int, per_invocation: bool) -> dict:
+    """Requests the skill itself adds across `cycles` review cycles after the preflight.
+
+    The preflight is never repeated for re-review, so the skill adds none. A harness that
+    prompts per invocation prompts for itself, once per required role per cycle, and the
+    skill then claims no advance coverage for those prompts. Whole-review advance coverage
+    needs every required role authorized; a role left indeterminate leaves it unclaimed.
+    """
+    return {
+        "skill_requests": 0,
+        "harness_prompts": cycles * len(preflight["required"]) if per_invocation else 0,
+        "advance_coverage_claimed": not per_invocation and set(preflight["authorized"]) == set(preflight["required"]),
+    }
