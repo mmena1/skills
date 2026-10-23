@@ -1,6 +1,6 @@
 # Comment Audience Scenarios
 
-Use when changing audience routing or tone instructions. These synthetic review inputs exercise wording only; they are not evidence from a real PR or an execution of the scout/validator pipeline. The examples below were drafted and assessed by the implementing coordinator for issue #94 using the publication instructions and selected tone guide. They were not posted. This is a bounded wording check, not a model benchmark or proof of GitHub publication behavior.
+Use when changing audience routing or tone instructions. These synthetic review inputs exercise wording only; they are not evidence from a real PR or an execution of the scout/validator pipeline. The examples below were drafted and assessed by the implementing coordinator for issues #94 and #146 using the publication instructions and selected tone guide. They were not posted. This is a bounded wording check, not a model benchmark or proof of GitHub publication behavior.
 
 For a repeat check, keep each input fixed and draft once with an omitted audience, once with explicit `human`, and once with explicit `agent`. Omitted and explicit human selections should follow the same voice, without requiring identical text. Assess the drafts against the source concern and recommendation, rather than asserting exact strings. Retain drafts and the assessment; do not infer wording quality from passing deterministic checks.
 
@@ -62,6 +62,48 @@ Agent draft:
 
 Assessment: both remain questions about evidence and uncertainty. The agent draft states the missing proof and why it matters. Neither asserts duplicate coverage, recommends removal, or turns suspicion into an implementation directive.
 
+## Outcome precision: fix-now
+
+These cases check `audience: agent` wording only. For each input, three agent drafts contrast a vague goal, an over-prescriptive fix, and an outcome-oriented comment. Only the outcome-oriented draft is a target. Judge the drafts on whether they keep the failure, consequence, certainty, required outcome, material correctness constraints, and evidence-backed verification, and on whether they leave solution design, internal abstractions, and test implementation to the implementing agent unless the evidence or a genuine boundary requires otherwise.
+
+### Several implementation strategies are acceptable
+
+Input: high severity, distinct overlap. `ImportJob.run()` calls `readAllRows()`, which holds the whole CSV in memory, so a file near the documented 2 GB limit exhausts the configured heap. The confirmed recommendation requires importing without retaining the whole file, preserving row order and per-row error reporting. Streaming and fixed-size batching would both satisfy it, and the evidence does not choose. Existing ordering and error-report scenarios apply, and a file at the documented limit is the failing scenario.
+
+Vague draft:
+
+> `ImportJob` uses too much memory. Please make it more efficient.
+
+Over-prescriptive draft:
+
+> Replace `readAllRows()` with a new `RowStreamer` class wrapping a `BufferedReader` with an 8192-character buffer, inject it through `ImportJob`'s constructor, and add a Mockito test for `RowStreamer`.
+
+Outcome-oriented draft:
+
+> `ImportJob.run()` loads the whole file through `readAllRows()`, so an import near the documented 2 GB limit exhausts the configured heap. Import without retaining the whole file, keeping row order and per-row error reporting unchanged; streaming or fixed-size batches are both acceptable. Verify that a file at the documented limit imports under the configured heap and that the existing ordering and error-report scenarios still pass.
+
+Assessment: the vague draft names no failure, outcome, or constraint, so a literal edit could leave the heap exhaustion in place. The over-prescriptive draft mandates a class, a buffer size, a wiring choice, and a test technique the evidence never established. The outcome-oriented draft keeps the failure, the success condition, and the ordering and error-reporting constraints, names the two acceptable strategies as illustrations, and leaves the design and the tests to the implementing agent.
+
+### A real API boundary must be retained
+
+Input: high severity, distinct overlap. To let `PluginHost` hooks record audit events, the PR makes `AuditTrail` public. That exposes its write path to every plugin and breaks the documented rule that only types exported from `audit-api` are public. The confirmed recommendation requires hooks to record events through the exported `AuditSink` while `AuditTrail` stays internal. How `PluginHost` obtains the sink is not established. Existing `ApiSurfaceTest` and the plugin audit scenario apply.
+
+Vague draft:
+
+> Making `AuditTrail` public is a problem. Please find a better way.
+
+Over-prescriptive draft:
+
+> Revert the visibility change, create an `AuditFacade` with a `record()` method, pass it into `PluginHost` as a constructor argument, and cover it with new mocks.
+
+Outcome-oriented draft:
+
+> Making `AuditTrail` public exposes its write path to every plugin and breaks the rule that only `audit-api` exports are public. Hooks must record events through the exported `AuditSink`, and `AuditTrail` must stay internal; that boundary is required. How `PluginHost` obtains the sink is open. Verify that plugins can still record audit events and that `ApiSurfaceTest` still passes.
+
+Assessment: the vague draft gives no outcome or boundary. The over-prescriptive draft invents a facade, a wiring shape, and a test approach the finding does not support, and it never states the exported seam that actually matters. The outcome-oriented draft retains the boundary as a requirement, because correctness depends on it, and leaves everything the boundary does not decide to the implementing agent.
+
 ## Verification record
 
 The coordinator assessed all four pairs against the criteria above: human voice preserved, useful agent wording differences, and retained outcomes, constraints, applicable verification expectations, and certainty. Omitted audience routing uses the human guide; explicit human follows the same guide. Those selection paths and the shared policy clauses are checked mechanically by `scripts/check.py`, including mutation checks that reject removed routes and safeguards. The eight drafts above assess language, independently of those deterministic results; no exact-text assertions apply to generated wording.
+
+For issue #146 the coordinator also drafted the two outcome precision cases with the revised agent guide and assessed each outcome-oriented draft against the same criteria. Both retain the observed failure, consequence, certainty, required outcome, material correctness constraints, and the evidence-backed verification, and neither mandates a class, wiring, or test technique the input did not establish. The existing `fix-now` agent draft above already follows this pattern: it fixes the three outcomes and forbids false success without choosing an implementation. Because the same coordinator wrote the guide and the drafts, a repeat check by a separate drafting pass remains the stronger test.
