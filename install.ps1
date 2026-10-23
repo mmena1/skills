@@ -1,3 +1,17 @@
+<#
+.SYNOPSIS
+Install portable skills and native reviewer agents for selected harnesses.
+.PARAMETER CodexHome
+Absolute Windows Codex configuration directory. Precedence: -CodexHome, non-empty
+CODEX_HOME, then .codex under HomePath (the user's home by default). Quote paths
+with spaces. This changes only the Codex agent destination, not shared skills or
+harness selection. Invalid selected targets fail before destination changes.
+Codex agents are marked regular-file copies; rerun after updates to refresh them.
+From WSL, use install.sh --codex --codex-home '/mnt/c/Users/your-name/.codex'
+to explicitly select a Desktop directory. WSL alone never redirects installation.
+.EXAMPLE
+./install.ps1 -Codex -CodexHome 'C:\Users\your-name\Desktop config'
+#>
 [CmdletBinding()]
 param(
     [switch]$Codex,
@@ -5,6 +19,8 @@ param(
     [switch]$Claude,
     [switch]$All,
     [switch]$Experimental,
+    [ValidateNotNullOrEmpty()]
+    [string]$CodexHome,
     [string]$HomePath = $HOME
 )
 
@@ -347,6 +363,32 @@ function Stop-Install {
     exit 1
 }
 
+# Opening a directory handle checks effective Windows access without writing a probe.
+function Test-CodexDirectoryWritable {
+    param([string]$Path)
+    if (-not ('SkillsInstallerDirectoryAccess' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class SkillsInstallerDirectoryAccess {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(string path, uint access,
+        uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    public static bool CanCreateEntries(string path) {
+        // FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY, shared access, OPEN_EXISTING,
+        // FILE_FLAG_BACKUP_SEMANTICS permits opening the directory itself.
+        using (var handle = CreateFileW(path, 0x6, 0x7, IntPtr.Zero, 3,
+                                       0x02000000, IntPtr.Zero)) {
+            return !handle.IsInvalid;
+        }
+    }
+}
+'@
+    }
+    return [SkillsInstallerDirectoryAccess]::CanCreateEntries($Path)
+}
+
 # Generated agents are ignored install artifacts. Regenerate them for every selected
 # skill that declares roles before any destination changes, so a missing Python or a
 # malformed manifest stops the run without a stale or partial agent install.
@@ -406,9 +448,10 @@ function Install-Agents {
 $installCodex = $Codex -or $All
 $installDevin = $Devin -or $All
 $installClaude = $Claude -or $All
+$codexConfigRoot = if ($PSBoundParameters.ContainsKey('CodexHome')) { $CodexHome } elseif ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HomePath '.codex' }
 if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
     $installCodex = [bool](Get-Command codex -ErrorAction SilentlyContinue) -or
-        (Test-Path -LiteralPath (Join-Path $HomePath '.codex')) -or
+        (Test-Path -LiteralPath $codexConfigRoot) -or
         (Test-Path -LiteralPath (Join-Path $HomePath '.agents'))
     $installDevin = [bool](Get-Command devin -ErrorAction SilentlyContinue) -or
         (Test-Path -LiteralPath (Join-Path $HomePath '.config/devin'))
@@ -416,6 +459,49 @@ if (-not $Codex -and -not $Devin -and -not $Claude -and -not $All) {
         (Test-Path -LiteralPath (Join-Path $HomePath '.claude'))
     if (-not $installCodex -and -not $installDevin -and -not $installClaude) {
         throw 'No supported harness detected. Use -Codex, -Devin, -Claude, or -All.'
+    }
+}
+
+if ($installCodex) {
+    try {
+        if ($codexConfigRoot -notmatch '^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/]+[\\/][^\\/]+)') {
+            throw 'Use an absolute Windows directory path.'
+        }
+        $codexConfigRoot = [System.IO.Path]::GetFullPath($codexConfigRoot)
+        $filesystemRoot = [System.IO.Path]::GetPathRoot($codexConfigRoot)
+        $probe = Join-Path $codexConfigRoot 'agents'
+        $checkedAccess = $false
+        while ($probe) {
+            $item = $null
+            try {
+                $item = Get-Item -LiteralPath $probe -Force -ErrorAction Stop
+            } catch [System.Management.Automation.ItemNotFoundException] {
+                # A missing directory can be created beneath an existing filesystem root.
+            }
+            if ($null -ne $item -and -not $item.PSIsContainer) {
+                throw "Not a directory: $probe"
+            }
+            if ($null -ne $item -and -not (Test-Path -LiteralPath $probe -PathType Container)) {
+                throw "Not an accessible directory: $probe"
+            }
+            if ($null -ne $item -and -not $checkedAccess) {
+                if (-not (Test-CodexDirectoryWritable $item.FullName)) {
+                    throw "Not a writable directory: $probe"
+                }
+                $checkedAccess = $true
+            }
+            if ($probe.TrimEnd('\', '/') -eq $filesystemRoot.TrimEnd('\', '/')) {
+                if ($null -eq $item) { throw "No accessible filesystem root: $probe" }
+                break
+            }
+            $parent = Split-Path -Parent $probe
+            if (-not $parent -and $null -eq $item) {
+                throw "No accessible filesystem root: $probe"
+            }
+            $probe = $parent
+        }
+    } catch {
+        Stop-Install "Invalid Codex configuration directory: $codexConfigRoot. $($_.Exception.Message) No destination was changed."
     }
 }
 
@@ -428,7 +514,7 @@ if ($installDevin) {
 }
 if ($installClaude) { Install-Collection (Join-Path $HomePath '.claude/skills') }
 $devinAgents = if ($env:APPDATA) { Join-Path $env:APPDATA 'devin/agents' } else { Join-Path $HomePath '.config/devin/agents' }
-if ($installCodex) { Install-Agents 'codex' (Join-Path $HomePath '.codex/agents') }
+if ($installCodex) { Install-Agents 'codex' (Join-Path $codexConfigRoot 'agents') }
 if ($installDevin) {
     Install-Agents 'devin' $devinAgents
     Remove-LegacyDeepReviewDevin @((Join-Path $HomePath '.config/devin/agents'), $devinAgents)

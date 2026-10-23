@@ -9,30 +9,49 @@ INSTALL_DEVIN=0
 INSTALL_CLAUDE=0
 SELECTED_HARNESS=0
 INCLUDE_EXPERIMENTAL=0
+CODEX_CONFIG_TARGET=""
 
 usage() {
   cat <<'EOF'
 Usage: ./install.sh [--codex] [--devin] [--claude] [--all] [--experimental]
+                    [--codex-home DIRECTORY]
 
 With no harness option, install stable skills into every detected supported
 harness. Codex and Devin share ~/.agents/skills. Native reviewer agents that a
 selected skill ships are generated from its harnesses/roles.toml, which needs
-Python 3.11 or newer, and linked into each selected harness's agent directory.
+Python 3.11 or newer. Codex agents are marked regular-file copies; rerun to refresh
+them after repository updates. Other harness agents are linked when possible.
+Codex configuration precedence: --codex-home, non-empty CODEX_HOME, ~/.codex.
+Use an absolute path accessible to Bash, quoted when it contains spaces. From
+WSL, select a Desktop directory explicitly, e.g. --codex --codex-home
+'/mnt/c/Users/your-name/.codex'. WSL alone never redirects the destination.
+This option changes only the Codex agent target, not shared skills or harness
+selection. Invalid selected Codex targets fail before destination changes.
 Set SKILLS_INSTALLER_PYTHON to choose the Python interpreter.
 --experimental additionally installs skills/experimental entries.
 EOF
 }
 
-for argument in "$@"; do
+while [ "$#" -gt 0 ]; do
+  argument="$1"
   case "$argument" in
     --codex) INSTALL_CODEX=1; SELECTED_HARNESS=1 ;;
     --devin) INSTALL_DEVIN=1; SELECTED_HARNESS=1 ;;
     --claude) INSTALL_CLAUDE=1; SELECTED_HARNESS=1 ;;
     --all) INSTALL_CODEX=1; INSTALL_DEVIN=1; INSTALL_CLAUDE=1; SELECTED_HARNESS=1 ;;
     --experimental) INCLUDE_EXPERIMENTAL=1 ;;
+    --codex-home)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        echo "Error: --codex-home requires a non-empty directory. No destination was changed." >&2
+        exit 2
+      fi
+      CODEX_CONFIG_TARGET="$2"
+      shift
+      ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
+  shift
 done
 
 is_windows_shell() {
@@ -507,14 +526,44 @@ devin_agents_root() {
   fi
 }
 
+CODEX_CONFIG_ROOT="${CODEX_CONFIG_TARGET:-${CODEX_HOME:-${HOME}/.codex}}"
+
+validate_codex_target() {
+  local probe checked_access=0
+  if is_windows_shell; then
+    CODEX_CONFIG_ROOT="$(cygpath -u "$CODEX_CONFIG_ROOT")" || return 1
+  fi
+  case "$CODEX_CONFIG_ROOT" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  probe="$CODEX_CONFIG_ROOT/agents"
+  while :; do
+    if path_exists "$probe"; then
+      [ -d "$probe" ] || return 1
+      if [ "$checked_access" -eq 0 ]; then
+        [ -w "$probe" ] && [ -x "$probe" ] || return 1
+        checked_access=1
+      fi
+    fi
+    [ "$probe" != / ] || break
+    probe="$(dirname "$probe")"
+  done
+}
+
 if [ "$SELECTED_HARNESS" -eq 0 ]; then
-  if command -v codex >/dev/null 2>&1 || [ -d "${HOME}/.codex" ] || [ -d "${HOME}/.agents" ]; then INSTALL_CODEX=1; fi
+  if command -v codex >/dev/null 2>&1 || [ -d "$CODEX_CONFIG_ROOT" ] || [ -d "${HOME}/.agents" ]; then INSTALL_CODEX=1; fi
   if command -v devin >/dev/null 2>&1 || [ -d "${HOME}/.config/devin" ]; then INSTALL_DEVIN=1; fi
   if command -v claude >/dev/null 2>&1 || [ -d "${HOME}/.claude" ]; then INSTALL_CLAUDE=1; fi
   if [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_DEVIN" -eq 0 ] && [ "$INSTALL_CLAUDE" -eq 0 ]; then
     echo "No supported harness detected. Use --codex, --devin, --claude, or --all." >&2
     exit 1
   fi
+fi
+
+if [ "$INSTALL_CODEX" -eq 1 ] && ! validate_codex_target; then
+  echo "Error: invalid Codex configuration directory: $CODEX_CONFIG_ROOT. Use an accessible absolute directory path. No destination was changed." >&2
+  exit 1
 fi
 
 collect_selected_skills
@@ -526,7 +575,7 @@ if [ "$INSTALL_DEVIN" -eq 1 ]; then
   reconcile_collection "${HOME}/.config/devin/skills" "|"
 fi
 if [ "$INSTALL_CLAUDE" -eq 1 ]; then install_collection "${HOME}/.claude/skills"; fi
-if [ "$INSTALL_CODEX" -eq 1 ]; then install_agents codex "${HOME}/.codex/agents"; fi
+if [ "$INSTALL_CODEX" -eq 1 ]; then install_agents codex "$CODEX_CONFIG_ROOT/agents"; fi
 if [ "$INSTALL_DEVIN" -eq 1 ]; then
   install_agents devin "$(devin_agents_root)"
   remove_legacy_deep_review_devin
