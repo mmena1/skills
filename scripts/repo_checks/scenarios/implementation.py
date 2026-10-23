@@ -104,6 +104,7 @@ def validate_reviewer_authorization_preflight() -> None:
         "Proceed with no added confirmation prompt",
         "- **Known blocked**",
         "Request once the narrowest authorization the harness supports, scoped to this ticket's review",
+        "A grant authorizes only the roles it covers",
         "covering the review's fixed-point re-review iterations",
         "On denial, stop and report the affected roles and the consequence",
         "- **Indeterminate**",
@@ -148,19 +149,30 @@ def validate_reviewer_authorization_preflight() -> None:
                  authorized=["Standards", "Spec"], disclosed=[]),
         ),
         "simulated: one role denied stops before any write": (
-            dict(context="implement", source_available=True, grant=False,
+            dict(context="implement", source_available=True, grant=frozenset(),
                  states={"Standards": "established", "Spec": "blocked"}),
             dict(requests=1, request_scope=["Standards", "Spec"], outcome="stop", affected=["Spec"],
                  writes_allowed=False, authorized=[]),
         ),
-        "simulated: a grant of the single request proceeds": (
-            dict(context="implement", source_available=True, grant=True,
+        "simulated: a grant covering every blocked role proceeds": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards", "Spec"}),
                  states={"Standards": "blocked", "Spec": "blocked"}),
             dict(requests=1, outcome="proceed", writes_allowed=True, authorized=["Standards", "Spec"]),
         ),
         "simulated: missing preflight support is indeterminate and discloses": (
             dict(context="implement", source_available=True, states={}),
             dict(requests=0, outcome="proceed", writes_allowed=True, disclosed=["Standards", "Spec"], authorized=[]),
+        ),
+        "simulated: a grant for one role leaves an indeterminate role unauthorized and disclosed": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards"}),
+                 states={"Standards": "blocked", "Spec": "indeterminate"}),
+            dict(requests=1, outcome="proceed", writes_allowed=True, authorized=["Standards"], disclosed=["Spec"],
+                 affected=[]),
+        ),
+        "simulated: a partial grant leaves a blocked role blocked and stops": (
+            dict(context="implement", source_available=True, grant=frozenset({"Standards"}),
+                 states={"Standards": "blocked", "Spec": "blocked"}),
+            dict(requests=1, outcome="stop", writes_allowed=False, affected=["Spec"], authorized=[]),
         ),
         "simulated: a role established does not cover an indeterminate one": (
             dict(context="implement", source_available=True, states={"Standards": "established"}),
@@ -186,12 +198,20 @@ def validate_reviewer_authorization_preflight() -> None:
                 fail(f"reviewer authorization preflight: {label} gave {key}={result[key]!r} (expected {value!r})")
 
     granted = reviewer_preflight(
-        context="implement", source_available=True, grant=True, states={"Standards": "blocked", "Spec": "established"},
+        context="implement", source_available=True, grant=frozenset({"Standards"}),
+        states={"Standards": "blocked", "Spec": "established"},
+    )
+    mixed = reviewer_preflight(
+        context="implement", source_available=True, states={"Standards": "established", "Spec": "indeterminate"},
     )
     cycle_scenarios = {
         "simulated: repeated cycles add no skill request after a grant": (
             dict(preflight=granted, cycles=3, per_invocation=False),
             dict(skill_requests=0, harness_prompts=0, advance_coverage_claimed=True),
+        ),
+        "simulated: repeated cycles claim no whole-review coverage while a required role is indeterminate": (
+            dict(preflight=mixed, cycles=3, per_invocation=False),
+            dict(skill_requests=0, harness_prompts=0, advance_coverage_claimed=False),
         ),
         "simulated: repeated cycles under per-invocation prompts claim no advance coverage": (
             dict(preflight=reviewer_preflight(context="implement", source_available=True, states={}), cycles=3,
