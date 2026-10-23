@@ -88,7 +88,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-Apply the reviewer authorization preflight first, unless the invoking workflow already applied it for this review. `/implement` applies it once in its start gates and does not repeat it for re-review cycles.
+Apply the reviewer authorization preflight first, unless the invoking workflow already applied it for this review.
 
 Both prompts carry these **anchor rules**, pasted in full:
 
