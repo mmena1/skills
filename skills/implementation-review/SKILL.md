@@ -14,6 +14,30 @@ Run this workflow for explicit implementation-conformance review or when an alre
 
 The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-skills`.
 
+## Reviewer authorization preflight
+
+Before any reviewer is dispatched, assess whether the active harness will authorize the reviewer roles this review needs, so a blocked role surfaces before work is stranded in review. The preflight never launches a reviewer: no dummy, probe, or fabricated reviewer tests a permission.
+
+**Required roles.** Standards is always required. Spec is required whenever an originating source is available. A standalone run applies the preflight after step 2 has resolved whether a source exists and before step 4, and may skip Spec as "no spec available". When `/implement` composes this skill it applies the preflight in its start gates with both Standards and Spec required, because it always supplies a source bundle.
+
+**Assessment.** Classify each required role, using only capability or approval information the active harness reliably exposes without side effects. Never infer one role's authorization from another's, or from user intent or these instructions.
+
+- **Established**: the harness reports the role as authorized. Proceed with no added confirmation prompt.
+- **Known blocked**: the harness reports the role as refused or as needing approval it has not given. Request once the narrowest authorization the harness supports, scoped to this ticket's review, naming every required role and covering the review's fixed-point re-review iterations. On grant, proceed. On denial, stop and report the affected roles and the consequence: the review cannot complete, so closeout cannot succeed. The user can still grant the permission with the harness's supported controls and rerun.
+- **Indeterminate**: no reliable non-mutating check exists, or the harness approves only at invocation. Explain the limitation, name the affected roles and the possible consequence, and continue without stating or implying that authorization has been granted.
+
+**Limits.** Never request a global, broader-than-ticket, or permanent permission, weaken a reviewer's permissions or read-only contract, or substitute a coordinator-only check for a blocked role. The preflight is one assessment and at most one request. Repeated review cycles add no request of this skill's own when the harness permits the requested scope; where the harness itself prompts per invocation, those prompts are the harness's, and the preflight must not claim advance coverage for them. A permission failure during the actual review is an incomplete review under step 5, never a review success.
+
+**Harness mechanisms.** Each statement is labelled documented, observed (harness, version, date), or inferred. A harness with no documented advance check is indeterminate.
+
+| Harness | Advance check and grant |
+| --- | --- |
+| Codex | Documented in this repository (`GLOSSARY.md`): native reviewer agents inherit the parent's effective sandbox and approval policy. Inferred, neither observed nor documented: this skill's reviewers inherit it the same way, and no side-effect-free query of whether a reviewer launch will be approved exists, so the roles are indeterminate unless the session exposes an explicit grant or refusal. |
+| Devin | Inferred, neither observed nor documented: no advance check or advance grant for sub-agent launches was found, so the roles are indeterminate unless the session exposes an explicit grant or refusal. |
+| Claude Code | Documented in this repository (`deep-review` harness mechanisms): a sub-agent launch can be refused at invocation, and agent tool use follows the user's own permission settings. Inferred, neither observed nor documented: no side-effect-free pre-check of a sub-agent launch exists, so the roles are indeterminate unless the session exposes an explicit grant or refusal. |
+
+A maintainer-supplied retrospective reports repeated permission requests for both reviewers after the implementation was committed. It is reported, not observed here and not independently reproduced, so it supports no harness row.
+
 ## Process
 
 ### 1. Pin the fixed point
@@ -65,6 +89,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 - **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
 ### 4. Spawn both sub-agents in parallel
+
+Apply the reviewer authorization preflight first, unless the invoking workflow already applied it for this review. `/implement` applies it once in its start gates and does not repeat it for re-review cycles.
 
 Both prompts carry these **anchor rules**, pasted in full:
 

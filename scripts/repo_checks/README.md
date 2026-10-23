@@ -19,13 +19,13 @@ Imports point one way: `scenarios/` modules and `check.py` import models, and mo
 | `agent_brief` | Agent Brief completeness, trusted authorship, and comment precedence. |
 | `tracker_contract` | Tracker capabilities, downstream gates, standalone authority modes, the branch-satisfied operation, and authority resolution. |
 | `reconciliation` | The `/reconcile` readiness classification and reconciliation plan model. |
-| `implementation` | The `/implement` start gate, branch gate, and branch-satisfied blocker models. |
+| `implementation` | The `/implement` start gate, branch gate, branch-satisfied blocker, and reviewer authorization preflight models. |
 | `pr_handoff` | The `/write-pr` ticket plan model and the pinned PR/merge handoff sentences. |
 | `review_citations` | The implementation-review source anchor, commit attribution, and aggregation model, with its pinned Git commands. |
 | `native_agents` | In-memory rendering of every role manifest and generated-file ownership in Git. |
 | `deep_review` | Deep-review pinned roles, the lens catalog, and each document rule catalog with its `*_problems` checker. |
 | `scenarios/tracker` | Tracker capability, implementation authority, and standalone authority mode groups. |
-| `scenarios/implementation` | Review routing, working copy, and branch-satisfied blocker groups. |
+| `scenarios/implementation` | Review routing, reviewer authorization preflight, working copy, and branch-satisfied blocker groups. The preflight scenarios are simulated instruction scenarios, never observed harness behavior. |
 | `scenarios/reconciliation` | Reconciliation plan scenarios and the reconciliation migration contract. |
 | `scenarios/pr_handoff` | Ticket plan scenarios and the multi-ticket handoff wording. |
 | `scenarios/review_citations` | Anchor and commit attribution scenarios over a disposable Git repository, and the implementation-review citation wording. |

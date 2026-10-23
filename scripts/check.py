@@ -18,7 +18,7 @@ from repo_checks.scenarios.agent_generation import validate_agent_generation_con
 from repo_checks.scenarios.deep_review import validate_deep_review
 from repo_checks.scenarios.implementation import (
     validate_branch_satisfied_blockers, validate_implementation_review_routing_contract,
-    validate_implementation_working_copy_contract,
+    validate_implementation_working_copy_contract, validate_reviewer_authorization_preflight,
 )
 from repo_checks.scenarios.portfolio import validate_portfolio_contract
 from repo_checks.scenarios.pr_handoff import validate_multi_ticket_pr_contract, validate_pr_ticket_plan
@@ -41,6 +41,7 @@ def main() -> int:
         validate_spec_naming_contract()
         validate_implementation_authority_contract()
         validate_implementation_review_routing_contract()
+        validate_reviewer_authorization_preflight()
         validate_review_citations()
         validate_implementation_working_copy_contract()
         validate_standalone_authority_modes()
