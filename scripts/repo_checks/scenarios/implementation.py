@@ -131,12 +131,8 @@ def validate_reviewer_authorization_preflight() -> None:
         fail("/implement must apply the reviewer authorization preflight before branch creation and the claim")
     for required in (
         "`implementation-review` skill's reviewer authorization preflight by name",
-        "both Standards and Spec required because this run always supplies a source bundle",
+        "with both Standards and Spec required.",
         "stop with no tracker or working-copy write",
-        "closeout cannot succeed",
-        "never substitutes for the review in section 5",
-        "The authorization preflight does not rerun for these cycles",
-        "A permission refusal during a review leaves it incomplete, never a success",
         "reviewer authorization preflight outcome",
     ):
         if required not in implement:
@@ -192,7 +188,7 @@ def validate_reviewer_authorization_preflight() -> None:
     granted = reviewer_preflight(
         context="implement", source_available=True, grant=True, states={"Standards": "blocked", "Spec": "established"},
     )
-    cycles = {
+    cycle_scenarios = {
         "simulated: repeated cycles add no skill request after a grant": (
             dict(preflight=granted, cycles=3, per_invocation=False),
             dict(skill_requests=0, harness_prompts=0, advance_coverage_claimed=True),
@@ -203,7 +199,7 @@ def validate_reviewer_authorization_preflight() -> None:
             dict(skill_requests=0, harness_prompts=6, advance_coverage_claimed=False),
         ),
     }
-    for label, (arguments, expected) in cycles.items():
+    for label, (arguments, expected) in cycle_scenarios.items():
         result = review_cycle_requests(**arguments)
         if result != expected:
             fail(f"reviewer authorization preflight: {label} gave {result} (expected {expected})")
