@@ -437,6 +437,10 @@ Local evidence is retained at `/home/martin/.codex/2026-10-09-issue-80-a7ggkq7_/
 
 These observations concern implementation `b0fbf87649bc6b58e93706bcebff8c2ad956b198`, not a new execution of the synthetic worked scenarios. Each PASS below is restricted to its observed path. Historical rows and raw evidence remain unchanged; full acceptance is not established.
 
+### Rebase note
+
+After these observations, the branch was rebased onto `main` at `dcf586e`, which added the scratch-directory contract, complete canonical hypothesis records, record preservation, follow-up discovery, and the probe environment contract. The rebased commits are not the commits that were run. Evidence below stays attributed to the tested commit `b0fbf876`, and no native run has exercised the rebased version, including the static validator scratch directory under capacity accounting. Re-run targeted native smoke against the rebased head before treating any row as evidence for it.
+
 ### Codex: observed lifecycle, incomplete smoke
 
 Sources: the 2026-10-15 local-date report and consolidated state under `<git-common-dir>/deep-review/records/skills-pr129-native-b0fbf876-01a14222/` (`final-report.md` and `run-state.json`), plus native activity in chat `01a14222-f807-7432-9efd-0c7f02f72cbb`. UTC events span 2026-10-16 00:37-00:50. The active desktop version was not exposed; local `codex-cli 0.160.0` is supplementary, not the executing runtime identity. Roles were instruction-enforced under inherited `danger-full-access`, approval `never`. The record declares `deep-review-validator-static`, `gpt-6.1-sol` / `high` from role metadata; no independent provider model trace is claimed.
