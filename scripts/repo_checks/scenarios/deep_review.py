@@ -12,7 +12,8 @@ from ..deep_review import (
     CONCERN_TEXT_KEYS, HYPOTHESIS_TEXT_KEYS, MERGED_TEXT_KEYS, PERSISTED_HYPOTHESIS_FIELDS,
     DEEP_REVIEW_ACCESS_RULES, DEEP_REVIEW_CODEX_ACCESS_CELLS, DEEP_REVIEW_FOLLOW_UP_RULES,
     DEEP_REVIEW_PROBE_ENVIRONMENT_RULES, DEEP_REVIEW_PUBLICATION_RULES, DEEP_REVIEW_RECORD_PRESERVATION_RULES,
-    DEEP_REVIEW_ROLES, HARNESS_SPECIFIC_TEXT,
+    DEEP_REVIEW_RETURN_CHANNEL_RULES, DEEP_REVIEW_ROLES, HARNESS_SPECIFIC_TEXT,
+    deep_review_return_channel_problems,
     deep_review_access_problems, deep_review_audience_problems, deep_review_catalog, deep_review_follow_up_problems,
     deep_review_probe_environment_problems, deep_review_record_preservation_problems,
     deep_review_role_problems, deep_review_scenario_problems,
@@ -78,6 +79,19 @@ def validate_deep_review_access_contract(skill: Path) -> None:
             mutated = {**documents, "SKILL.md": documents["SKILL.md"].replace(expected, f"Enforced by the `{sandbox}` sandbox.")}
             if not deep_review_access_problems(mutated):
                 fail(f"the access check accepted a role-specific Codex sandbox for {mechanism}")
+
+
+def validate_deep_review_return_channel_contract(skill: Path) -> None:
+    """Reject removed return channel rules in the protocol, role contracts, and acceptance matrix."""
+    documents = {relative: (skill / relative).read_text(encoding="utf-8") for relative in DEEP_REVIEW_RETURN_CHANNEL_RULES}
+    problems = deep_review_return_channel_problems(documents)
+    if problems:
+        fail(problems[0])
+    for relative, rules in DEEP_REVIEW_RETURN_CHANNEL_RULES.items():
+        for rule in rules:
+            mutated = {**documents, relative: documents[relative].replace(rule, "")}
+            if not deep_review_return_channel_problems(mutated):
+                fail(f"the return channel check accepted a removed {relative} rule")
 
 
 def validate_deep_review_audience_contract(skill: Path) -> None:
@@ -276,6 +290,7 @@ def validate_deep_review() -> None:
     validate_deep_review_probe_environment_contract(skill)
     validate_deep_review_record_preservation_contract(skill)
     validate_deep_review_access_contract(skill)
+    validate_deep_review_return_channel_contract(skill)
     validate_deep_review_audience_contract(skill)
     roles = {role.name: role for role in generate_agents.load_roles(skill)}
     catalog = deep_review_catalog((skill / "protocol.md").read_text(encoding="utf-8"))
