@@ -22,6 +22,10 @@ Normal reviews exercise only paths they encounter. Keep rare failures and transi
 
 Cross-harness acceptance passes only when collected receipts and targeted smoke evidence show every harness preserves the protocol's state meanings, failure behavior, publication safeguards, and single-worktree invariant. Different hypotheses or wording across harnesses are expected and do not fail behavioral equivalence.
 
+## Return channel assertion
+
+Every targeted smoke run on a harness asserts for each scout and validator invocation that the final assistant response itself contains the required result: `No hypotheses` or the scout hypothesis schema, and one validator outcome schema. Result text printed through `exec`, stdout, or a file with an empty or summary-only final response is a `FAIL`. Normal reviews record the observation passively in the receipt; unobserved invocations stay `NOT EXERCISED`.
+
 ## Writable probe dependency scenarios
 
 Apply [the focused scenarios](references/probe-environment-scenarios.md) at the coordinator setup/handoff, writable validator evidence, consolidated run state, and restoration interfaces when changing the probe environment contract. Check environment provenance and unchanged caller state for every case. Scenario checks and static contract guards are distinct from native runtime evidence. Targeted smoke runs must inspect actual setup/execution commands, runtime and import origins, results, and post-restoration state; a hypothetical answer or a generated agent containing the contract is not a runtime PASS. Preserve unobserved harnesses and paths as `NOT EXERCISED`, including the broader #71 campaign.

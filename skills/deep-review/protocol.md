@@ -74,6 +74,10 @@ Wait for every selected scout. Allow already-running scouts to finish after one 
 
 If the scout wave is complete and every scout succeeds and emits zero hypotheses, do not create validator state or launch a validator. Report that all selected dimensions completed and there was nothing to validate.
 
+## Return channel
+
+Every role invocation returns its result as the role's final assistant response: the scout's hypotheses or `No hypotheses`, and the validator's one outcome in its schema. The dispatch prompt names this channel explicitly: the final response, never `exec`, stdout, or a file. The coordinator consumes only that final response.
+
 ## Hypotheses
 
 A **Hypothesis** is an admission-qualified concern about the committed target awaiting independent adjudication. A scout emits either hypotheses or no hypotheses; it does not settle them.

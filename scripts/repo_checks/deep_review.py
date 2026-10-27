@@ -177,6 +177,33 @@ def deep_review_access_problems(documents: dict[str, str]) -> list[str]:
     return problems
 
 
+DEEP_REVIEW_RETURN_CHANNEL_RULES = {
+    "protocol.md": (
+        "Every role invocation returns its result as the role's final assistant response",
+        "The coordinator consumes only that final response.",
+    ),
+    "reviewers/SCOUT.md": (
+        "Return the result as your final assistant response. Do not emit it through `exec`, stdout, or a file.",
+    ),
+    "reviewers/validator.md": (
+        "as your final assistant response. Do not emit it through `exec`, stdout, or a file.",
+    ),
+    "runtime-acceptance.md": (
+        "asserts for each scout and validator invocation that the final assistant response itself contains the required result",
+    ),
+}
+
+
+def deep_review_return_channel_problems(documents: dict[str, str]) -> list[str]:
+    """Guard that every role returns its result in the final response, not through a shell or file."""
+    return [
+        f"skills/deep-review/{relative}: missing return channel rule {rule!r}"
+        for relative, rules in DEEP_REVIEW_RETURN_CHANNEL_RULES.items()
+        for rule in rules
+        if rule not in documents.get(relative, "")
+    ]
+
+
 DEEP_REVIEW_PUBLICATION_RULES = {
     "references/pr-review-comments.md": (
         "Resolve the audience before drafting approval candidates",
